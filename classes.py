@@ -1,13 +1,14 @@
 from mongoengine import *
+import datetime
 
 class Basic(EmbeddedDocument):
     #namespace = StringField(required=True)
     #Is above needed? should it be saved?
     #how about a creator? or does it matter?
     name = StringField(required=True)
-    uri = StringField()
+    uri = StringField(default="", required=True)
     creator=StringField(required=True)
-    whencreated=DateTimeField(required=True)
+    whencreated=DateTimeField(required=True, default=datetime.datetime.now)
     #Below is a combination of namespace and name
     fqin = StringField(required=True, unique=True)
     description = StringField(default="")
@@ -29,23 +30,22 @@ class Tag(Document):
 class User(Document):
     adsid = StringField(required=True, unique=True)
     #Unless user sets nick, its equal to adsid
-    nickname = StringField(required=True, unique=True)
-    groupsIn = ListField(StringField())
-    groupsOwned = ListField(StringField())
-    groupsInvitedTo = ListField(StringField())
-    appsIn = ListField(StringField())
-    appsOwned = ListField(StringField())
-    appsInvitedTo = ListField(StringField())
+    nick = StringField(required=True, unique=True)
+    groupsin = ListField(StringField())
+    groupsowned = ListField(StringField())
+    groupsinvitedto = ListField(StringField())
+    appsin = ListField(StringField())
+    appsowned = ListField(StringField())
+    appsinvitedto = ListField(StringField())
 
 class Group(Document):
     basic = EmbeddedDocumentField(Basic)
-    owner_ptr = ReferenceField(User)
     owner = StringField(required=True)
     members = ListField(StringField())
+    personalgroup=BooleanField(default=False, required=True)
 
 class App(Document):
     basic = EmbeddedDocumentField(Basic)
-    owner_ptr = ReferenceField(User)
     owner = StringField(required=True)
     members = ListField(StringField())
 #One could use a Generic embedded document to store item specific metadata
@@ -92,12 +92,12 @@ class PostToTag(EmbeddedDocument):
     meta = {'allow_inheritance':True}
     tagfqin=StringField(required=True)
     thingtotagfqin=StringField(required=True)
-    whentagged=DateTimeField(required=True)
+    whentagged=DateTimeField(required=True, default=datetime.datetime.now)
     taggedby=StringField(required=True)
 
 
 class Tagging(PostToTag):
-    tagdescription=StringField(default="")
+    tagdescription=StringField(default="", required=True)
     postedInGroups = ListField(EmbeddedDocumentField(PostToTag))
     postedInApps = ListField(EmbeddedDocumentField(PostToTag))
 
