@@ -50,38 +50,44 @@ class Whosdb():
             doabort('NOT_FND', "User %s not found" % nick)
         return user
 
+    def getUserInfo(self, currentuser, nick):
+        user=self.getUserForNick(currentuser, nick)
+        authorize(False, self, currentuser, user)
+        # permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
+        # permit(self.isMemberOfGroup(usertobenewowner, grp) or self.isSystemUser(usertobenewowner), " User %s must be member of grp %s or systemuser" % (currentuser.nick, grp.fqin))
+        return user
     #Get group object given fqgn, unprotected
     #Bug remove currentuser from here and the cascades. also change signature
-    def getGroup(self, currentuser, fullyQualifiedGroupName):
+    def getGroup(self, currentuser, fqgn):
         try:
-            group=Group.objects(basic__fqin=fullyQualifiedGroupName).get()
+            group=Group.objects(basic__fqin=fqgn).get()
         except:
-            doabort('NOT_FND', "Group %s not found" % fullyQualifiedGroupName)
+            doabort('NOT_FND', "Group %s not found" % fqgn)
         return group
 
     #Get group info given fqgn
-    def getGroupInfo(self, currentuser, fullyQualifiedGroupName):
-        grp=self.getGroup(currentuser, fullyQualifiedGroupName)
+    def getGroupInfo(self, currentuser, fqgn):
+        grp=self.getGroup(currentuser, fqgn)
         #set useras to something not needed in cases where we dont really have useras
         #we use None as it wont match and currentuser being None is already taken care of
         authorize_context_member(False, self, currentuser, None, grp)
         # permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
         # permit(self.isMemberOfGroup(usertobenewowner, grp) or self.isSystemUser(usertobenewowner), " User %s must be member of grp %s or systemuser" % (currentuser.nick, grp.fqin))
-        return grp.to_json()
+        return grp
 
     #Get app object fiven fqan, unprotected.
-    def getApp(self, currentuser, fullyQualifiedAppName):
+    def getApp(self, currentuser, fqan):
         try:
-            app=App.objects(basic__fqin=fullyQualifiedAppName).get()
+            app=App.objects(basic__fqin=fqan).get()
         except:
-            doabort('NOT_FND', "App %s not found" % fullyQualifiedAppName)
+            doabort('NOT_FND', "App %s not found" % fqan)
         return app
 
     #Get app info given fqan
-    def getAppInfo(self, currentuser, fullyQualifiedAppName):
-        app=self.getApp(currentuser, fullyQualifiedAppName)
+    def getAppInfo(self, currentuser, fqan):
+        app=self.getApp(currentuser, fqan)
         authorize_context_member(False, self, currentuser, None, app)
-        return app.to_json()
+        return app
 
     #Add user to system, given a userspec from flask user object. commit needed
     #This should never be called from the web interface, but can be called on the fly when user
@@ -123,10 +129,14 @@ class Whosdb():
     def addGroup(self, currentuser, groupspec):
         authorize(False, self, currentuser, currentuser)
         groupspec=augmentspec(groupspec, "group")
-        print "GROUPSPEC", groupspec
+        #print "GROUPSPEC", groupspec, groupspec['basic'].fqin
         try:
             newgroup=Group(**groupspec)
             newgroup.save(safe=True)
+            #how to save it together?
+            userq= User.objects(nick=newgroup.owner)
+            res=userq.update(safe_update=True, push__groupsowned=newgroup.basic.fqin)
+            #print "result", res, currentuser.groupsowned, currentuser.to_json()
         except:
             import sys
             print sys.exc_info()
@@ -186,6 +196,9 @@ class Whosdb():
         try:
             newapp=App(**appspec)
             newapp.save(safe=True)
+            userq= User.objects(nick=newapp.owner)
+            userq.update(safe_update=True, push__appsowned=newapp.basic.fqin)
+
         except:
             import sys
             print sys.exc_info()
@@ -256,7 +269,7 @@ class Whosdb():
             userq.update(safe_update=True, push__groupsinvitedto=fqgn)
         except:
             doabort('BAD_REQ', "Failed inviting user %s to group %s" % (usertobeadded.nick, fqgn))
-        print "IIIII", userq.get().groupsinvitedto
+        #print "IIIII", userq.get().groupsinvitedto
         return usertobeaddednick
 
     def inviteUserToApp(self, currentuser, fqan, usertobeaddednick):
@@ -285,7 +298,7 @@ class Whosdb():
         print "JJJJJ", me.groupsinvitedto
         permit(self.isInvitedToGroup(me, grp.basic.fqin), "User %s must be invited to group %s" % (menick, fqgn))
         try:
-            userq.update(safe_update=True, push__groupsin=fqgn)
+            userq.update(safe_update=True, push__groupsin=fqgn, pull__groupsinvitedto=fqgn)
             grpq.update(safe_update=True, push__members=menick)
         except:
             doabort('BAD_REQ', "Failed in user %s accepting invite to group %s" % (menick, fqgn))
@@ -305,7 +318,7 @@ class Whosdb():
         authorize(False, self, currentuser, me)
         permit(self.isInvitedToApp(me, app.basic.fqin), "User %s must be invited to app %s" % (menick, fqan))
         try:
-            userq.update(safe_update=True, push__appsin=fqan)
+            userq.update(safe_update=True, push__appsin=fqan, pull__appsinvitedto=fqan)
             appq.update(safe_update=True, push__members=menick)
         except:
             doabort('BAD_REQ', "Failed in user %s accepting invite to app %s" % (menick, fqan))
@@ -410,33 +423,31 @@ class Whosdb():
     def allUsers(self, currentuser):
         authorize_systemuser(False, self, currentuser)
         users=User.objects.all()
-        return [e.to_json() for e in users]
+        return users
 
     def allGroups(self, currentuser):
-        authorize_systemuser(False, self, currentuser, None)
+        authorize_systemuser(False, self, currentuser)
         groups=Group.objects(personalgroup=False).all()
-        return [e.to_json() for e in groups]
+        return groups
 
     def allApps(self, currentuser):
-        authorize_systemuser(False, self, currentuser, None)
+        authorize_systemuser(False, self, currentuser)
         apps=App.objects.all()
-        return [e.to_json() for e in apps]
+        return apps
 
 
-    def ownerOfGroups(self, currentuser):
+    def ownerOfGroups(self, currentuser, useras):
         #authorize(False, self, currentuser, useras)
         #permit(currentuser==useras or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
-        authorize_loggedin_or_systemuser(False, self, currentuser)
-        groups=currentuser.groupsowned
-        #print "GROUPS", groups
-        return [e.to_json() for e in groups]
+        authorize(False, self, currentuser, useras)
+        groups=useras.groupsowned
+        return groups
 
-    def ownerOfApps(self, currentuser):
-        #authorize(False, self, currentuser, useras)
+    def ownerOfApps(self, currentuser, useras):
+        authorize(False, self, currentuser, useras)
         #permit(currentuser==useras or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
-        authorize_loggedin_or_systemuser(False, self, currentuser)
-        applications=currentuser.appsowned
-        return [e.to_json() for e in applications]
+        applications=useras.appsowned
+        return applications
 
 
     def usersInGroup(self, currentuser, fqgn):
@@ -449,17 +460,15 @@ class Whosdb():
         users=grp.members
         return users
 
-    def groupsForUser(self, currentuser):
-        #authorize(False, self, currentuser, useras)
+    def groupsForUser(self, currentuser, useras):
+        authorize(False, self, currentuser, useras)
         #permit(currentuser==useras or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
-        authorize_loggedin_or_systemuser(False, self, currentuser)
-        groups=currentuser.groupsin
+        groups=useras.groupsin
         return groups
 
-    def groupInvitationsForUser(self, currentuser):
-        #authorize(False, self, currentuser, useras)
+    def groupInvitationsForUser(self, currentuser, useras):
+        authorize(False, self, currentuser, useras)
         #permit(currentuser==useras or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
-        authorize_loggedin_or_systemuser(False, self, currentuser)
         groups=useras.groupsinvitedto
         return groups
 
@@ -472,13 +481,6 @@ class Whosdb():
         users=app.members
         return users
 
-    # def groupsInApp(self, currentuser, fullyQualifiedAppName):
-    #     app=self.getApp(currentuser, fullyQualifiedAppName)
-    #     # permit(self.isOwnerOfApp(currentuser, app) or self.isSystemUser(currentuser),
-    #     #         "Only owner of app %s or systemuser can get groups" % app.fqin)
-    #     authorize_context_owner(False, self, currentuser, None, app)
-    #     groups=app.applicationgroups
-    #     return [e.info() for e in groups]
 
     def appsForUser(self, currentuser, useras):
         authorize(False, self, currentuser, useras)
@@ -526,7 +528,7 @@ def initialize_testing(db_session):
     print "testing invite"
     currentuser=rahuldave
     whosdb.inviteUserToGroup(currentuser, 'rahuldave/group:ml', 'jayluker')
-    print "invited"
+    print "invited", jayluker.to_json()
     currentuser=jayluker
     whosdb.acceptInviteToGroup(currentuser, 'rahuldave/group:ml', 'jayluker')
     spg=whosdb.addGroup(currentuser, dict(name='sp', description="Solr Programming Group", creator="jayluker"))
@@ -535,6 +537,8 @@ def initialize_testing(db_session):
         r=random.choice([1,2])
         user='user'+str(i)
         userst=whosdb.addUser(adsgutuser, dict(nick=user, adsid=user))
+        whosdb.addUserToApp(adsgutuser, 'ads/app:publications', user)
+
         if r==1:
             whosdb.inviteUserToGroup(rahuldave, 'rahuldave/group:ml', user)
         else:
@@ -542,9 +546,15 @@ def initialize_testing(db_session):
     #whosdb.addGroupToApp(currentuser, 'ads@adslabs.org/app:publications', 'adsgut@adslabs.org/group:public', None )
     #public.applicationsin.append(adspubsapp)
     #rahuldavedefault.applicationsin.append(adspubsapp)
-    print "ending init"
+    rahuldave.reload()
+
+    print "ending init", whosdb.ownerOfGroups(rahuldave), rahuldave.to_json()
 
 
+def makeconnect(dbase):
+    dbs=connect(dbase)
+    w=Whosdb(dbs)
+    return w
 
 if __name__=="__main__":
     db_session=connect("adsgut")
