@@ -13,7 +13,7 @@ class Basic(EmbeddedDocument):
     fqin = StringField(required=True, unique=True)
     description = StringField(default="")
 
-class Itemtype(Document):
+class ItemType(Document):
     dtype = StringField(default="adsgut/itemtype")
     basic = EmbeddedDocumentField(Basic)
 
@@ -24,7 +24,7 @@ class TagType(Document):
 class Tag(Document):
     dtype = StringField(default="adsgut/tag")
     basic = EmbeddedDocumentField(Basic)
-    ttypefqin = StringField(required=True)
+    tagtype = StringField(required=True)
 
 
 class User(Document):
@@ -98,8 +98,8 @@ class PostToTag(EmbeddedDocument):
 
 class Tagging(PostToTag):
     tagdescription=StringField(default="", required=True)
-    postedInGroups = ListField(EmbeddedDocumentField(PostToTag))
-    postedInApps = ListField(EmbeddedDocumentField(PostToTag))
+    pingrps = ListField(EmbeddedDocumentField(PostToTag))
+    pinapps = ListField(EmbeddedDocumentField(PostToTag))
 
 class TaggingDocument(Document):
     thething=EmbeddedDocumentField(PostToTag)
@@ -107,18 +107,19 @@ class TaggingDocument(Document):
 class Item(Document):
     dtype = StringField(default="adsgut/item")
     #itypefqin
-    itypefqin = StringField(required=True)
+    itemtype = StringField(required=True)
     basic = EmbeddedDocumentField(Basic)
-    postedInGroups = ListField(EmbeddedDocumentField(PostToTag))
-    postedInApps = ListField(EmbeddedDocumentField(PostToTag))
+    pingrps = ListField(EmbeddedDocumentField(PostToTag))
+    pinapps = ListField(EmbeddedDocumentField(PostToTag))
     #a very specific tag is collected below, the library tag
-    postedInLibraries = ListField(EmbeddedDocumentField(Tagging))
+    pinlibs = ListField(EmbeddedDocumentField(Tagging))
     #anything not library, group, or app
-    simpleTags = ListField(EmbeddedDocumentField(Tagging))
+    stags = ListField(EmbeddedDocumentField(Tagging))
     #Really want a tagging or posting here
     #Should below be a ref field as only used for refcounting?
     #this includes groups and apps here
-    allTags = ListField(ReferenceField(TaggingDocument))
+    #BUG: currently now worrying about refcounting
+    #alltags = ListField(ReferenceField(TaggingDocument))
 
 #Have specific collections for @group, @app, @library
 ##but not for other tags. Do full intersections there.
