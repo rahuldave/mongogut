@@ -491,7 +491,7 @@ def initialize_testing(db_session):
     #rahuldavedefault.applicationsin.append(adspubsapp)
     rahuldave.reload()
 
-    print "ending init", whosdb.ownerOfGroups(rahuldave), rahuldave.to_json()
+    print "ending init", whosdb.ownerOfGroups(rahuldave, rahuldave), rahuldave.to_json()
 
 
 def makeconnect(dbase):

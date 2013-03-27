@@ -16,6 +16,7 @@ class Basic(EmbeddedDocument):
 class ItemType(Document):
     dtype = StringField(default="adsgut/itemtype")
     basic = EmbeddedDocumentField(Basic)
+    app = StringField(default="ads/publications")
 
 class TagType(Document):
     dtype = StringField(default="adsgut/tagtype")

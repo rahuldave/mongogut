@@ -37,6 +37,7 @@ def augmentspec(specdict, spectype="item"):
 
 def augmenttypespec(specdict, spectype="itemtype"):
     basicdict={}
+    #for itemtype, come in with an app.
     print "INSPECDICT", specdict
     if spectype=='itemtype' or spectype=='tagtype':
         basicdict['creator']=specdict['creator']
@@ -50,7 +51,7 @@ def augmenttypespec(specdict, spectype="itemtype"):
         del specdict['description']
     return specdict
 
-class Postdb(dbase.Database):
+class Postdb():
 
     def __init__(self, db_session, wdb):
         self.session=db_session
@@ -96,7 +97,11 @@ class Postdb(dbase.Database):
 
     def addItemType(self, currentuser, typespec):
         typespec=augmenttypespec(typespec)
-        authorize(False, self.whosdb, currentuser, currentuser)#any logged in user
+        useras=self.whosdb.getUserForNick(currentuser,typespec['basic'].creator)
+        authorize(False, self.whosdb, currentuser, useras)
+        app=self.whosdb.getApp(currentuser, typespec['app'])
+        #user must be owner of app whos namespece he is using
+        authorize_context_owner(False, self.whosdb, useras, None, app)
         try:
             itemtype=ItemType(**typespec)
             itemtype.save(safe=True)
@@ -116,7 +121,8 @@ class Postdb(dbase.Database):
 
     def addTagType(self, currentuser, typespec):
         typespec=augmenttypespec(typespec, "tagtype")
-        authorize(False, self.whosdb, currentuser, currentuser)#any logged in user
+        useras=self.whosdb.getUserForNick(currentuser,typespec['basic'].creator)
+        authorize(False, self.whosdb, currentuser, useras)
         try:
             tagtype=TagType(**typespec)
             tagtype.save(safe=True)
@@ -224,6 +230,7 @@ class Postdb(dbase.Database):
         item=self.getItem(currentuser, itemfqin)
         authorize_context_owner(False, self.whosdb, currentuser, useras, grp)
         permit(useras==postingtoremove.user and self.whosdb.isMemberOfGroup(useras, grp),
+            "Only member of group %s who posted this item can remove it from the app" % grp.basic.fqin)
         #NO CODE HERE YET
         return OK
 
@@ -277,7 +284,7 @@ class Postdb(dbase.Database):
         item=self.getItem(currentuser, itemfqin)
         authorize_context_owner(False, self.whosdb, currentuser, useras, app)
         permit(useras==postingtoremove.user and self.whosdb.isMemberOfApp(useras, app),
-            "Only member of app %s who posted this item can remove it from the app" % app.fqin)
+            "Only member of app %s who posted this item can remove it from the app" % app.basic.fqin)
         #No code as yet
         return OK
 
@@ -498,74 +505,74 @@ class Postdb(dbase.Database):
     #     return [ele.info() for ele in grp.itemsposted]
 
 
-    def getTaggingForItemspec(self, currentuser, useras, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
-        rhash={}
-        titems={}
-        tcounts={}
+#     def getTaggingForItemspec(self, currentuser, useras, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
+#         rhash={}
+#         titems={}
+#         tcounts={}
 
-        #BUG: should we be iterating here? Isnt this information more easily findable?
-        #but dosent that require replacing info by something more collection oriented?
-        #permitting inside
-        taggings=self._getTaggingsWithCriterion(currentuser, useras, context, fqin, criteria, rhash, fvlist, orderer)
-        for ele in taggings:
-            eled=ele.info()#DONT pass useras as the tag class uses its own user to make sure security is not breached
-            #print "eled", eled
-            eledfqin=eled['item']
-            if not titems.has_key(eledfqin):
-                titems[eledfqin]=[]
-                tcounts[eledfqin]=0
-            titems[eledfqin].append(eled)
-            tcounts[eledfqin]=tcounts[eledfqin]+1
-        count=len(titems.keys())
-        rhash.update({'taggings':titems, 'count':count, 'tagcounts':tcounts})
-        return rhash
+#         #BUG: should we be iterating here? Isnt this information more easily findable?
+#         #but dosent that require replacing info by something more collection oriented?
+#         #permitting inside
+#         taggings=self._getTaggingsWithCriterion(currentuser, useras, context, fqin, criteria, rhash, fvlist, orderer)
+#         for ele in taggings:
+#             eled=ele.info()#DONT pass useras as the tag class uses its own user to make sure security is not breached
+#             #print "eled", eled
+#             eledfqin=eled['item']
+#             if not titems.has_key(eledfqin):
+#                 titems[eledfqin]=[]
+#                 tcounts[eledfqin]=0
+#             titems[eledfqin].append(eled)
+#             tcounts[eledfqin]=tcounts[eledfqin]+1
+#         count=len(titems.keys())
+#         rhash.update({'taggings':titems, 'count':count, 'tagcounts':tcounts})
+#         return rhash
 
-#should there be a getTagsForItemSpec
+# #should there be a getTagsForItemSpec
 
-    def getItemsForTagspec(self, currentuser, useras, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
-        rhash={}
-        titems={}
-        #permitting inside
-        taggings=self._getTaggingsWithCriterion(currentuser, useras, context, fqin, criteria, rhash, fvlist, orderer)
+#     def getItemsForTagspec(self, currentuser, useras, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
+#         rhash={}
+#         titems={}
+#         #permitting inside
+#         taggings=self._getTaggingsWithCriterion(currentuser, useras, context, fqin, criteria, rhash, fvlist, orderer)
 
-        #BUG: simplify and get counts? we should not be iterating before sending out as we are here. That will slow things down
-        for ele in taggings:
-            eled=ele.info()
-            print "eled", eled['taginfo']
-            eledfqin=eled['item']
-            if not titems.has_key(eledfqin):
-                titems[eledfqin]=eled['iteminfo']
-        count=len(titems.keys())
-        rhash.update({'items':titems.values(), 'count':count})
-        return rhash
-
-
+#         #BUG: simplify and get counts? we should not be iterating before sending out as we are here. That will slow things down
+#         for ele in taggings:
+#             eled=ele.info()
+#             print "eled", eled['taginfo']
+#             eledfqin=eled['item']
+#             if not titems.has_key(eledfqin):
+#                 titems[eledfqin]=eled['iteminfo']
+#         count=len(titems.keys())
+#         rhash.update({'items':titems.values(), 'count':count})
+#         return rhash
 
 
-    def getItemsForTag(self, currentuser, useras, tagorfullyQualifiedTagName, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
-        #in addition to whatever criteria (which ones are allowed ought to be in web service or here?) are speced
-        #we need to get the tag
-        rhash={}
-        tag=_tag(currentuser, self,  tagorfullyQualifiedTagName)
-        print "TAG", tag, tagorfullyQualifiedTagName
-        #You would think that this ought to not be here because of the groups and apps, but remember, tags are specific
-        #to users. Use the spec functions in this situation.
-        permit(useras==tag.creator, "User must be creator of tag %s" % tag.fqin)
-        criteria['tagtype']=tag.tagtype.fqin
-        criteria['tagname']=tag.name
-        #more detailed permitting inside: this is per user!
-        rhash = self.getItemsForTagspec(currentuser, useras, context, fqin, criteria, fvlist, orderer)
-        return rhash
 
 
-    def getTagsForItem(self, currentuser, useras, itemorfullyQualifiedItemName, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
-        item=_item(currentuser, self,  itemorfullyQualifiedItemName)
-        #BUG: whats the security I can see the item?
-        criteria['name']=item.name
-        criteria['itemtype']=item.itemtype.fqin
-        #permitting inside but this is for multiple items
-        rhash=self.getTaggingForItemspec(currentuser, useras, context, fqin, criteria, fvlist, orderer)
-        return rhash
+#     def getItemsForTag(self, currentuser, useras, tagorfullyQualifiedTagName, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
+#         #in addition to whatever criteria (which ones are allowed ought to be in web service or here?) are speced
+#         #we need to get the tag
+#         rhash={}
+#         tag=_tag(currentuser, self,  tagorfullyQualifiedTagName)
+#         print "TAG", tag, tagorfullyQualifiedTagName
+#         #You would think that this ought to not be here because of the groups and apps, but remember, tags are specific
+#         #to users. Use the spec functions in this situation.
+#         permit(useras==tag.creator, "User must be creator of tag %s" % tag.fqin)
+#         criteria['tagtype']=tag.tagtype.fqin
+#         criteria['tagname']=tag.name
+#         #more detailed permitting inside: this is per user!
+#         rhash = self.getItemsForTagspec(currentuser, useras, context, fqin, criteria, fvlist, orderer)
+#         return rhash
+
+
+#     def getTagsForItem(self, currentuser, useras, itemorfullyQualifiedItemName, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
+#         item=_item(currentuser, self,  itemorfullyQualifiedItemName)
+#         #BUG: whats the security I can see the item?
+#         criteria['name']=item.name
+#         criteria['itemtype']=item.itemtype.fqin
+#         #permitting inside but this is for multiple items
+#         rhash=self.getTaggingForItemspec(currentuser, useras, context, fqin, criteria, fvlist, orderer)
+#         return rhash
 
 
 #should there be a function to just return tags. Dont TODO we need funcs to return simple tagclouds and stuff?
@@ -573,19 +580,19 @@ class Postdb(dbase.Database):
 
 def initialize_application(sess):
     currentuser=None
+    from whos import Whosdb
     whosdb=Whosdb(sess)
-    postdb=Postdb(sess)
-    adsuser=whosdb.getUserForNick(currentuser, "ads@adslabs.org")
+    postdb=Postdb(sess, whosdb)
+    whosdb=postdb.whosdb
+    adsgutuser=whosdb.getUserForNick(currentuser, "adsgut")
+    adsuser=whosdb.getUserForNick(currentuser, "ads")
     #adsapp=whosdb.getApp(adsuser, "ads@adslabs.org/app:publications")
     currentuser=adsuser
-    postdb.addItemType(currentuser, dict(name="pub", creator=adsuser, app="ads@adslabs.org/app:publications"))
-    postdb.addItemType(currentuser, dict(name="pub2", creator=adsuser, app="ads@adslabs.org/app:publications"))
-    postdb.addItemType(currentuser, dict(name="library", creator=adsuser, app="ads@adslabs.org/app:publications"))
-    postdb.addItemType(currentuser, dict(name="search", creator=adsuser, app="ads@adslabs.org/app:publications"))
-    postdb.addTagType(currentuser, dict(name="tag", creator=adsuser, app="ads@adslabs.org/app:publications"))
-    postdb.addTagType(currentuser, dict(name="tag2", creator=adsuser, app="ads@adslabs.org/app:publications"))
-    postdb.addTagType(currentuser, dict(name="note", creator=adsuser, app="ads@adslabs.org/app:publications"))
-    postdb.commit()
+    postdb.addItemType(currentuser, dict(name="pub", creator="ads", app="ads/app:publications"))
+    postdb.addItemType(currentuser, dict(name="search", creator="ads", app="ads/app:publications"))
+    postdb.addTagType(currentuser, dict(name="tag", creator="ads", app="ads/app:publications"))
+    postdb.addTagType(currentuser, dict(name="library", creator="ads", app="ads/app:publications"))
+    postdb.addTagType(currentuser, dict(name="note", creator="ads", app="ads/app:publications"))
 
 
 def initialize_testing(db_session):
@@ -650,10 +657,6 @@ def initialize_testing(db_session):
 
 
 if __name__=="__main__":
-    import os, os.path
-    # if os.path.exists(config.DBASE_FILE):
-    #     os.remove(config.DBASE_FILE)
-    engine, db_session = dbase.setup_db(config.DBASE_FILE)
-    dbase.init_db(engine)
+    db_session=connect("adsgut")
     initialize_application(db_session)
-    initialize_testing(db_session)
+    #initialize_testing(db_session)
