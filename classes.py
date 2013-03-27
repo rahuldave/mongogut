@@ -99,11 +99,15 @@ class PostToTag(EmbeddedDocument):
 
 class Tagging(PostToTag):
     tagdescription=StringField(default="", required=True)
-    pingrps = ListField(EmbeddedDocumentField(PostToTag))
-    pinapps = ListField(EmbeddedDocumentField(PostToTag))
+
+
+class PostingDocument(Document):
+    thething=EmbeddedDocumentField(PostToTag)
 
 class TaggingDocument(Document):
-    thething=EmbeddedDocumentField(PostToTag)
+    thething=EmbeddedDocumentField(Tagging)
+    pingrps = ListField(EmbeddedDocumentField(PostToTag))
+    pinapps = ListField(EmbeddedDocumentField(PostToTag))
 
 class Item(Document):
     dtype = StringField(default="adsgut/item")

@@ -153,16 +153,19 @@ class Postdb():
 
         try:#BUG:what if its already there?
             newposting=PostToTag(tagfqin=grp.basic.fqin, taggedby=useras.nick, thingtotagfqin=itemfqin)
-            newposting.save(safe=True)
-            taggingdoc=TaggingDocument(thing=newposting)
-            taggingdoc.save(safe=True)
+            #newposting.save(safe=True)
+            print 'pppppppppppppppp'
+            postingdoc=PostingDocument(thing=newposting)
+            postingdoc.save(safe=True)
             #Not sure instance updates work but we shall try.
-            item.update(safe_update=True, pingrps__push=newposting)
+            item.update(safe_update=True, push__pingrps=newposting)
         except:
+            import sys
+            print sys.exc_info()
             doabort('BAD_REQ', "Failed adding newposting of item %s into group %s." % (item.basic.fqin, grp.basic.fqin))
         personalfqgn=useras.nick+"/group:default"
 
-        if grp.fqin!=personalfqgn:
+        if grp.basic.fqin!=personalfqgn:
             if personalfqgn in [ptt.tagfqin for ptt in item.pingrps]:
                 print "NOT IN PERSONAL GRP"
                 self.postItemIntoGroup(currentuser, useras, personalfqgn, itemfqin)
@@ -193,6 +196,7 @@ class Postdb():
             #this way we could count how many times 'saved'
         except:
             #the item was not found. Create it
+            print "So creating %s\n" % itemspec['basic'].fqin
             try:
                 print "ITSPEC", itemspec
                 newitem=Item(**itemspec)
@@ -261,10 +265,10 @@ class Postdb():
 
         try:#BUG:What if its already there?
             newposting=PostToTag(tagfqin=app.basic.fqin, taggedby=useras.nick, thingtotagfqin=itemfqin)
-            newposting.save(safe=True)
-            taggingdoc=TaggingDocument(thing=newposting)
-            taggingdoc.save(safe=True)
-            item.update(safe_update=True, pinapps__push=newposting)
+            #newposting.save(safe=True)
+            postingdoc=PostingDocument(thing=newposting)
+            postingdoc.save(safe=True)
+            item.update(safe_update=True, push__pinapps=newposting)
         except:
             doabort('BAD_REQ', "Failed adding newposting of item %s into app %s." % (item.basic.fqin, app.basic.fqin))
         #COMMENTING OUT as cant think of situation where a post into app ought to trigger personal group saving
@@ -319,19 +323,22 @@ class Postdb():
             print "was the itemtag found"
             itemtag=self.getTagging(currentuser, tag, itemtobetagged)
         except:
+            print "NOTAGGING YET. CREATING"
             try:
                 itemtag=Tagging(tagfqin=tag.basic.fqin, taggedby=useras.nick, thingtotagfqin=itemtobetagged.basic.fqin)
-                itemtag.save(safe=True)
-                taggingdoc=TaggingDocument(thing=itemtag)
+                #itemtag.save(safe=True)
+                taggingdoc=TaggingDocument(thething=itemtag)
                 taggingdoc.save(safe=True)
+                print "LALALALALALALALA990"
             except:
                 doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s" % (itemtobetagged.basic.fqin, tag.basic.fqin))
 
             personalfqgn=useras.nick+"/group:default"
-            personalgrp=self.whosdb.getGroup(currentuser, personalfqgn)
+            #personalgrp=self.whosdb.getGroup(currentuser, personalfqgn)
             #Add tag to default personal group
-            print "adding to %s" % personalgrp.fqin
-            self.postTaggingIntoGroup(currentuser, useras, personalgrp, itemtag)
+            print "adding to %s" % personalfqgn
+            #taggingdoc.reload()
+            self.postTaggingIntoGroup(currentuser, useras, personalfqgn, taggingdoc)
         #at this point it goes to the itemtypes app too.
         #This will get the personal, and since no commit, i think we will not hit personal.
         #nevertheless we protect against it below
@@ -346,7 +353,7 @@ class Postdb():
         # #print itemtobetagged.itemtags, "WEE", newtag.taggeditems, newtagging.tagtype.name
 
         #if itemtag found just return it, else create, add to group, return
-        return itemtag
+        return taggingdoc
 
     def untagItem(self, currentuser, useras, fullyQualifiedTagName, fullyQualifiedItemName):
         #Do not remove item, do not remove tag, do not remove tagging
@@ -367,22 +374,30 @@ class Postdb():
         return OK
 
     #Is item in group? If not add it? depends on UI schemes
-    def postTaggingIntoGroup(self, currentuser, useras, fqgn, itemtag):
+    #DO WE WANT IDEMPOTENCY THING?
+    def postTaggingIntoGroup(self, currentuser, useras, fqgn, taggingdoc):
         #permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
+        itemtag=taggingdoc.thething
+        #taggingdoc.reload()
+        print "FQGN", fqgn
         grp=self.whosdb.getGroup(currentuser, fqgn)
         authorize_context_owner(False, self.whosdb, currentuser, useras, grp)
 
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
         permit(self.whosdb.isMemberOfGroup(useras, grp),
             "Only member of group %s can post into it" % grp.basic.fqin)
-        permit(useras==itemtag.user,
+        permit(useras.nick==itemtag.taggedby,
             "Only creator of tag can post into group %s" % grp.basic.fqin)
-
+        #item=self.getItem(currentuser, itemtag.thingtotagfqin)
         try:
             newposting=PostToTag(tagfqin=grp.basic.fqin, taggedby=useras.nick, thingtotagfqin=itemtag.tagfqin)
-            newposting.save(safe=True)
-            itemtag.update(safe_update=True, pingrps__push=newposting)
+            #newposting.save(safe=True)
+            ##BUG:is a new taggingdoc in order?
+            print 'OOOOOOOOOOOO'
+            taggingdoc.update(safe_update=True, push__pingrps=newposting)
         except:
+            import sys
+            print sys.exc_info()
             doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in group %s" % (itemtag.thingtotagfqin, itemtag.tagfqin, grp.basic.fqin))
 
 
@@ -399,7 +414,7 @@ class Postdb():
         # print itemtag.groupsin, 'jee', grp.itemtags
         # itgto=self.session.query(TagitemGroup).filter_by(itemtag=itemtag, group=grp).one()
         # print itgto
-        return newitg
+        return itemtag
 
     #BUG: currently not sure what the logic for everyone should be on this, or if it should even be supported
     #as other users have now seen stuff in the group. What happens to tagging. Leave alone for now.
@@ -417,8 +432,9 @@ class Postdb():
         return OK
 
     #NOTE: we are not requiring that item be posted into group or that tagging autopost it. FIXME. think we got this
-    def postTaggingIntoApp(self, currentuser, useras, fqan, itemtag):
+    def postTaggingIntoApp(self, currentuser, useras, fqan, taggingdoc):
         #permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
+        itemtag=taggingdoc.thething
         app=self.whosdb.getApp(currentuser, fqan)
         authorize_context_owner(False, self.whosdb, currentuser, useras, app)
 
@@ -426,7 +442,7 @@ class Postdb():
 
         permit(self.whosdb.isMemberOfApp(useras, app),
             "Only member of app %s can post into it" % app.basic.fqin)
-        permit(useras==itemtag.user,
+        permit(useras.nick==itemtag.taggedby,
             "Only creator of tag can post into app %s" % app.basic.fqin)
         # permit(currentuser==useras or self.whosdb.isOwnerOfApp(currentuser, app) or self.whosdb.isSystemUser(currentuser),
         #     "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
@@ -434,9 +450,10 @@ class Postdb():
         #The itemtag must exist at first
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
         try:
+            print "make app posting"
             newposting=PostToTag(tagfqin=app.basic.fqin, taggedby=useras.nick, thingtotagfqin=itemtag.tagfqin)
-            newposting.save(safe=True)
-            itemtag.update(safe_update=True, pinapps__push=newposting)
+            #newposting.save(safe=True)
+            taggingdoc.update(safe_update=True, push__pinapps=newposting)
         except:
             doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in app %s" % (itemtag.thingtotagfqin, itemtag.tagfqin, app.basic.fqin))
 
@@ -596,67 +613,69 @@ def initialize_application(sess):
 
 
 def initialize_testing(db_session):
+    from whos import Whosdb
     whosdb=Whosdb(db_session)
-    postdb=Postdb(db_session)
+    postdb=Postdb(db_session, whosdb)
 
     currentuser=None
-    adsuser=whosdb.getUserForNick(currentuser, "ads@adslabs.org")
+    adsuser=whosdb.getUserForNick(currentuser, "ads")
     currentuser=adsuser
 
-    rahuldave=whosdb.getUserForNick(currentuser, "rahuldave@gmail.com")
-    postdb.commit()
+    rahuldave=whosdb.getUserForNick(currentuser, "rahuldave")
     currentuser=rahuldave
+    import simplejson as sj
+    papers=sj.loads(open("file.json").read())
+    for k in papers.keys():
+        paper={}
+        paper['name']=papers[k]['bibcode']
+        paper['creator']=rahuldave.nick
+        paper['itemtype']='ads/pub'
+        print "========", paper
+        postdb.saveItem(currentuser, rahuldave, paper)
     #run this as rahuldave? Whats he point of useras then?
-    postdb.saveItem(currentuser, rahuldave, dict(name="hello kitty", itemtype="ads@adslabs.org/pub", creator=rahuldave))
+    postdb.saveItem(currentuser, rahuldave, dict(name="hello kitty", itemtype="ads/pub", creator=rahuldave.nick))
     #postdb.commit()
-    postdb.saveItem(currentuser, rahuldave, dict(name="hello doggy", itemtype="ads@adslabs.org/pub2", creator=rahuldave))
-    postdb.saveItem(currentuser, rahuldave, dict(name="hello barkley", itemtype="ads@adslabs.org/pub", creator=rahuldave))
-    postdb.saveItem(currentuser, rahuldave, dict(name="hello machka", itemtype="ads@adslabs.org/pub", creator=rahuldave))
+    postdb.saveItem(currentuser, rahuldave, dict(name="hello doggy", itemtype="ads/pub", creator=rahuldave.nick))
+    postdb.saveItem(currentuser, rahuldave, dict(name="hello barkley", itemtype="ads/pub", creator=rahuldave.nick))
+    postdb.saveItem(currentuser, rahuldave, dict(name="hello machka", itemtype="ads/pub", creator=rahuldave.nick))
     print "here"
-    postdb.tagItem(currentuser, rahuldave, "ads@adslabs.org/hello kitty", dict(tagtype="ads@adslabs.org/tag", creator=rahuldave, name="stupid"))
-    postdb.tagItem(currentuser, rahuldave, "ads@adslabs.org/hello barkley", dict(tagtype="ads@adslabs.org/tag", creator=rahuldave, name="stupid"))
+    taggingdoc=postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/tag", creator=rahuldave.nick, name="stupid"))
+    postdb.tagItem(currentuser, rahuldave, "ads/hello barkley", dict(tagtype="ads/tag", creator=rahuldave.nick, name="stupid"))
     print "W++++++++++++++++++"
-    postdb.tagItem(currentuser, rahuldave, "ads@adslabs.org/hello kitty", dict(tagtype="ads@adslabs.org/tag", creator=rahuldave, name="dumb"))
-    postdb.tagItem(currentuser, rahuldave, "ads@adslabs.org/hello doggy", dict(tagtype="ads@adslabs.org/tag", creator=rahuldave, name="dumb"))
+    postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/tag", creator=rahuldave.nick, name="dumb"))
+    postdb.tagItem(currentuser, rahuldave, "ads/hello doggy", dict(tagtype="ads/tag", creator=rahuldave.nick, name="dumb"))
 
-    postdb.tagItem(currentuser, rahuldave, "ads@adslabs.org/hello kitty", dict(tagtype="ads@adslabs.org/note",
-        creator=rahuldave, name="somethingunique1", description="this is a note for the kitty"))
+    postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/note",
+        creator=rahuldave.nick, name="somethingunique1", description="this is a note for the kitty"))
 
-    postdb.tagItem(currentuser, rahuldave, "ads@adslabs.org/hello doggy", dict(tagtype="ads@adslabs.org/tag", creator=rahuldave, name="dumbdog"))
-    postdb.tagItem(currentuser, rahuldave, "ads@adslabs.org/hello doggy", dict(tagtype="ads@adslabs.org/tag2", creator=rahuldave, name="dumbdog2"))
-    postdb.tagItem(currentuser, rahuldave, "ads@adslabs.org/hello kitty", dict(tagtype="ads@adslabs.org/note",
-        creator=rahuldave, name="somethingunique2", description="this is a note for the doggy"))
+    postdb.tagItem(currentuser, rahuldave, "ads/hello doggy", dict(tagtype="ads/tag", creator=rahuldave.nick, name="dumbdog"))
+    postdb.tagItem(currentuser, rahuldave, "ads/hello doggy", dict(tagtype="ads/library", creator=rahuldave.nick, name="dumbdoglibrary"))
+    postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/note",
+        creator=rahuldave.nick, name="somethingunique2", description="this is a note for the doggy"))
 
-    postdb.commit()
     print "LALALALALA"
     #Wen a tagging is posted to a group, the item should be autoposted into there too
     #NOTE: actually this is taken care of by posting into group on tagging, and making sure tags are posted
     #along with items into groups
-    postdb.postItemIntoGroup(currentuser,rahuldave, "rahuldave@gmail.com/group:ml", "ads@adslabs.org/hello kitty")
-    postdb.postItemIntoGroup(currentuser,rahuldave, "adsgut@adslabs.org/group:public", "ads@adslabs.org/hello kitty")#public post
-    postdb.postItemIntoGroup(currentuser,rahuldave, "rahuldave@gmail.com/group:ml", "ads@adslabs.org/hello doggy")
+    postdb.postItemIntoGroup(currentuser,rahuldave, "rahuldave/group:ml", "ads/hello kitty")
+    postdb.postItemIntoGroup(currentuser,rahuldave, "adsgut/group:public", "ads/hello kitty")#public post
+    postdb.postItemIntoGroup(currentuser,rahuldave, "rahuldave/group:ml", "ads/hello doggy")
     #TODO: below NOT NEEDED GOT FROM DEFAULT: SHOULD IT ERROR OUT GRACEFULLY OR BE IDEMPOTENT?
-    #postdb.postItemIntoApp(currentuser,rahuldave, "ads@adslabs.org/app:publications", "ads@adslabs.org/hello doggy")
-    print "PTGS"
-    postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave@gmail.com/group:ml", "ads@adslabs.org/hello kitty", "rahuldave@gmail.com/ads@adslabs.org/tag:stupid")
-    print "1"
-    postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave@gmail.com/group:ml", "ads@adslabs.org/hello kitty", "rahuldave@gmail.com/ads@adslabs.org/tag:dumb")
-    postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave@gmail.com/group:ml", "ads@adslabs.org/hello doggy", "rahuldave@gmail.com/ads@adslabs.org/tag:dumbdog")
-    print "2"
-    #bottom commented as now autoadded
-    #postdb.postTaggingIntoApp(currentuser, rahuldave, "ads@adslabs.org/app:publications", "ads@adslabs.org/hello doggy", "rahuldave@gmail.com/ads@adslabs.org/tag:dumbdog")
-    print "HOOCH"
-    postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave@gmail.com/group:ml", "ads@adslabs.org/hello doggy", "rahuldave@gmail.com/ads@adslabs.org/tag2:dumbdog2")
-    #bottom commented as now autoadded
-    #postdb.postTaggingIntoApp(currentuser, rahuldave, "ads@adslabs.org/app:publications", "ads@adslabs.org/hello doggy", "rahuldave@gmail.com/ads@adslabs.org/tag2:dumbdog2")
-
-    postdb.commit()
-    datadict={'itemtype': 'ads@adslabs.org/pub',
-                'uri': u'1884AnHar..14....1.',
-                'name': u'Description of photometer.'}    #postdb.saveItem(currentuser, rahuldave, datadict)
+    postdb.postItemIntoApp(currentuser,rahuldave, "ads/app:publications", "ads/hello doggy")
+    # print "PTGS"
+    postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave/group:ml", taggingdoc)
+    # print "1"
+    # postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave@gmail.com/group:ml", "ads@adslabs.org/hello kitty", "rahuldave@gmail.com/ads@adslabs.org/tag:dumb")
+    # postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave@gmail.com/group:ml", "ads@adslabs.org/hello doggy", "rahuldave@gmail.com/ads@adslabs.org/tag:dumbdog")
+    # print "2"
+    # #bottom commented as now autoadded
+    # #postdb.postTaggingIntoApp(currentuser, rahuldave, "ads@adslabs.org/app:publications", "ads@adslabs.org/hello doggy", "rahuldave@gmail.com/ads@adslabs.org/tag:dumbdog")
+    # print "HOOCH"
+    # postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave@gmail.com/group:ml", "ads@adslabs.org/hello doggy", "rahuldave@gmail.com/ads@adslabs.org/tag2:dumbdog2")
+    # #postdb.saveItem(currentuser, rahuldave, datadict)
 
 
 if __name__=="__main__":
     db_session=connect("adsgut")
     initialize_application(db_session)
-    #initialize_testing(db_session)
+    initialize_testing(db_session)

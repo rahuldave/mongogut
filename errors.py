@@ -58,6 +58,6 @@ def abort(status_code, body=None, headers={}):
 
 import sys
 def doabort(codestring, reason):
-    abort(ERRGUT[codestring], {'reason':reason})
-    #print ERRGUT[codestring], {'reason':reason}
+    #abort(ERRGUT[codestring], {'reason':reason})
+    print ERRGUT[codestring], {'reason':reason}
     #sys.exit(0)
