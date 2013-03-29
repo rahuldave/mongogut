@@ -20,6 +20,7 @@ def augmentspec(specdict, spectype="item"):
             basicdict['fqin']=itemtypens+"/"+specdict['name']
         else:
             specdict['tagtype']=specdict.get('tagtype','tag')
+            specdict['owner']=basicdict['creator']
             #tag, note, library, group and app are reserved and treated as special forms
             basicdict['fqin']=specdict['creator']+"/"+specdict['tagtype']+':'+specdict['name']
 
@@ -152,7 +153,7 @@ class Postdb():
             "Only member of group %s can post into it" % grp.basic.fqin)
 
         try:#BUG:what if its already there?
-            newposting=PostToTag(tagfqin=grp.basic.fqin, taggedby=useras.nick, thingtotagfqin=itemfqin)
+            newposting=Post(postfqin=grp.basic.fqin, postedby=useras.nick, thingtopostfqin=itemfqin)
             #newposting.save(safe=True)
             print 'pppppppppppppppp'
             postingdoc=PostingDocument(thing=newposting)
@@ -166,7 +167,7 @@ class Postdb():
         personalfqgn=useras.nick+"/group:default"
 
         if grp.basic.fqin!=personalfqgn:
-            if personalfqgn in [ptt.tagfqin for ptt in item.pingrps]:
+            if personalfqgn in [ptt.postfqin for ptt in item.pingrps]:
                 print "NOT IN PERSONAL GRP"
                 self.postItemIntoGroup(currentuser, useras, personalfqgn, itemfqin)
                 #self.commit() is this needed?
@@ -264,7 +265,7 @@ class Postdb():
         #     "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
 
         try:#BUG:What if its already there?
-            newposting=PostToTag(tagfqin=app.basic.fqin, taggedby=useras.nick, thingtotagfqin=itemfqin)
+            newposting=Post(postfqin=app.basic.fqin, postedby=useras.nick, thingtopostfqin=itemfqin)
             #newposting.save(safe=True)
             postingdoc=PostingDocument(thing=newposting)
             postingdoc.save(safe=True)
@@ -293,19 +294,12 @@ class Postdb():
         return OK
 
 
-    #We will have special methods or api's for tag/note/library
-    #######################################################################################################################
-    # If tag exists we must use it instead of creating new tag: this is useful for rahuldave@gmail.com/tag:statistics
-    #or rahuldave@gmail.com/tag:machinelearning. For notes, we expect an autogened name and we wont reuse that note
-    #thus multiple names are avoided as each tag is new. But when tagging an item, make sure you are appropriately
-    #creating a new tag or reusing an existing one. And that tag is uniqie to the user, so indeeed pavlos/tag:statistics
-    #is different
-    #what prevents me from using someone elses tag? validatespec DOES
-    def tagItem(self, currentuser, useras, fullyQualifiedItemName, tagspec, tagmode=False):
+    #this is done for making a standalone tag, without tagging anything with it
+    ##useful for libraries and such
+    def makeTag(self, currentuser, useras, tagspec, tagmode=False):
         tagspec=augmentspec(tagspec, spectype='tag')
         authorize(False, self.whosdb, currentuser, useras)
-        print "FQIN", fullyQualifiedItemName
-        itemtobetagged=self.getItem(currentuser, fullyQualifiedItemName)
+
         try:
             print "was tha tag found"
             tag=self.getTag(currentuser, tagspec['basic'].fqin)
@@ -317,7 +311,25 @@ class Postdb():
                 tag.save(safe=True)
             except:
                 doabort('BAD_REQ', "Failed adding tag %s" % tagspec['basic'].fqin)
+        return tag
 
+    #not creating a delete tag until we know what it means
+    #
+    def deleteTag(self, currentuser, useras, fqtn):
+        pass
+    #We will have special methods or api's for tag/note/library
+    #######################################################################################################################
+    # If tag exists we must use it instead of creating new tag: this is useful for rahuldave@gmail.com/tag:statistics
+    #or rahuldave@gmail.com/tag:machinelearning. For notes, we expect an autogened name and we wont reuse that note
+    #thus multiple names are avoided as each tag is new. But when tagging an item, make sure you are appropriately
+    #creating a new tag or reusing an existing one. And that tag is uniqie to the user, so indeeed pavlos/tag:statistics
+    #is different
+    #what prevents me from using someone elses tag? validatespec DOES
+    def tagItem(self, currentuser, useras, fullyQualifiedItemName, tagspec, tagmode=False):
+        authorize(False, self.whosdb, currentuser, useras)
+        print "FQIN", fullyQualifiedItemName
+        itemtobetagged=self.getItem(currentuser, fullyQualifiedItemName)
+        tag = self.makeTag(currentuser, useras, tagspec, tagmode)
         #Now that we have a tag item, we need to create a tagging
         try:
             print "was the itemtag found"
@@ -325,11 +337,17 @@ class Postdb():
         except:
             print "NOTAGGING YET. CREATING"
             try:
-                itemtag=Tagging(tagfqin=tag.basic.fqin, taggedby=useras.nick, thingtotagfqin=itemtobetagged.basic.fqin)
+                itemtag=Tagging(postfqin=tag.basic.fqin,
+                                postedby=useras.nick,
+                                thingtopostfqin=itemtobetagged.basic.fqin,
+                                tagname=tag.basic.name,
+                                tagtype=tag.tagtype
+                )
                 #itemtag.save(safe=True)
                 taggingdoc=TaggingDocument(thething=itemtag)
                 taggingdoc.save(safe=True)
                 print "LALALALALALALALA990"
+                itemtobetagged.update(safe_update=True, push__stags=itemtag)
             except:
                 doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s" % (itemtobetagged.basic.fqin, tag.basic.fqin))
 
@@ -386,11 +404,11 @@ class Postdb():
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
         permit(self.whosdb.isMemberOfGroup(useras, grp),
             "Only member of group %s can post into it" % grp.basic.fqin)
-        permit(useras.nick==itemtag.taggedby,
+        permit(useras.nick==itemtag.postedby,
             "Only creator of tag can post into group %s" % grp.basic.fqin)
-        #item=self.getItem(currentuser, itemtag.thingtotagfqin)
+        #item=self.getItem(currentuser, itemtag.thingtopostfqin)
         try:
-            newposting=PostToTag(tagfqin=grp.basic.fqin, taggedby=useras.nick, thingtotagfqin=itemtag.tagfqin)
+            newposting=Post(postfqin=grp.basic.fqin, postedby=useras.nick, thingtopostfqin=itemtag.postfqin)
             #newposting.save(safe=True)
             ##BUG:is a new taggingdoc in order?
             print 'OOOOOOOOOOOO'
@@ -398,7 +416,7 @@ class Postdb():
         except:
             import sys
             print sys.exc_info()
-            doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in group %s" % (itemtag.thingtotagfqin, itemtag.tagfqin, grp.basic.fqin))
+            doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in group %s" % (itemtag.thingtopostfqin, itemtag.postfqin, grp.basic.fqin))
 
 
         #use routing for make sure we go into itemtypes app?
@@ -442,7 +460,7 @@ class Postdb():
 
         permit(self.whosdb.isMemberOfApp(useras, app),
             "Only member of app %s can post into it" % app.basic.fqin)
-        permit(useras.nick==itemtag.taggedby,
+        permit(useras.nick==itemtag.postedby,
             "Only creator of tag can post into app %s" % app.basic.fqin)
         # permit(currentuser==useras or self.whosdb.isOwnerOfApp(currentuser, app) or self.whosdb.isSystemUser(currentuser),
         #     "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
@@ -451,11 +469,11 @@ class Postdb():
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
         try:
             print "make app posting"
-            newposting=PostToTag(tagfqin=app.basic.fqin, taggedby=useras.nick, thingtotagfqin=itemtag.tagfqin)
+            newposting=Post(postfqin=app.basic.fqin, postedby=useras.nick, thingtopostfqin=itemtag.postfqin)
             #newposting.save(safe=True)
             taggingdoc.update(safe_update=True, push__pinapps=newposting)
         except:
-            doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in app %s" % (itemtag.thingtotagfqin, itemtag.tagfqin, app.basic.fqin))
+            doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in app %s" % (itemtag.thingtopostfqin, itemtag.postfqin, app.basic.fqin))
 
         return itemtag
 
@@ -507,6 +525,16 @@ class Postdb():
             doabort('NOT_FND', "Item with uri %s not saved by %s." % (itemuri, useras.nick))
         return items
 
+
+    # SO HERE WE LIST THE SEARCHES
+    #
+    #Use cases
+    #(0) get tags, as in get libraries, for a group/user/app/type.
+    #(1) get items by tags, and tags intersections, tagspec/itemspec in general
+    #(2) get tags for item, and tags for item compatible with user
+    #(3) get items for group and app, and filter them further: the context filter
+    #(4) to filter further down by user, the userthere filter.
+    #(5) ordering is important. Set up default orders and allow for sorting
     #######################################################################################################################
     #the ones in this section should go sway at some point. CURRENTLY Nminimal ERROR HANDLING HERE as selects should
     #return null arrays atleast
@@ -607,6 +635,7 @@ def initialize_application(sess):
     currentuser=adsuser
     postdb.addItemType(currentuser, dict(name="pub", creator="ads", app="ads/app:publications"))
     postdb.addItemType(currentuser, dict(name="search", creator="ads", app="ads/app:publications"))
+    postdb.addItemType(currentuser, dict(name="library", creator="ads", app="ads/app:publications"))
     postdb.addTagType(currentuser, dict(name="tag", creator="ads", app="ads/app:publications"))
     postdb.addTagType(currentuser, dict(name="library", creator="ads", app="ads/app:publications"))
     postdb.addTagType(currentuser, dict(name="note", creator="ads", app="ads/app:publications"))
@@ -623,6 +652,8 @@ def initialize_testing(db_session):
 
     rahuldave=whosdb.getUserForNick(currentuser, "rahuldave")
     currentuser=rahuldave
+    #postdb.saveItem(currentuser, rahuldave, dict(name="rahulbrary", itemtype="ads/library", creator=rahuldave.nick))
+    postdb.makeTag(currentuser,rahuldave, dict(tagtype="ads/library", creator=rahuldave.nick, name="rahulbrary"))
     import simplejson as sj
     papers=sj.loads(open("file.json").read())
     for k in papers.keys():

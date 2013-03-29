@@ -26,6 +26,10 @@ class Tag(Document):
     dtype = StringField(default="adsgut/tag")
     basic = EmbeddedDocumentField(Basic)
     tagtype = StringField(required=True)
+    #The owner of a tag can be a user, group, or app
+    #This is different from creator as ownership can be transferred. You
+    #see this in groups and apps too. Its like a duck.
+    owner = StringField(required=True)
 
 
 class User(Document):
@@ -87,35 +91,38 @@ class App(Document):
 #jluker tags as belonging to rahuldave/group:ml
 #
 #POSTING AND TAGGING ARE DUCKS
-class PostToTag(EmbeddedDocument):
+class Post(EmbeddedDocument):
     #includes posting to apps and groups
     #below is the wheretopostfqin
     meta = {'allow_inheritance':True}
-    tagfqin=StringField(required=True)
-    thingtotagfqin=StringField(required=True)
-    whentagged=DateTimeField(required=True, default=datetime.datetime.now)
-    taggedby=StringField(required=True)
+    #this would be the fqin of the tag too.
+    postfqin=StringField(required=True)
+    thingtopostfqin=StringField(required=True)
+    whenposted=DateTimeField(required=True, default=datetime.datetime.now)
+    postedby=StringField(required=True)
 
 
-class Tagging(PostToTag):
+class Tagging(Post):
+    tagtype=StringField(default="ads/tag", required=True)
+    tagname=StringField(required=True)
     tagdescription=StringField(default="", required=True)
 
 
 class PostingDocument(Document):
-    thething=EmbeddedDocumentField(PostToTag)
+    thething=EmbeddedDocumentField(Post)
 
 class TaggingDocument(Document):
     thething=EmbeddedDocumentField(Tagging)
-    pingrps = ListField(EmbeddedDocumentField(PostToTag))
-    pinapps = ListField(EmbeddedDocumentField(PostToTag))
+    pingrps = ListField(EmbeddedDocumentField(Post))
+    pinapps = ListField(EmbeddedDocumentField(Post))
 
 class Item(Document):
     dtype = StringField(default="adsgut/item")
     #itypefqin
     itemtype = StringField(required=True)
     basic = EmbeddedDocumentField(Basic)
-    pingrps = ListField(EmbeddedDocumentField(PostToTag))
-    pinapps = ListField(EmbeddedDocumentField(PostToTag))
+    pingrps = ListField(EmbeddedDocumentField(Post))
+    pinapps = ListField(EmbeddedDocumentField(Post))
     #a very specific tag is collected below, the library tag
     pinlibs = ListField(EmbeddedDocumentField(Tagging))
     #anything not library, group, or app
