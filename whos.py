@@ -448,6 +448,8 @@ def initialize_application(db_session):
     initgroup.save(safe=True)
     adsgutuser=whosdb.addUser(currentuser, dict(nick='adsgut', adsid='adsgut'))
     currentuser=adsgutuser
+    adsgutapp=whosdb.addApp(currentuser, dict(name='adsgut', description="The MotherShip App", creator=adsgutuser.nick))
+
     adsuser=whosdb.addUser(currentuser, dict(nick='ads', adsid='ads'))
     #adsuser=User(name='ads', email='ads@adslabs.org')
     currentuser=adsuser

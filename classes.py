@@ -1,6 +1,8 @@
 from mongoengine import *
 import datetime
 
+#BUG: at some point counters on collections should be built in
+#
 class Basic(EmbeddedDocument):
     #namespace = StringField(required=True)
     #Is above needed? should it be saved?
@@ -16,11 +18,17 @@ class Basic(EmbeddedDocument):
 class ItemType(Document):
     dtype = StringField(default="adsgut/itemtype")
     basic = EmbeddedDocumentField(Basic)
-    app = StringField(default="ads/publications")
+    app = StringField(default="adsgut/adsgut", required=True)
 
 class TagType(Document):
     dtype = StringField(default="adsgut/tagtype")
     basic = EmbeddedDocumentField(Basic)
+    #if tagmode=true for this tagtype, then tagging an item published to a group does not
+    #result in the tag being published to the group. This is true of notes.
+    tagmode = BooleanField(default=False, required=True)
+    #singleton mode, if true, means that a new instance of this tag must be created each time
+    #once again example is note, which is created with a uuid as name
+    singletonmode = BooleanField(default=False, required=True)
 
 class Tag(Document):
     dtype = StringField(default="adsgut/tag")
