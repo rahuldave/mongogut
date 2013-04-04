@@ -5,6 +5,7 @@ from permissions import authorize_context_owner, authorize_context_member
 from errors import abort, doabort, ERRGUT
 import types
 import uuid
+from copy import copy
 
 
 #BUG: must die if required stuff is not there. espcially description for a singleton
@@ -154,7 +155,7 @@ class Postdb():
             "Only member of group %s can post into it" % grp.basic.fqin)
 
         try:#BUG:what if its already there?
-            newposting=Post(postfqin=grp.basic.fqin, postedby=useras.nick, thingtopostfqin=itemfqin)
+            newposting=Post(postfqin=grp.basic.fqin, postedby=useras.nick, thingtopostfqin=itemfqin, thingtoposttype=item.itemtype)
             #newposting.save(safe=True)
             print 'pppppppppppppppp'
             postingdoc=PostingDocument(thing=newposting)
@@ -267,7 +268,7 @@ class Postdb():
         #     "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
 
         try:#BUG:What if its already there?
-            newposting=Post(postfqin=app.basic.fqin, postedby=useras.nick, thingtopostfqin=itemfqin)
+            newposting=Post(postfqin=app.basic.fqin, postedby=useras.nick, thingtopostfqin=itemfqin, thingtoposttype=item.itemtype)
             #newposting.save(safe=True)
             postingdoc=PostingDocument(thing=newposting)
             postingdoc.save(safe=True)
@@ -348,6 +349,7 @@ class Postdb():
                 itemtag=Tagging(postfqin=tag.basic.fqin,
                                 postedby=useras.nick,
                                 thingtopostfqin=itemtobetagged.basic.fqin,
+                                thingtoposttype=itemtobetagged.itemtype,
                                 tagname=tag.basic.name,
                                 tagtype=tag.tagtype,
                                 tagdescription=tagdescript
@@ -457,7 +459,8 @@ class Postdb():
             "Only creator of tag can post into group %s" % grp.basic.fqin)
         #item=self._getItem(currentuser, itemtag.thingtopostfqin)
         try:
-            newposting=Post(postfqin=grp.basic.fqin, postedby=useras.nick, thingtopostfqin=itemtag.postfqin)
+            newposting=Post(postfqin=grp.basic.fqin,
+                postedby=useras.nick, thingtopostfqin=itemtag.postfqin, thingtoposttype=itemtag.thingtoposttype)
             #newposting.save(safe=True)
             ##BUG:is a new taggingdoc in order?
             print 'OOOOOOOOOOOO'
@@ -518,7 +521,8 @@ class Postdb():
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
         try:
             print "make app posting"
-            newposting=Post(postfqin=app.basic.fqin, postedby=useras.nick, thingtopostfqin=itemtag.postfqin)
+            newposting=Post(postfqin=app.basic.fqin,
+                postedby=useras.nick, thingtopostfqin=itemtag.postfqin, thingtoposttype=itemtag.thingtoposttype)
             #newposting.save(safe=True)
             taggingdoc.update(safe_update=True, push__pinapps=newposting)
         except:
@@ -616,7 +620,7 @@ class Postdb():
     #   sort={by:field, ascending:True}/None #currently
     #   criteria=[{field:fieldname, op:operator, value:val}...]
     #   Finally we need to handle pagination/offsets
-    def getItemsForItemspec(self, currentuser, useras, criteria, context=None, sort=None, pagtuple=None):
+    def _makeQuery(self, klass, currentuser, useras, criteria, context=None, sort=None, shownfields=None, pagtuple=None):
         DEFPAGOFFSET=0
         DEFPAGSIZE=10
         kwdict={}
@@ -627,7 +631,11 @@ class Postdb():
                 kwdict[d['field']+'__'+d['op']]=d['value']
         #kwdict={d['field']+'__'+d['op']:d['value'] for d in criteria}
         print "KWDICT", kwdict
-        itemqset=Item.objects(**kwdict)
+        #SHOWNFIELDS=['itemtype', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri']
+        #itemqset=Item.objects.only(*SHOWNFIELDS)
+        #print itemqset[0].dtype
+        itemqset=klass.objects(**kwdict)
+        #itemqset=itemqset.filter(**kwdict)
         #For context we must learn to not leak other groups: use exclude or only not to send that info back
         #otherwise must filter it out in python.
         if context:
@@ -648,6 +656,8 @@ class Postdb():
                     itemqset=itemqset.filter(pinapps__postfqin=ctarget, pingrps__postedby=useras.nick)
                 else:
                     itemqset=itemqset.filter(pinapps__postfqin=ctarget)
+        else:
+            print "NO CONTEXT"
         #also how do we handle counts?
         if sort:
             prefix=""
@@ -655,6 +665,10 @@ class Postdb():
                 prefix='-'
             sorter=prefix+sort['field']
             itemqset=itemqset.order_by(sorter)
+        else:
+            print "NO SORT"
+        if shownfields:
+            itemqset=itemqset.only(*shownfields)
         if pagtuple:
             pagoffset=pagtuple[0]
             pagsize=pagtuple[1]
@@ -664,10 +678,35 @@ class Postdb():
             pagoffset=DEFPAGOFFSET
             pagsize=DEFPAGSIZE
         pagend=pagoffset+pagsize
+        print "KLASS", klass.__name__
         count=itemqset.count()
         #Does the generator reset?
+        ##ONLY PUT CERTAIN FIELDS:
+
         print "paging", pagoffset, pagend
         return count, itemqset[pagoffset:pagend]
+
+
+
+    def getItemsForItemspec(self, currentuser, useras, criteria, context=None, sort=None, pagtuple=None):
+        SHOWNFIELDS=['itemtype', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri']
+        klass=Item
+        result=self._makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, pagtuple)
+        return result
+
+    def getTaggingsForSpec(self, currentuser, useras, criteria, context=None, sort=None, pagtuple=None):
+        SHOWNFIELDS=[   'thething.postfqin',
+                        'thething.thingtopostfqin',
+                        'thething.thingtoposttype',
+                        'thething.whenposted',
+                        'thething.postedby',
+                        'thething.tagtype',
+                        'thething.tagname',
+                        'thething.tagdescription']
+        klass=TaggingDocument
+        result=self._makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, pagtuple)
+        return result
+
     #Not needed any more due to above but kept around for quicker use:
     # def _getItemsForApp(self, currentuser, useras, fullyQualifiedAppName):
     #     app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
@@ -879,8 +918,10 @@ def test_gets(db_session):
         [{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}],
         {'user':False, 'type':'group', 'value':'rahuldave/group:ml'},
         {'ascending':False, 'field':'basic__name'},
-        (5, 3))
-    print "++++", num, [v.basic.fqin for v in vals]
+        (5, 1))
+    print "++++", num, len(vals), vals[0].to_json()
+    num, vals=postdb.getTaggingsForSpec(currentuser, rahuldave, [{'field':'thething__tagname', 'op':'eq', 'value':'stupid'}])
+    print "++++", num, [v.to_json() for v in vals]
 
 if __name__=="__main__":
     db_session=connect("adsgut")

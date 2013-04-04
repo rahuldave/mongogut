@@ -106,6 +106,7 @@ class Post(EmbeddedDocument):
     #this would be the fqin of the tag too.
     postfqin=StringField(required=True)
     thingtopostfqin=StringField(required=True)
+    thingtoposttype=StringField(required=True)
     whenposted=DateTimeField(required=True, default=datetime.datetime.now)
     postedby=StringField(required=True)
 
