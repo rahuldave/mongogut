@@ -1,0 +1,36 @@
+This document is about the userfacing workflows, and their mapping to internal operations. Currently, no 3rd party apps so we wont support any of that.
+
+On user profile page:
+(a) Users groups: page or lightbox with a list of groups that, when each is clicked, takes you to the group page. Should also include lists of groups you are invited to, and which you own.
+
+(1) all groups for user
+(2) all groups you own
+(3) all groups you are invited to
+(4) all groups you are a member of.
+
+(b) Users libraries
+
+(5) all libraries owned by user
+(6) all libraries user can write to by dint of those libraries being group writable
+
+(c) Users top 10 stags(simple tags), and perhaps an all tags page, sorted by type and count? Should this include notes, I dont think so, only singletonmode=False, and only stags.
+
+(7) all(top N) singletonmode=False tags of user, sorted by, and with, counts.
+
+On (d)users overall page, (e)a library page, and on a (f)group page.
+
+
+On the left side we would like a list of tags. Should we do top N here with a more button? In the main area, for all these, we want boxes for searches, libraries, and publications, as in the astroexplorer interface. We want a separate page for just publications. We should only show the most recently saved 10 of each. A separate page for each could show all, with optional pagination. Like astroexplorer, we could start thus, and use intbitsets th throw into the standard ADS interface, rather than having ADS faceting inline for now.
+
+ When i click on a tag it will filter for that tag. If I click on another it will filter for that tag. If I want a union or intersection I will have a union or intersection next to it.  (it will need to be merged into the breadcrumbs for the standard ADS application). Later we may provide other of
+ our own facets such as tagtype etc (useful especially for chris). But not now.
+
+(8) get a set of items for a single itemtype and that is for a single tag.
+
+(f) a function for the privacy level of a library is needed
+
+(g) each group ought to have an administration page or lightbox. this is to make someone else an owner, add (invite) a new user, or remove a user from the group. this would only show if you were the owner of the group.
+
+(h) similarly a library page should have a ui and function to change the privacy level of a library. Suggested place is inline, on the library page, to be shown if you are the owner.
+
+(i) in def, we show items. We want to show the tags on those items alongside. We want to show which groups they were added to. we want to do this fast. And we want this, with no data leakage whatsoever.
