@@ -26,6 +26,7 @@ On the left side we would like a list of tags. Should we do top N here with a mo
  our own facets such as tagtype etc (useful especially for chris). But not now.
 
 (8) get a set of items for a single itemtype and that is for a single tag.
+(9) Now do this for a general union or intersection expression written in infix notation: U(A(t1,t2),t3). U=union. A=intersection.
 
 (f) a function for the privacy level of a library is needed
 
