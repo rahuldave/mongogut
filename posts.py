@@ -707,6 +707,17 @@ class Postdb():
         result=self._makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, pagtuple)
         return result
 
+    def getPostingsForSpec(self, currentuser, useras, criteria, context=None, sort=None, pagtuple=None):
+        SHOWNFIELDS=[   'thething.postfqin',
+                        'thething.thingtopostfqin',
+                        'thething.thingtoposttype',
+                        'thething.whenposted',
+                        'thething.postedby']
+
+        klass=PostingDocument
+        result=self._makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, pagtuple)
+        return result
+
     #Not needed any more due to above but kept around for quicker use:
     # def _getItemsForApp(self, currentuser, useras, fullyQualifiedAppName):
     #     app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()

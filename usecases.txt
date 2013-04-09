@@ -26,12 +26,23 @@ On the left side we would like a list of tags. Should we do top N here with a mo
  our own facets such as tagtype etc (useful especially for chris). But not now.
 
 (8) get a set of items for a single itemtype and that is for a single tag.
-(9) Now do this for a general union or intersection expression written in infix notation: U(A(t1,t2),t3). U=union. A=intersection.
+(9) Now do this for a general union or intersection expression written in infix notation: U(I(t1,t2),t3). U=union. I=intersection.
+(10) Any other stuff that can be obtained from querrying the items collection.
+
+Indeed can all of this be done by querying the items collection, especially when it comes to a users stuff? Or should we be querying PostingDocuments on the private group instead. In that case, one might ask, why store anything related to posting and tagging in the Items collection. 
 
 (f) a function for the privacy level of a library is needed
 
+(11) given a library, is it readable to user. Why? Isnt this just a repeat of 5 and 6?
+
 (g) each group ought to have an administration page or lightbox. this is to make someone else an owner, add (invite) a new user, or remove a user from the group. this would only show if you were the owner of the group.
 
-(h) similarly a library page should have a ui and function to change the privacy level of a library. Suggested place is inline, on the library page, to be shown if you are the owner.
+(h) similarly a library page should have a ui and function to change the privacy level of a library. Suggested place is inline, on the library page, to be shown if you are the owner. Ofcourse it could be a lightbox too.
 
 (i) in def, we show items. We want to show the tags on those items alongside. We want to show which groups they were added to. we want to do this fast. And we want this, with no data leakage whatsoever.
+
+(12) so given a set of items, get all tags, libraries, groups, apps, and then remove those not compatible with the user. Perhaps best done using the tagging and posting documents.
+
+Remember, for 12 (and others) we have the problem that we want items, bot postings or taggings. Questions which take items as input are definitely better suited to the Post/Tag Document collection queries. Whereas those that want us to return stuff for a item, or those that want items, are better served by querying the items collection.
+
+Our strategy is going to be to create many small functions that will use the larger more general functions we have defined, rather than leave those general questions in the API. Thats why this list.
