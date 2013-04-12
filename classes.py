@@ -34,10 +34,12 @@ class Tag(Document):
     dtype = StringField(default="adsgut/tag")
     basic = EmbeddedDocumentField(Basic)
     tagtype = StringField(required=True)
+    singletonmode = StringField(required=True, default=False)
     #The owner of a tag can be a user, group, or app
     #This is different from creator as ownership can be transferred. You
     #see this in groups and apps too. Its like a duck.
     owner = StringField(required=True)
+    members = ListField(StringField())
 
 
 class User(Document):

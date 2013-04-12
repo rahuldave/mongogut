@@ -9,6 +9,8 @@ from copy import copy
 
 
 #BUG: must die if required stuff is not there. espcially description for a singleton
+#will work if singletonmode is not there due to default for tag. Really we should be
+#looking up thr tagtype in the database
 def augmentspec(specdict, spectype="item"):
     basicdict={}
     print "INSPECDICT", specdict
@@ -21,7 +23,7 @@ def augmentspec(specdict, spectype="item"):
             itemtypens=specdict['itemtype'].split('/')[0]
             basicdict['fqin']=itemtypens+"/"+specdict['name']
         else:
-            specdict['tagtype']=specdict.get('tagtype','tag')
+            specdict['tagtype']=specdict.get('tagtype','ads/tag')
             specdict['owner']=basicdict['creator']
             #tag, note, library, group and app are reserved and treated as special forms
             basicdict['fqin']=specdict['creator']+"/"+specdict['tagtype']+':'+specdict['name']
@@ -306,10 +308,17 @@ class Postdb():
         try:
             print "was tha tag found"
             tag=self._getTag(currentuser, tagspec['basic'].fqin)
+            #remember that on handover to someone else or a group, fqtn is not changed
+            #thus we must check i am member of group, or the person to whom ownership
+            #is transferred. if i am not, abort
+            if not self.isMemberOfTag(currentuser, tag):
+                doabort('NOT_AUT', "Not authorized for tag %s" % tagspec['basic'].fqin)
         except:
             #the tag was not found. Create it
+            #BUG we dont even check for the existence of tagtype. These things must be added.
             try:
                 print "try creating tag"
+                tagspec['push__members']=useras.nick
                 tag=Tag(**tagspec)
                 tag.save(safe=True)
             except:
@@ -414,16 +423,37 @@ class Postdb():
         else:
             return False
 
+    def isMemberOfTagO(self, currentuser, tag):
+        #tags owner here must be a group
+        if self.isOwnerOfTag(currentuser, tag):
+            return True
+        elif self.whosdb.isMemberOfGroup(currentuser.nick,tag.owner):
+            return True
+        else:
+            return False
+
+    def isMemberOfTag(self, currentuser, tag):
+        #tags owner here must be a group
+        if currentuser.nick in tag.members:
+            return True
+        else:
+            return False
+
     #once trnsferroed to a group, cannot be transfered back.
+    #for now, u must me member of group to transfer ownership there
+    #if you transfer to another person you lose rights
+    #groups cant create tags for now, must transfer to group
     def changeOwnershipOfTag(self, currentuser, fqtn, newowner, groupmode=False):
         tagq=Tag.objects(basic__fqin=fqtn)
         if groupmode:
             try:
                 groupq=Group.objects(basic__fqin=newowner)
-                newowner=groupq.get().basic.fqin
+                group=groupq.get()
+                newowner=group.basic.fqin
             except:
                 #make sure target exists.
                 doabort('BAD_REQ', "No such group %s" % newowner)
+            authorize_context_member(False, self.whosdb, currentuser, None, group)
         else:
             try:
                 userq= User.objects(nick=newowner)
@@ -438,7 +468,10 @@ class Postdb():
         authorize_context_owner(False, self, currentuser, None, tag)
         try:
             oldownernick=tag.owner
-            tag.update(safe_update=True, set__owner = newowner)
+            if groupmode:
+                tag.update(safe_update=True, set__owner = newowner, push__members=newowner)
+            else:
+                tag.update(safe_update=True, set__owner = newowner, push__members=newowner, pull__members=oldownernick)
         except:
             doabort('BAD_REQ', "Failed changing owner from %s to %s for tag %s" % (oldownernick, newowner, fqtn))
         return newowner
@@ -591,7 +624,7 @@ class Postdb():
         return tags
 
     #Internal: no permissions, used to get fqtns for every tagging
-    def __getTagsForName(self, currentuser, tagname):
+    def _getTagsForName(self, currentuser, tagname):
         try:
             #Bu default, i will only send back stuff owned by this user
             tags=Tag.objects(basic__name=tagname)
@@ -610,9 +643,6 @@ class Postdb():
     #(3) get items for group and app, and filter them further: the context filter
     #(4) to filter further down by user, the userthere filter.
     #(5) ordering is important. Set up default orders and allow for sorting
-    #######################################################################################################################
-    #the ones in this section should go sway at some point. CURRENTLY Nminimal ERROR HANDLING HERE as selects should
-    #return null arrays atleast
 
     #searchspec has :
     #   should searchspec have libraries?
@@ -669,24 +699,64 @@ class Postdb():
             print "NO SORT"
         if shownfields:
             itemqset=itemqset.only(*shownfields)
+        count=itemqset.count()
+
         if pagtuple:
             pagoffset=pagtuple[0]
             pagsize=pagtuple[1]
             if pagsize==None:
                 pagsize=DEFPAGSIZE
+            retset=itemqset[pagoffset:pagend]
         else:
-            pagoffset=DEFPAGOFFSET
-            pagsize=DEFPAGSIZE
+            #pagoffset=DEFPAGOFFSET
+            #pagsize=DEFPAGSIZE
+            retset=itemqset
         pagend=pagoffset+pagsize
         print "KLASS", klass.__name__
-        count=itemqset.count()
         #Does the generator reset?
         ##ONLY PUT CERTAIN FIELDS:
 
         print "paging", pagoffset, pagend
-        return count, itemqset[pagoffset:pagend]
+        return count, retset
 
 
+
+    def getTagsForTagspec(self, currentuser, useras, criteria, sort=None):
+        SHOWNFIELDS=['tagtype', 'singletonmode', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri', 'basic.creator', 'owner']
+        klass=Tag
+        result=self._makeQuery(klass, currentuser, useras, criteria, None, sort, SHOWNFIELDS, None)
+        return result
+
+    def getTagsByOwner(self, currentuser, useras, tagtype=None, singletonmode=False):
+        criteria=[
+            {'field':'owner', 'op':'eq', 'value':useras.nick},
+            {'field':'singleton', 'op':'eq', 'value':singletonmode}
+        ]
+        if tagtype:
+            criteria.append({'field':'tagtype', 'op':'eq', 'value':tagtype})
+        result=getTagsForTagspec(self, currentuser, useras, criteria, sort)
+        return result
+
+    #You also have access to tags through group ownership of tags
+    #no singletonmodes are usually transferred to group ownership
+    #this will give me all
+    def getTagsAsMemberAndOwner(self, currentuser, useras, tagtype=None, singletonmode=False):
+        criteria=[
+            {'field':'members', 'op':'eq', 'value':useras.nick},
+            {'field':'singleton', 'op':'eq', 'value':singletonmode}
+        ]
+        result=getTagsForTagspec(self, currentuser, useras, criteria, sort)
+        return result
+
+    #this is the stuff you get from group membership only
+    def getTagsAsMemberOnly(self, currentuser, useras, tagtype=None, singletonmode=False):
+        criteria=[
+            {'field':'owner', 'op':'ne', 'value':useras.nick},
+            {'field':'members', 'op':'eq', 'value':useras.nick},
+            {'field':'singleton', 'op':'eq', 'value':singletonmode}
+        ]
+        result=getTagsForTagspec(self, currentuser, useras, criteria, sort)
+        return result
 
     def getItemsForItemspec(self, currentuser, useras, criteria, context=None, sort=None, pagtuple=None):
         SHOWNFIELDS=['itemtype', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri']
@@ -718,88 +788,9 @@ class Postdb():
         result=self._makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, pagtuple)
         return result
 
-    #Not needed any more due to above but kept around for quicker use:
-    # def _getItemsForApp(self, currentuser, useras, fullyQualifiedAppName):
-    #     app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
-    #     return [ele.info() for ele in app.itemsposted]
-
-    # def _getItemsForGroup(self, currentuser, useras, fullyQualifiedGroupName):
-    #     grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
-    #     return [ele.info() for ele in grp.itemsposted]
+    #Now let us build other functions on the top of these
 
 
-#     def _getTaggingForItemspec(self, currentuser, useras, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
-#         rhash={}
-#         titems={}
-#         tcounts={}
-
-#         #BUG: should we be iterating here? Isnt this information more easily findable?
-#         #but dosent that require replacing info by something more collection oriented?
-#         #permitting inside
-#         taggings=self.__getTaggingsWithCriterion(currentuser, useras, context, fqin, criteria, rhash, fvlist, orderer)
-#         for ele in taggings:
-#             eled=ele.info()#DONT pass useras as the tag class uses its own user to make sure security is not breached
-#             #print "eled", eled
-#             eledfqin=eled['item']
-#             if not titems.has_key(eledfqin):
-#                 titems[eledfqin]=[]
-#                 tcounts[eledfqin]=0
-#             titems[eledfqin].append(eled)
-#             tcounts[eledfqin]=tcounts[eledfqin]+1
-#         count=len(titems.keys())
-#         rhash.update({'taggings':titems, 'count':count, 'tagcounts':tcounts})
-#         return rhash
-
-# #should there be a _getTagsForItemSpec
-
-#     def _getItemsForTagspec(self, currentuser, useras, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
-#         rhash={}
-#         titems={}
-#         #permitting inside
-#         taggings=self.__getTaggingsWithCriterion(currentuser, useras, context, fqin, criteria, rhash, fvlist, orderer)
-
-#         #BUG: simplify and get counts? we should not be iterating before sending out as we are here. That will slow things down
-#         for ele in taggings:
-#             eled=ele.info()
-#             print "eled", eled['taginfo']
-#             eledfqin=eled['item']
-#             if not titems.has_key(eledfqin):
-#                 titems[eledfqin]=eled['iteminfo']
-#         count=len(titems.keys())
-#         rhash.update({'items':titems.values(), 'count':count})
-#         return rhash
-
-
-
-
-#     def _getItemsForTag(self, currentuser, useras, tagorfullyQualifiedTagName, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
-#         #in addition to whatever criteria (which ones are allowed ought to be in web service or here?) are speced
-#         #we need to get the tag
-#         rhash={}
-#         tag=_tag(currentuser, self,  tagorfullyQualifiedTagName)
-#         print "TAG", tag, tagorfullyQualifiedTagName
-#         #You would think that this ought to not be here because of the groups and apps, but remember, tags are specific
-#         #to users. Use the spec functions in this situation.
-#         permit(useras==tag.creator, "User must be creator of tag %s" % tag.fqin)
-#         criteria['tagtype']=tag.tagtype.fqin
-#         criteria['tagname']=tag.name
-#         #more detailed permitting inside: this is per user!
-#         rhash = self._getItemsForTagspec(currentuser, useras, context, fqin, criteria, fvlist, orderer)
-#         return rhash
-
-
-#     def _getTagsForItem(self, currentuser, useras, itemorfullyQualifiedItemName, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
-#         item=_item(currentuser, self,  itemorfullyQualifiedItemName)
-#         #BUG: whats the security I can see the item?
-#         criteria['name']=item.name
-#         criteria['itemtype']=item.itemtype.fqin
-#         #permitting inside but this is for multiple items
-#         rhash=self._getTaggingForItemspec(currentuser, useras, context, fqin, criteria, fvlist, orderer)
-#         return rhash
-
-
-#should there be a function to just return tags. Dont TODO we need funcs to return simple tagclouds and stuff?
-#do this with the UI. The funcs do exist here as small _getTagging funcs
 
 def initialize_application(sess):
     currentuser=None
@@ -862,12 +853,12 @@ def initialize_testing(db_session):
     postdb.tagItem(currentuser, rahuldave, "ads/hello doggy", dict(tagtype="ads/tag", creator=rahuldave.nick, name="dumb"))
 
     postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/note",
-        creator=rahuldave.nick, name="somethingunique1", description="this is a note for the kitty"))
+        creator=rahuldave.nick, name="somethingunique1", description="this is a note for the kitty", singletonmode=True))
 
     postdb.tagItem(currentuser, rahuldave, "ads/hello doggy", dict(tagtype="ads/tag", creator=rahuldave.nick, name="dumbdog"))
     postdb.tagItem(currentuser, rahuldave, "ads/hello doggy", dict(tagtype="ads/library", creator=rahuldave.nick, name="dumbdoglibrary"))
     postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/note",
-        creator=rahuldave.nick, name="somethingunique2", description="this is a note for the doggy"))
+        creator=rahuldave.nick, name="somethingunique2", description="this is a note for the doggy", singletonmode=True))
 
     print "LALALALALA"
     #Wen a tagging is posted to a group, the item should be autoposted into there too

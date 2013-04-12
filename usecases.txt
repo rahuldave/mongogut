@@ -3,19 +3,19 @@ This document is about the userfacing workflows, and their mapping to internal o
 On user profile page:
 (a) Users groups: page or lightbox with a list of groups that, when each is clicked, takes you to the group page. Should also include lists of groups you are invited to, and which you own.
 
-(1) all groups for user
-(2) all groups you own
-(3) all groups you are invited to
-(4) all groups you are a member of.
+@d(1) all groups for user
+@d(2) all groups you own
+@d(3) all groups you are invited to
+@d(4) all groups you are a member of.
 
 (b) Users libraries
 
-(5) all libraries owned by user
-(6) all libraries user can write to by dint of those libraries being group writable
+@d(5) all libraries owned by user
+@d(6) all libraries user can write to by dint of those libraries being group writable
 
 (c) Users top 10 stags(simple tags), and perhaps an all tags page, sorted by type and count? Should this include notes, I dont think so, only singletonmode=False, and only stags.
 
-(7) all(top N) singletonmode=False tags of user, sorted by, and with, counts.
+@d(7) all(top N) singletonmode=False tags of user, sorted by, and with, counts.
 
 On (d)users overall page, (e)a library page, and on a (f)group page.
 
@@ -43,6 +43,6 @@ Indeed can all of this be done by querying the items collection, especially when
 
 (12) so given a set of items, get all tags, libraries, groups, apps, and then remove those not compatible with the user. Perhaps best done using the tagging and posting documents.
 
-Remember, for 12 (and others) we have the problem that we want items, bot postings or taggings. Questions which take items as input are definitely better suited to the Post/Tag Document collection queries. Whereas those that want us to return stuff for a item, or those that want items, are better served by querying the items collection.
+Remember, for 12 (and others) we have the problem that we want items, not postings or taggings. Questions which take items as input are definitely better suited to the Post/Tag Document collection queries. Whereas those that want us to return stuff for a item, or those that want items, are better served by querying the items collection, if those things are present in the items collection, which are not many. So it would seem to be better to hit postings or taggings, and then perhaps unique on the items
 
 Our strategy is going to be to create many small functions that will use the larger more general functions we have defined, rather than leave those general questions in the API. Thats why this list.
