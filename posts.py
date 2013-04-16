@@ -6,6 +6,7 @@ from errors import abort, doabort, ERRGUT
 import types
 import uuid
 from copy import copy
+from mongoengine import Q
 
 
 #BUG: must die if required stuff is not there. espcially description for a singleton
@@ -649,23 +650,34 @@ class Postdb():
     #   context={user:True|False, type:None|group|app, value:None|specificvalue}/None
     #   sort={by:field, ascending:True}/None #currently
     #   criteria=[{field:fieldname, op:operator, value:val}...]
+    #   CURRENTLY we use AND outside. To do OR use an op:in query
     #   Finally we need to handle pagination/offsets
     def _makeQuery(self, klass, currentuser, useras, criteria, context=None, sort=None, shownfields=None, pagtuple=None):
         DEFPAGOFFSET=0
         DEFPAGSIZE=10
         kwdict={}
-        for d in criteria:
-            if d['op']=='eq':
-                kwdict[d['field']]=d['value']
-            else:
-                kwdict[d['field']+'__'+d['op']]=d['value']
+        qterms=[]
+        for l in criteria:
+            kwdict={}
+            for d in l:
+                if d['op']=='eq':
+                    kwdict[d['field']]=d['value']
+                else:
+                    kwdict[d['field']+'__'+d['op']]=d['value']
+            qterms.append(Q(**kwdict))
+        if len(qterms) == 1:
+            qclause=qterms[0]
+        else:
+            qclause = reduce(lambda q1, q2: q1.__and__(q2), qterms)
         #kwdict={d['field']+'__'+d['op']:d['value'] for d in criteria}
-        print "KWDICT", kwdict
+        #print "KWDICT", kwdict
         #SHOWNFIELDS=['itemtype', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri']
         #itemqset=Item.objects.only(*SHOWNFIELDS)
         #print itemqset[0].dtype
-        itemqset=klass.objects(**kwdict)
+        #itemqset=klass.objects(**kwdict)
         #itemqset=itemqset.filter(**kwdict)
+        itemqset=klass.objects.filter(qclause)
+        
         #For context we must learn to not leak other groups: use exclude or only not to send that info back
         #otherwise must filter it out in python.
         if context:
@@ -706,17 +718,13 @@ class Postdb():
             pagsize=pagtuple[1]
             if pagsize==None:
                 pagsize=DEFPAGSIZE
+            pagend=pagoffset+pagsize
             retset=itemqset[pagoffset:pagend]
         else:
-            #pagoffset=DEFPAGOFFSET
-            #pagsize=DEFPAGSIZE
+            pagoffset=DEFPAGOFFSET
+            pagsize=DEFPAGSIZE
             retset=itemqset
-        pagend=pagoffset+pagsize
-        print "KLASS", klass.__name__
-        #Does the generator reset?
-        ##ONLY PUT CERTAIN FIELDS:
 
-        print "paging", pagoffset, pagend
         return count, retset
 
 
@@ -762,6 +770,18 @@ class Postdb():
         SHOWNFIELDS=['itemtype', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri']
         klass=Item
         result=self._makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, pagtuple)
+        return result
+
+    def getItemsForTagqueryAndPost(self, currentuser, useras, tagquery, context=None, sort=None, pagtuple=None):
+        #tagquery is currently assumed to be a list of [{'tagtype', 'tagname'}]
+        #we assume that
+        criteria=[]
+        for v in tagquery:
+            criteria.append([
+                {'field':'stags__tagname', 'op':'eq', 'value':v['tagname']},
+                {'field':'stags__tagtype', 'op':'eq', 'value':v['tagtype']}
+            ])
+        result=getItemsForItemspec(self, currentuser, useras, criteria, context, sort, pagtuple)
         return result
 
     def getTaggingsForSpec(self, currentuser, useras, criteria, context=None, sort=None, pagtuple=None):
@@ -893,36 +913,45 @@ def test_gets(db_session):
 
     rahuldave=whosdb.getUserForNick(currentuser, "rahuldave")
     currentuser=rahuldave
-    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, [{'field':'basic__name', 'op':'eq', 'value':'hello kitty'}])
+    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
+        [[{'field':'basic__name', 'op':'eq', 'value':'hello kitty'}]])
     print "++++", num, [v.basic.fqin for v in vals]
-    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, [{'field':'pingrps__postfqin', 'op':'eq', 'value':'rahuldave/group:ml'}])
+    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
+        [[{'field':'pingrps__postfqin', 'op':'eq', 'value':'rahuldave/group:ml'}]])
     print "++++", num, [v.basic.fqin for v in vals]
-    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, [{'field':'stags__tagname', 'op':'eq', 'value':'stupid'}])
+    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
+        [[{'field':'stags__tagname', 'op':'eq', 'value':'stupid'}]])
     print "++++", num, [v.basic.fqin for v in vals]
-    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, [{'field':'pinlibs__tagname', 'op':'eq', 'value':'dumbdoglibrary'}])
+    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
+        [[{'field':'pinlibs__tagname', 'op':'eq', 'value':'dumbdoglibrary'}]])
     print "++++", num, [v.basic.fqin for v in vals]
-    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, [{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}], {'user':False, 'type':'group', 'value':'rahuldave/group:ml'})
+    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
+        [[{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}]], 
+        {'user':False, 'type':'group', 'value':'rahuldave/group:ml'})
     print "++++", num, [v.basic.fqin for v in vals]
-    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, [{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}], {'user':True, 'type':'group', 'value':'rahuldave/group:ml'})
+    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
+        [[{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}]], 
+        {'user':True, 'type':'group', 'value':'rahuldave/group:ml'})
     print "++++", num, [v.basic.fqin for v in vals]
     num, vals=postdb.getItemsForItemspec(currentuser, rahuldave,
-        [{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}],
+        [[{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}]],
         {'user':False, 'type':'group', 'value':'rahuldave/group:ml'},
         {'ascending':False, 'field':'basic__name'})
     print "++++", num, [v.basic.fqin for v in vals]
     num, vals=postdb.getItemsForItemspec(currentuser, rahuldave,
-        [{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}],
+        [[{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}]],
         {'user':False, 'type':'group', 'value':'rahuldave/group:ml'},
         {'ascending':False, 'field':'basic__name'},
         (10, None))
     print "++++", num, [v.basic.fqin for v in vals]
     num, vals=postdb.getItemsForItemspec(currentuser, rahuldave,
-        [{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}],
+        [[{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}]],
         {'user':False, 'type':'group', 'value':'rahuldave/group:ml'},
         {'ascending':False, 'field':'basic__name'},
         (5, 1))
     print "++++", num, len(vals), vals[0].to_json()
-    num, vals=postdb.getTaggingsForSpec(currentuser, rahuldave, [{'field':'thething__tagname', 'op':'eq', 'value':'stupid'}])
+    num, vals=postdb.getTaggingsForSpec(currentuser, rahuldave, 
+        [[{'field':'thething__tagname', 'op':'eq', 'value':'stupid'}]])
     print "++++", num, [v.to_json() for v in vals]
 
 if __name__=="__main__":

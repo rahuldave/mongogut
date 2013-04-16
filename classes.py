@@ -112,7 +112,7 @@ class Post(EmbeddedDocument):
     whenposted=DateTimeField(required=True, default=datetime.datetime.now)
     postedby=StringField(required=True)
 
-
+#BUG:what uniqueness constraints on tagname, etc are needed?
 class Tagging(Post):
     tagtype=StringField(default="ads/tag", required=True)
     tagname=StringField(required=True)
