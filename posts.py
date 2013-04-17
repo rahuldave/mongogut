@@ -62,6 +62,11 @@ class Postdb():
     def __init__(self, db_session, wdb):
         self.session=db_session
         self.whosdb=wdb
+        self.isSystemUser=self.whosdb.isSystemUser
+        self.isOwnerOfGroup=self.whosdb.isOwnerOfGroup
+        self.isOwnerOfApp=self.whosdb.isOwnerOfApp
+        self.isMemberOfGroup=self.whosdb.isMemberOfGroup
+        self.isMemberOfApp=self.whosdb.isMemberOfApp
 
    #######################################################################################################################
    #Internals. No protection on these
@@ -104,10 +109,10 @@ class Postdb():
     def addItemType(self, currentuser, typespec):
         typespec=augmenttypespec(typespec)
         useras=self.whosdb.getUserForNick(currentuser,typespec['basic'].creator)
-        authorize(False, self.whosdb, currentuser, useras)
+        authorize(False, self, currentuser, useras)
         app=self.whosdb.getApp(currentuser, typespec['app'])
         #user must be owner of app whos namespece he is using
-        authorize_context_owner(False, self.whosdb, useras, None, app)
+        authorize_context_owner(False, self, useras, None, app)
         try:
             itemtype=ItemType(**typespec)
             itemtype.save(safe=True)
@@ -120,7 +125,7 @@ class Postdb():
     #BUG: completely not dealing with all the things of that itemtype
     def removeItemType(self, currentuser, fullyQualifiedItemType):
         itemtype=self._getItemType(currentuser, fullyQualifiedItemType)
-        authorize(False, self.whosdb, currentuser, currentuser)#any logged in user
+        authorize(False, self, currentuser, currentuser)#any logged in user
         permit(currentuser.nick==itemtype.creator, "User %s not authorized." % currentuser.nick)
         itemtype.delete(safe=True)
         return OK
@@ -128,7 +133,7 @@ class Postdb():
     def addTagType(self, currentuser, typespec):
         typespec=augmenttypespec(typespec, "tagtype")
         useras=self.whosdb.getUserForNick(currentuser,typespec['basic'].creator)
-        authorize(False, self.whosdb, currentuser, useras)
+        authorize(False, self, currentuser, useras)
         try:
             tagtype=TagType(**typespec)
             tagtype.save(safe=True)
@@ -139,7 +144,7 @@ class Postdb():
     #BUG: completely not dealing with all the things of that itemtype
     def removeTagType(self, currentuser, fullyQualifiedTagType):
         tagtype=self._getTagType(currentuser, fullyQualifiedTagType)
-        authorize(False, self.whosdb, currentuser, currentuser)#any logged in user
+        authorize(False, self, currentuser, currentuser)#any logged in user
         permit(currentuser.nick==tagtype.creator, "User %s not authorized" % currentuser.nick)
         tagtype.delete(safe=True)
         return OK
@@ -153,8 +158,8 @@ class Postdb():
         grp=self.whosdb.getGroup(currentuser, fqgn)
         item=self._getItem(currentuser, itemfqin)
         #Does the False have something to do with this being ok if it fails?BUG
-        authorize_context_owner(False, self.whosdb, currentuser, useras, grp)
-        permit(self.whosdb.isMemberOfGroup(useras, grp),
+        authorize_context_owner(False, self, currentuser, useras, grp)
+        permit(self.isMemberOfGroup(useras, grp),
             "Only member of group %s can post into it" % grp.basic.fqin)
 
         try:#BUG:what if its already there?
@@ -191,7 +196,7 @@ class Postdb():
 
     def saveItem(self, currentuser, useras, itemspec):
         #permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
-        authorize(False, self.whosdb, currentuser, useras)#sysadmin or any logged in user where but cu and ua must be same
+        authorize(False, self, currentuser, useras)#sysadmin or any logged in user where but cu and ua must be same
         fqgn=useras.nick+"/group:default"
         itemspec=augmentspec(itemspec)
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
@@ -202,7 +207,7 @@ class Postdb():
             #this way we could count how many times 'saved'
         except:
             #the item was not found. Create it
-            print "So creating %s\n" % itemspec['basic'].fqin
+            print "SO CREATING ITEM %s\n" % itemspec['basic'].fqin
             try:
                 print "ITSPEC", itemspec
                 newitem=Item(**itemspec)
@@ -239,7 +244,7 @@ class Postdb():
     def removeItemFromGroup(self, currentuser, useras, fqgn, itemfqin):
         grp=self.whosdb.getGroup(currentuser, fqgn)
         item=self._getItem(currentuser, itemfqin)
-        authorize_context_owner(False, self.whosdb, currentuser, useras, grp)
+        authorize_context_owner(False, self, currentuser, useras, grp)
         permit(useras==postingtoremove.user and self.whosdb.isMemberOfGroup(useras, grp),
             "Only member of group %s who posted this item can remove it from the app" % grp.basic.fqin)
         #NO CODE HERE YET
@@ -247,7 +252,7 @@ class Postdb():
 
     #deletion semantics with group user not clear at all! TODO: personal group removal only, item remains, are permits ok?
     def deleteItem(self, currentuser, useras, itemfqin):
-        authorize(False, self.whosdb, currentuser, useras)#sysadmin or any logged in user where but cu and ua must be same
+        authorize(False, self, currentuser, useras)#sysadmin or any logged in user where but cu and ua must be same
         fqgn=useras.nick+"/group:default"
         personalgrp=self.whosdb.getGroup(currentuser, fqgn)
         itemtoremove=self._getItem(currentuser, itemfqin)
@@ -264,7 +269,7 @@ class Postdb():
     def postItemIntoApp(self, currentuser, useras, fqan, itemfqin):
         app=self.whosdb.getApp(currentuser, fqan)
         item=self._getItem(currentuser, itemfqin)
-        authorize_context_owner(False, self.whosdb, currentuser, useras, app)
+        authorize_context_owner(False, self, currentuser, useras, app)
         permit(self.whosdb.isMemberOfApp(useras, app),
             "Only member of app %s can post into it" % app.basic.fqin)
         # permit(currentuser==useras or self.whosdb.isOwnerOfApp(currentuser, app) or self.whosdb.isSystemUser(currentuser),
@@ -293,7 +298,7 @@ class Postdb():
     def removeItemFromApp(self, currentuser, useras, fqan, itemfqin):
         app=self.whosdb.getApp(currentuser, fqan)
         item=self._getItem(currentuser, itemfqin)
-        authorize_context_owner(False, self.whosdb, currentuser, useras, app)
+        authorize_context_owner(False, self, currentuser, useras, app)
         permit(useras==postingtoremove.user and self.whosdb.isMemberOfApp(useras, app),
             "Only member of app %s who posted this item can remove it from the app" % app.basic.fqin)
         #No code as yet
@@ -304,7 +309,7 @@ class Postdb():
     ##useful for libraries and such
     def makeTag(self, currentuser, useras, tagspec, tagmode=False):
         tagspec=augmentspec(tagspec, spectype='tag')
-        authorize(False, self.whosdb, currentuser, useras)
+        authorize(False, self, currentuser, useras)
 
         try:
             print "was tha tag found"
@@ -318,11 +323,13 @@ class Postdb():
             #the tag was not found. Create it
             #BUG we dont even check for the existence of tagtype. These things must be added.
             try:
-                print "try creating tag"
+                print "TRY CREATING TAG"
                 tagspec['push__members']=useras.nick
                 tag=Tag(**tagspec)
                 tag.save(safe=True)
             except:
+                import sys
+                print sys.exc_info()
                 doabort('BAD_REQ', "Failed adding tag %s" % tagspec['basic'].fqin)
         return tag
 
@@ -339,7 +346,7 @@ class Postdb():
     #is different
     #what prevents me from using someone elses tag? validatespec DOES
     def tagItem(self, currentuser, useras, fullyQualifiedItemName, tagspec, tagmode=False):
-        authorize(False, self.whosdb, currentuser, useras)
+        authorize(False, self, currentuser, useras)
         print "FQIN", fullyQualifiedItemName
         itemtobetagged=self._getItem(currentuser, fullyQualifiedItemName)
         tag = self.makeTag(currentuser, useras, tagspec, tagmode)
@@ -400,7 +407,7 @@ class Postdb():
     def untagItem(self, currentuser, useras, fullyQualifiedTagName, fullyQualifiedItemName):
         #Do not remove item, do not remove tag, do not remove tagging
         #just remove the tag from the personal group
-        authorize(False, self.whosdb, currentuser, useras)
+        authorize(False, self, currentuser, useras)
         #POSTPONE until we have refcounting implementation
         #
         # tag=self._getTag(currentuser, fullyQualifiedTagName)
@@ -454,7 +461,7 @@ class Postdb():
             except:
                 #make sure target exists.
                 doabort('BAD_REQ', "No such group %s" % newowner)
-            authorize_context_member(False, self.whosdb, currentuser, None, group)
+            authorize_context_member(False, self, currentuser, None, group)
         else:
             try:
                 userq= User.objects(nick=newowner)
@@ -484,7 +491,7 @@ class Postdb():
         #taggingdoc.reload()
         print "FQGN", fqgn
         grp=self.whosdb.getGroup(currentuser, fqgn)
-        authorize_context_owner(False, self.whosdb, currentuser, useras, grp)
+        authorize_context_owner(False, self, currentuser, useras, grp)
 
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
         permit(self.whosdb.isMemberOfGroup(useras, grp),
@@ -526,7 +533,7 @@ class Postdb():
 
         grp=self.whosdb.getGroup(currentuser, fqgn)
 
-        authorize_context_owner(False, self.whosdb, currentuser, useras, grp)
+        authorize_context_owner(False, self, currentuser, useras, grp)
         #BUG: no other auths. But the model for this must be figured out.
         #The itemtag must exist at first
         # itemtag=self._getTagging(currentuser, tag, item)
@@ -540,7 +547,7 @@ class Postdb():
         #permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
         itemtag=taggingdoc.thething
         app=self.whosdb.getApp(currentuser, fqan)
-        authorize_context_owner(False, self.whosdb, currentuser, useras, app)
+        authorize_context_owner(False, self, currentuser, useras, app)
 
         #Note tagger need not be creator of item.
 
@@ -571,7 +578,7 @@ class Postdb():
     def removeTaggingFromApp(self, currentuser, useras, fqan, itemorfullyQualifiedItemName, tagorfullyQualifiedTagName):
         app=self.whosdb.getApp(currentuser, fqan)
 
-        authorize_context_owner(False, self.whosdb, currentuser, useras, app)
+        authorize_context_owner(False, self, currentuser, useras, app)
         #Bug do properly with refcounting
         return OK
 
@@ -585,7 +592,7 @@ class Postdb():
     def _getItemByFqin(self, currentuser, fullyQualifiedItemName):
         #fullyQualifiedItemName=nsuser.nick+"/"+itemname
         #permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
-        authorize(False, self.whosdb, currentuser, currentuser)#as long as logged on
+        authorize(False, self, currentuser, currentuser)#as long as logged on
         try:
             item=Item.objects(basic__fqin=fullyQualifiedItemName).get()
         except:
@@ -605,7 +612,7 @@ class Postdb():
     #we should be ok tho.
     def _getItemsByURI(self, currentuser, useras, itemuri):
         #permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
-        authorize(False, self.whosdb, currentuser, useras)#as long as logged on, and currentuser=useras
+        authorize(False, self, currentuser, useras)#as long as logged on, and currentuser=useras
         try:
             items=Item.objects(basic__uri=itemuri, basic__creator=useras.nick)
         except:
@@ -616,7 +623,7 @@ class Postdb():
     #no notion to group or app context as thats on tagging
     #This allows us to get libraries, etc.
     def _getTagsForUser(self, currentuser, useras, tagtype):
-        authorize(False, self.whosdb, currentuser, useras)#as long as logged on, and currentuser=useras
+        authorize(False, self, currentuser, useras)#as long as logged on, and currentuser=useras
         try:
             #Bu default, i will only send back stuff owned by this user
             tags=Tag.objects(tagtype=tagtype, owner=useras.nick)
@@ -657,6 +664,8 @@ class Postdb():
         DEFPAGSIZE=10
         kwdict={}
         qterms=[]
+        #make sure we are atleast logged in and useras or superuser
+        authorize(False, self, currentuser, useras)
         for l in criteria:
             kwdict={}
             for d in l:
@@ -680,26 +689,51 @@ class Postdb():
         
         #For context we must learn to not leak other groups: use exclude or only not to send that info back
         #otherwise must filter it out in python.
+
+        #BUG: does this allow acceess to your posts in a group we belong to ? I tdont think so
+        #we may want to support the large query
         if context:
             userthere=context['user']
             ctype=context['type']
-            if userthere!=False and ctype==None:
+            if userthere==True and ctype==None:
                 ctype="group"
-                ctarget=useras.nick+"/group:personal"
+                ctarget=useras.nick+"/group:default"
             else:
                 ctarget=context['value']
             if ctype=="group":
+                #below also does auth
+                grp=self.whosdb.getGroup(currentuser, ctarget)
+                authorize_context_member(False, self, currentuser, useras, grp)
                 if userthere:
                     itemqset=itemqset.filter(pingrps__postfqin=ctarget, pingrps__postedby=useras.nick)
                 else:
                     itemqset=itemqset.filter(pingrps__postfqin=ctarget)
             elif ctype=="app":
+                app=self.whosdb.getApp(currentuser, ctarget)
+                authorize_context_member(False, self, currentuser, useras, app)
                 if userthere:
                     itemqset=itemqset.filter(pinapps__postfqin=ctarget, pingrps__postedby=useras.nick)
                 else:
                     itemqset=itemqset.filter(pinapps__postfqin=ctarget)
+            elif ctype=="library":
+                libtag=self._getTag(currentuser, ctarget)
+                authorize_context_member(False, self, currentuser, useras, libtag)
+                if userthere:
+                    itemqset=itemqset.filter(pinlibs__postfqin=ctarget, pinlibs__postedby=useras.nick)
+                else:
+                    itemqset=itemqset.filter(pinlibs__postfqin=ctarget)
+            else:
+                itemqset=itemqset.filter(pingrps__postfqin=ctarget)
         else:
             print "NO CONTEXT"
+            #you didnt ask for a group, or group AND user, or just user
+            #what should we return? you are logged in
+            #we could return a maximal set but will only return yours
+            ctarget=useras.nick+"/group:default"
+            itemqset=itemqset.filter(pingrps__postfqin=ctarget)
+
+        #WHOA: what just happed. If you dont specify a context, a personal group context
+        #will be handled down to you. Should we expand this?
         #also how do we handle counts?
         if sort:
             prefix=""
@@ -772,7 +806,8 @@ class Postdb():
         result=self._makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, pagtuple)
         return result
 
-    def getItemsForTagqueryAndPost(self, currentuser, useras, tagquery, context=None, sort=None, pagtuple=None):
+    #gets frpm groups, apps and libraries..ie items in them, not tags posted in them
+    def getItemsForTagquery(self, currentuser, useras, tagquery, context=None, sort=None, pagtuple=None):
         #tagquery is currently assumed to be a list of [{'tagtype', 'tagname'}]
         #we assume that
         criteria=[]
@@ -784,7 +819,20 @@ class Postdb():
         result=getItemsForItemspec(self, currentuser, useras, criteria, context, sort, pagtuple)
         return result
 
-    def getTaggingsForSpec(self, currentuser, useras, criteria, context=None, sort=None, pagtuple=None):
+    #one can use this to query the tag pingrps and pinapps
+    #BUG we dont deal with stuff in the apps for now. Not sure
+    #what that even means as apps are just copies.
+
+    #filter taggings and postings by hand further if you want just your stuff
+    #criteria exis to filter things down further, say by itemtype or tagtype
+    #will be done on each item separately. Ditto for sort and pagetuple
+
+    #BUG: not sure we handle libraries or tag ownership change correctly
+
+    def getTaggingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[], sort=None, pagetuple=None):
+        result={}
+        groupsin=self.whosdb.groupsForUser(currentuser, useras)
+        klass=TaggingDocument
         SHOWNFIELDS=[   'thething.postfqin',
                         'thething.thingtopostfqin',
                         'thething.thingtoposttype',
@@ -793,11 +841,21 @@ class Postdb():
                         'thething.tagtype',
                         'thething.tagname',
                         'thething.tagdescription']
-        klass=TaggingDocument
-        result=self._makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, pagtuple)
+        for fqin in itemfqinlist:
+            criteria=[]
+            #construct a query consistent with the users access
+            #this includes the users personal group and the public group
+            criteria.append([
+                {'field':'pingrps__postfqin', 'op':'eq', 'value':groupsin},
+                {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
+            ])
+
+            result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, None, sort, pagetuple)
         return result
 
-    def getPostingsForSpec(self, currentuser, useras, criteria, context=None, sort=None, pagtuple=None):
+    def getPostingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[]):
+        result={}
+        groupsin=self.whosdb.groupsForUser(currentuser, useras)
         SHOWNFIELDS=[   'thething.postfqin',
                         'thething.thingtopostfqin',
                         'thething.thingtoposttype',
@@ -805,7 +863,16 @@ class Postdb():
                         'thething.postedby']
 
         klass=PostingDocument
-        result=self._makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, pagtuple)
+        for fqin in itemfqinlist:
+            criteria=[]
+            #construct a query consistent with the users access
+            #this includes the users personal group and the public group
+            criteria.append([
+                {'field':'thething__postfqin', 'op':'eq', 'value':groupsin},
+                {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
+            ])
+
+            result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, None, sort, pagetuple)
         return result
 
     #Now let us build other functions on the top of these
@@ -915,44 +982,45 @@ def test_gets(db_session):
     currentuser=rahuldave
     num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
         [[{'field':'basic__name', 'op':'eq', 'value':'hello kitty'}]])
-    print "++++", num, [v.basic.fqin for v in vals]
-    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
-        [[{'field':'pingrps__postfqin', 'op':'eq', 'value':'rahuldave/group:ml'}]])
-    print "++++", num, [v.basic.fqin for v in vals]
+    print "1++++", num, [v.basic.fqin for v in vals]
+    #now disallowed as we removed the fallthrough
+    # num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
+    #     [[{'field':'pingrps__postfqin', 'op':'eq', 'value':'rahuldave/group:ml'}]])
+    # print "2++++", num, [v.basic.fqin for v in vals]
     num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
         [[{'field':'stags__tagname', 'op':'eq', 'value':'stupid'}]])
-    print "++++", num, [v.basic.fqin for v in vals]
+    print "3++++", num, [v.basic.fqin for v in vals]
     num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
         [[{'field':'pinlibs__tagname', 'op':'eq', 'value':'dumbdoglibrary'}]])
-    print "++++", num, [v.basic.fqin for v in vals]
+    print "4++++", num, [v.basic.fqin for v in vals]
     num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
         [[{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}]], 
         {'user':False, 'type':'group', 'value':'rahuldave/group:ml'})
-    print "++++", num, [v.basic.fqin for v in vals]
+    print "5++++", num, [v.basic.fqin for v in vals]
     num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
         [[{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}]], 
         {'user':True, 'type':'group', 'value':'rahuldave/group:ml'})
-    print "++++", num, [v.basic.fqin for v in vals]
+    print "6++++", num, [v.basic.fqin for v in vals]
     num, vals=postdb.getItemsForItemspec(currentuser, rahuldave,
         [[{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}]],
         {'user':False, 'type':'group', 'value':'rahuldave/group:ml'},
         {'ascending':False, 'field':'basic__name'})
-    print "++++", num, [v.basic.fqin for v in vals]
+    print "7++++", num, [v.basic.fqin for v in vals]
     num, vals=postdb.getItemsForItemspec(currentuser, rahuldave,
         [[{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}]],
         {'user':False, 'type':'group', 'value':'rahuldave/group:ml'},
         {'ascending':False, 'field':'basic__name'},
         (10, None))
-    print "++++", num, [v.basic.fqin for v in vals]
+    print "8++++", num, [v.basic.fqin for v in vals]
     num, vals=postdb.getItemsForItemspec(currentuser, rahuldave,
         [[{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}]],
         {'user':False, 'type':'group', 'value':'rahuldave/group:ml'},
         {'ascending':False, 'field':'basic__name'},
         (5, 1))
-    print "++++", num, len(vals), vals[0].to_json()
-    num, vals=postdb.getTaggingsForSpec(currentuser, rahuldave, 
-        [[{'field':'thething__tagname', 'op':'eq', 'value':'stupid'}]])
-    print "++++", num, [v.to_json() for v in vals]
+    print "9++++", num, len(vals), vals, vals[0].to_json()
+    # num, vals=postdb.getTaggingsForSpec(currentuser, rahuldave, 
+    #     [[{'field':'thething__tagname', 'op':'eq', 'value':'stupid'}]])
+    # print "++++", num, [v.to_json() for v in vals]
 
 if __name__=="__main__":
     db_session=connect("adsgut")

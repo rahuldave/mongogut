@@ -25,15 +25,18 @@ On the left side we would like a list of tags. Should we do top N here with a mo
  When i click on a tag it will filter for that tag. If I click on another it will filter for that tag. If I want a union or intersection I will have a union or intersection next to it.  (it will need to be merged into the breadcrumbs for the standard ADS application). Later we may provide other of
  our own facets such as tagtype etc (useful especially for chris). But not now.
 
-(8) get a set of items for a single itemtype and that is for a single tag.
-(9) Now do this for a general union or intersection expression written in infix notation: U(I(t1,t2),t3). U=union. I=intersection.
-(10) Any other stuff that can be obtained from querrying the items collection.
+@d(8) get a set of items for a single itemtype and that is for a single tag.
+@d(9) Now do this for a general union or intersection expression written in infix notation: U(I(t1,t2),t3). U=union. I=intersection.
+
+9 WITH CAVEAT: not fully supported
+
+@d(10) Any other stuff that can be obtained from querrying the items collection.
 
 Indeed can all of this be done by querying the items collection, especially when it comes to a users stuff? Or should we be querying PostingDocuments on the private group instead. In that case, one might ask, why store anything related to posting and tagging in the Items collection. 
 
 (f) a function for the privacy level of a library is needed
 
-(11) given a library, is it readable to user. Why? Isnt this just a repeat of 5 and 6?
+@d ASSUME IT IS FOR NOW (11) given a library, is it readable to user. Why? Isnt this just a repeat of 5 and 6?
 
 (g) each group ought to have an administration page or lightbox. this is to make someone else an owner, add (invite) a new user, or remove a user from the group. this would only show if you were the owner of the group.
 

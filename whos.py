@@ -70,6 +70,7 @@ class Whosdb():
         #set useras to something not needed in cases where we dont really have useras
         #we use None as it wont match and currentuser being None is already taken care of
         authorize_context_member(False, self, currentuser, None, grp)
+        print "AUTH FOR", fqgn
         # permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
         # permit(self.isMemberOfGroup(usertobenewowner, grp) or self.isSystemUser(usertobenewowner), " User %s must be member of grp %s or systemuser" % (currentuser.nick, grp.fqin))
         return grp
