@@ -763,41 +763,41 @@ class Postdb():
 
 
 
-    def getTagsForTagspec(self, currentuser, useras, criteria, sort=None):
+    def getTagsForTagspec(self, currentuser, useras, criteria, context=None, sort=None):
         SHOWNFIELDS=['tagtype', 'singletonmode', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri', 'basic.creator', 'owner']
         klass=Tag
-        result=self._makeQuery(klass, currentuser, useras, criteria, None, sort, SHOWNFIELDS, None)
+        result=self._makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, None)
         return result
 
-    def getTagsByOwner(self, currentuser, useras, tagtype=None, singletonmode=False):
+    def getTagsByOwner(self, currentuser, useras, tagtype=None, context=None, singletonmode=False):
         criteria=[
             {'field':'owner', 'op':'eq', 'value':useras.nick},
             {'field':'singleton', 'op':'eq', 'value':singletonmode}
         ]
         if tagtype:
             criteria.append({'field':'tagtype', 'op':'eq', 'value':tagtype})
-        result=getTagsForTagspec(self, currentuser, useras, criteria, sort)
+        result=getTagsForTagspec(self, currentuser, useras, criteria, context, sort)
         return result
 
     #You also have access to tags through group ownership of tags
     #no singletonmodes are usually transferred to group ownership
     #this will give me all
-    def getTagsAsMemberAndOwner(self, currentuser, useras, tagtype=None, singletonmode=False):
+    def getTagsAsMemberAndOwner(self, currentuser, useras, tagtype=None, singletonmode=False, context=None, sort=None):
         criteria=[
             {'field':'members', 'op':'eq', 'value':useras.nick},
             {'field':'singleton', 'op':'eq', 'value':singletonmode}
         ]
-        result=getTagsForTagspec(self, currentuser, useras, criteria, sort)
+        result=getTagsForTagspec(self, currentuser, useras, criteria, context, sort)
         return result
 
     #this is the stuff you get from group membership only
-    def getTagsAsMemberOnly(self, currentuser, useras, tagtype=None, singletonmode=False):
+    def getTagsAsMemberOnly(self, currentuser, useras, tagtype=None, singletonmode=False, context=None, sort=None):
         criteria=[
             {'field':'owner', 'op':'ne', 'value':useras.nick},
             {'field':'members', 'op':'eq', 'value':useras.nick},
             {'field':'singleton', 'op':'eq', 'value':singletonmode}
         ]
-        result=getTagsForTagspec(self, currentuser, useras, criteria, sort)
+        result=getTagsForTagspec(self, currentuser, useras, criteria, context, sort)
         return result
 
     def getItemsForItemspec(self, currentuser, useras, criteria, context=None, sort=None, pagtuple=None):
