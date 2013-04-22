@@ -44,7 +44,7 @@ Indeed can all of this be done by querying the items collection, especially when
 
 (i) in def, we show items. We want to show the tags on those items alongside. We want to show which groups they were added to. we want to do this fast. And we want this, with no data leakage whatsoever.
 
-(12) so given a set of items, get all tags, libraries, groups, apps, and then remove those not compatible with the user. Perhaps best done using the tagging and posting documents.
+@d(12) so given a set of items, get all tags, libraries, groups, apps, and then remove those not compatible with the user. Perhaps best done using the tagging and posting documents.
 
 Remember, for 12 (and others) we have the problem that we want items, not postings or taggings. Questions which take items as input are definitely better suited to the Post/Tag Document collection queries. Whereas those that want us to return stuff for a item, or those that want items, are better served by querying the items collection, if those things are present in the items collection, which are not many. So it would seem to be better to hit postings or taggings, and then perhaps unique on the items
 

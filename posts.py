@@ -722,6 +722,13 @@ class Postdb():
                     itemqset=itemqset.filter(pinlibs__postfqin=ctarget, pinlibs__postedby=useras.nick)
                 else:
                     itemqset=itemqset.filter(pinlibs__postfqin=ctarget)
+            # elif ctype=="tag":
+            #     datag=self._getTag(currentuser, ctarget)
+            #     authorize_context_member(False, self, currentuser, useras, datag)
+            #     if userthere:
+            #         itemqset=itemqset.filter(stags__postfqin=ctarget, stags__postedby=useras.nick)
+            #     else:
+            #         itemqset=itemqset.filter(stags__postfqin=ctarget)
             else:
                 itemqset=itemqset.filter(pingrps__postfqin=ctarget)
         else:
@@ -775,7 +782,7 @@ class Postdb():
             {'field':'singleton', 'op':'eq', 'value':singletonmode}
         ]
         if tagtype:
-            criteria.append({'field':'tagtype', 'op':'eq', 'value':tagtype})
+            criteria.append({'field':'tagtype', 'op':tagtype[0], 'value':tagtype[1]})
         result=getTagsForTagspec(self, currentuser, useras, criteria, context, sort)
         return result
 
@@ -787,6 +794,8 @@ class Postdb():
             {'field':'members', 'op':'eq', 'value':useras.nick},
             {'field':'singleton', 'op':'eq', 'value':singletonmode}
         ]
+        if tagtype:
+            criteria.append({'field':'tagtype', 'op':tagtype[0], 'value':tagtype[1]})
         result=getTagsForTagspec(self, currentuser, useras, criteria, context, sort)
         return result
 
@@ -797,6 +806,8 @@ class Postdb():
             {'field':'members', 'op':'eq', 'value':useras.nick},
             {'field':'singleton', 'op':'eq', 'value':singletonmode}
         ]
+        if tagtype:
+            criteria.append({'field':'tagtype', 'op':tagtype[0], 'value':tagtype[1]})
         result=getTagsForTagspec(self, currentuser, useras, criteria, context, sort)
         return result
 
@@ -807,14 +818,30 @@ class Postdb():
         return result
 
     #gets frpm groups, apps and libraries..ie items in them, not tags posted in them
-    def getItemsForTagquery(self, currentuser, useras, tagquery, context=None, sort=None, pagtuple=None):
+    def getItemsForTagquery(self, currentuser, useras, query, context=None, sort=None, pagtuple=None):
         #tagquery is currently assumed to be a list of [{'tagtype', 'tagname'}]
         #we assume that
+        tagquery=query.get("stags",[])
+        libquery=query.get("libs",[])
+        grpquery=query.get("groups",[])
+        appquery=query.get("apps",[])
         criteria=[]
         for v in tagquery:
             criteria.append([
                 {'field':'stags__tagname', 'op':'eq', 'value':v['tagname']},
                 {'field':'stags__tagtype', 'op':'eq', 'value':v['tagtype']}
+            ])
+        for v in libquery:
+            criteria.append([
+                {'field':'pinlibs__tagname', 'op':'eq', 'value':v['libname']}
+            ])
+        for v in grpquery:
+            criteria.append([
+                {'field':'pingrps__postfqin', 'op':'eq', 'value':v['groupfqin']}
+            ])
+        for v in appquery:
+            criteria.append([
+                {'field':'pinapps__postfqin', 'op':'eq', 'value':v['appfqin']}
             ])
         result=getItemsForItemspec(self, currentuser, useras, criteria, context, sort, pagtuple)
         return result
@@ -829,6 +856,7 @@ class Postdb():
 
     #BUG: not sure we handle libraries or tag ownership change correctly
 
+    #run these without paginations to get everything we want.
     def getTaggingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[], sort=None, pagetuple=None):
         result={}
         groupsin=self.whosdb.groupsForUser(currentuser, useras)
