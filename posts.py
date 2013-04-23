@@ -857,7 +857,13 @@ class Postdb():
     #BUG: not sure we handle libraries or tag ownership change correctly
 
     #run these without paginations to get everything we want.
-    def getTaggingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[], sort=None, pagetuple=None):
+
+    #BUG: in not enough, as we somehow separately need to get all the postings
+    #consistent with the users access (array=individ item ok with eq
+    #not other way around, and, well, in does or, but is that ok?)
+    #BUG: no app access as yet
+
+    def getTaggingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[], context=None, sort=None, pagetuple=None):
         result={}
         groupsin=self.whosdb.groupsForUser(currentuser, useras)
         klass=TaggingDocument
@@ -873,15 +879,16 @@ class Postdb():
             criteria=[]
             #construct a query consistent with the users access
             #this includes the users personal group and the public group
+            #should op be in?
             criteria.append([
-                {'field':'pingrps__postfqin', 'op':'eq', 'value':groupsin},
+                {'field':'pingrps__postfqin', 'op':'in', 'value':groupsin},
                 {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
             ])
 
-            result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, None, sort, pagetuple)
+            result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, context, sort, pagetuple)
         return result
 
-    def getPostingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[]):
+    def getPostingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[], context=None, sort=None, pagetuple=None):
         result={}
         groupsin=self.whosdb.groupsForUser(currentuser, useras)
         SHOWNFIELDS=[   'thething.postfqin',
@@ -895,12 +902,13 @@ class Postdb():
             criteria=[]
             #construct a query consistent with the users access
             #this includes the users personal group and the public group
+            #should op be in?
             criteria.append([
-                {'field':'thething__postfqin', 'op':'eq', 'value':groupsin},
+                {'field':'thething__postfqin', 'op':'in', 'value':groupsin},
                 {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
             ])
 
-            result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, None, sort, pagetuple)
+            result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, context, sort, pagetuple)
         return result
 
     #Now let us build other functions on the top of these
