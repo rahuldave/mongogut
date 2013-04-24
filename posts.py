@@ -911,8 +911,9 @@ class Postdb():
             result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, context, sort, pagetuple)
         return result
 
-    #Now let us build other functions on the top of these
-
+    #this should be the one giving us tags consistent with a context
+    def getTagPostingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[], context=None, sort=None, pagetuple=None):
+        pass
 
 
 def initialize_application(sess):
