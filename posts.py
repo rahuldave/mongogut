@@ -718,10 +718,12 @@ class Postdb():
             elif ctype=="library":
                 libtag=self._getTag(currentuser, ctarget)
                 authorize_context_member(False, self, currentuser, useras, libtag)
-                if userthere:
-                    itemqset=itemqset.filter(pinlibs__postfqin=ctarget, pinlibs__postedby=useras.nick)
-                else:
-                    itemqset=itemqset.filter(pinlibs__postfqin=ctarget)
+                #TODO:Need to handle the situation if klass is a TaggingDocument
+                if klass!=TaggingDocument:
+                    if userthere:
+                        itemqset=itemqset.filter(pinlibs__postfqin=ctarget, pinlibs__postedby=useras.nick)
+                    else:
+                        itemqset=itemqset.filter(pinlibs__postfqin=ctarget)
             # elif ctype=="tag":
             #     datag=self._getTag(currentuser, ctarget)
             #     authorize_context_member(False, self, currentuser, useras, datag)
@@ -818,6 +820,9 @@ class Postdb():
         return result
 
     #gets frpm groups, apps and libraries..ie items in them, not tags posted in them
+
+    #TODO: add userthere in here so that requests are symmetric rather 
+    #than having overriding context in which all this operates
     def getItemsForTagquery(self, currentuser, useras, query, context=None, sort=None, pagtuple=None):
         #tagquery is currently assumed to be a list of [{'tagtype', 'tagname'}]
         #we assume that
@@ -863,10 +868,29 @@ class Postdb():
     #not other way around, and, well, in does or, but is that ok?)
     #BUG: no app access as yet
 
+    #the context is critical here, as if you are in group or user/group
+    #context i will only give you tagging docs for which that tagging
+    #was  published to the context. So for u, u/g, u/a contexts, this does
+    #the right thing.
+
+    #but what about for libraries? There is no pinlibs in Taggingdocuments
+    #so the context search will fail. I do want to restrict the search to be
+    #to the subset of documents in a group or something which are tagged with the library
+    
+    #furthermore notice that in the main search too, the context only allows one thing
+    #so if i want group and library how do i do it?
     def getTaggingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[], context=None, sort=None, pagetuple=None):
         result={}
         groupsin=self.whosdb.groupsForUser(currentuser, useras)
         klass=TaggingDocument
+        if context:
+            userthere=context['user']
+            ctype=context['type']
+            if userthere==True and ctype==None:
+                ctype="group"
+                ctarget=useras.nick+"/group:default"
+            else:
+                ctarget=context['value']
         SHOWNFIELDS=[   'thething.postfqin',
                         'thething.thingtopostfqin',
                         'thething.thingtoposttype',
@@ -880,15 +904,25 @@ class Postdb():
             #construct a query consistent with the users access
             #this includes the users personal group and the public group
             #should op be in?
-            criteria.append([
-                {'field':'pingrps__postfqin', 'op':'in', 'value':groupsin},
-                {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
-            ])
-
+            if ctype != "library":
+                criteria.append([
+                    {'field':'pingrps__postfqin', 'op':'in', 'value':groupsin},
+                    {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
+                ])
+            else:
+                #BUG: I dont have the anded information for library and tag here so
+                #I actually cant support libraries as contexts. Think about this.
+                criteria.append([
+                    {'field':'pingrps__postfqin', 'op':'in', 'value':groupsin},
+                    {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
+                ])
             result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, context, sort, pagetuple)
         return result
 
-    def getPostingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[], context=None, sort=None, pagetuple=None):
+    #and this us the postings consistent with items  to show a groups list
+    #for all these items to further filter them down. 
+    #No context here as PostingDocument has none. This is purely items
+    def getPostingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[], sort=None, pagetuple=None):
         result={}
         groupsin=self.whosdb.groupsForUser(currentuser, useras)
         SHOWNFIELDS=[   'thething.postfqin',
@@ -908,7 +942,7 @@ class Postdb():
                 {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
             ])
 
-            result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, context, sort, pagetuple)
+            result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, None, sort, pagetuple)
         return result
 
     #this should be the one giving us tags consistent with a context
