@@ -67,6 +67,8 @@ class Postdb():
         self.isOwnerOfApp=self.whosdb.isOwnerOfApp
         self.isMemberOfGroup=self.whosdb.isMemberOfGroup
         self.isMemberOfApp=self.whosdb.isMemberOfApp
+        self.isOwnerOfLibrary=self.whosdb.isOIwnerOfLibrary
+        self.isMemberOfLibrary=self.whosdb.isMemberOfLibrary
 
    #######################################################################################################################
    #Internals. No protection on these
@@ -163,7 +165,7 @@ class Postdb():
             "Only member of group %s can post into it" % grp.basic.fqin)
 
         try:#BUG:what if its already there?
-            newposting=Post(postfqin=grp.basic.fqin, postedby=useras.nick, thingtopostfqin=itemfqin, thingtoposttype=item.itemtype)
+            newposting=Post(postfqin=grp.basic.fqin, posttype="group", postedby=useras.nick, thingtopostfqin=itemfqin, thingtoposttype=item.itemtype)
             #newposting.save(safe=True)
             print 'pppppppppppppppp'
             postingdoc=PostingDocument(thing=newposting)
@@ -276,7 +278,7 @@ class Postdb():
         #     "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
 
         try:#BUG:What if its already there?
-            newposting=Post(postfqin=app.basic.fqin, postedby=useras.nick, thingtopostfqin=itemfqin, thingtoposttype=item.itemtype)
+            newposting=Post(postfqin=app.basic.fqin, posttype="app", postedby=useras.nick, thingtopostfqin=itemfqin, thingtoposttype=item.itemtype)
             #newposting.save(safe=True)
             postingdoc=PostingDocument(thing=newposting)
             postingdoc.save(safe=True)
@@ -364,6 +366,7 @@ class Postdb():
                 tagdescript=""
             try:
                 itemtag=Tagging(postfqin=tag.basic.fqin,
+                                posttype="tag",
                                 postedby=useras.nick,
                                 thingtopostfqin=itemtobetagged.basic.fqin,
                                 thingtoposttype=itemtobetagged.itemtype,
@@ -375,10 +378,10 @@ class Postdb():
                 taggingdoc=TaggingDocument(thething=itemtag)
                 taggingdoc.save(safe=True)
                 print "LALALALALALALALA990"
-                if tag.tagtype=="ads/library":
-                    itemtobetagged.update(safe_update=True, push__pinlibs=itemtag)
-                else:
-                    itemtobetagged.update(safe_update=True, push__stags=itemtag)
+                # if tag.tagtype=="ads/library":
+                #     itemtobetagged.update(safe_update=True, push__pinlibs=itemtag)
+                # else:
+                itemtobetagged.update(safe_update=True, push__stags=itemtag)
             except:
                 doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s" % (itemtobetagged.basic.fqin, tag.basic.fqin))
 
@@ -425,27 +428,27 @@ class Postdb():
     #Is item in group? If not add it? depends on UI schemes
     #
     #
-    def isOwnerOfTag(self, currentuser, tag):
-        if currentuser.nick==tag.owner:
-            return True
-        else:
-            return False
+    # def isOwnerOfTag(self, currentuser, tag):
+    #     if currentuser.nick==tag.owner:
+    #         return True
+    #     else:
+    #         return False
 
-    def isMemberOfTagO(self, currentuser, tag):
-        #tags owner here must be a group
-        if self.isOwnerOfTag(currentuser, tag):
-            return True
-        elif self.whosdb.isMemberOfGroup(currentuser.nick,tag.owner):
-            return True
-        else:
-            return False
+    # def isMemberOfTagO(self, currentuser, tag):
+    #     #tags owner here must be a group
+    #     if self.isOwnerOfTag(currentuser, tag):
+    #         return True
+    #     elif self.whosdb.isMemberOfGroup(currentuser.nick,tag.owner):
+    #         return True
+    #     else:
+    #         return False
 
-    def isMemberOfTag(self, currentuser, tag):
-        #tags owner here must be a group
-        if currentuser.nick in tag.members:
-            return True
-        else:
-            return False
+    # def isMemberOfTag(self, currentuser, tag):
+    #     #tags owner here must be a group
+    #     if currentuser.nick in tag.members:
+    #         return True
+    #     else:
+    #         return False
 
     #once trnsferroed to a group, cannot be transfered back.
     #for now, u must me member of group to transfer ownership there
@@ -500,7 +503,7 @@ class Postdb():
             "Only creator of tag can post into group %s" % grp.basic.fqin)
         #item=self._getItem(currentuser, itemtag.thingtopostfqin)
         try:
-            newposting=Post(postfqin=grp.basic.fqin,
+            newposting=Post(postfqin=grp.basic.fqin, posttype="group",
                 postedby=useras.nick, thingtopostfqin=itemtag.postfqin, thingtoposttype=itemtag.thingtoposttype)
             #newposting.save(safe=True)
             ##BUG:is a new taggingdoc in order?
@@ -562,7 +565,7 @@ class Postdb():
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
         try:
             print "make app posting"
-            newposting=Post(postfqin=app.basic.fqin,
+            newposting=Post(postfqin=app.basic.fqin, posttype="app",
                 postedby=useras.nick, thingtopostfqin=itemtag.postfqin, thingtoposttype=itemtag.thingtoposttype)
             #newposting.save(safe=True)
             taggingdoc.update(safe_update=True, push__pinapps=newposting)
@@ -716,14 +719,13 @@ class Postdb():
                 else:
                     itemqset=itemqset.filter(pinapps__postfqin=ctarget)
             elif ctype=="library":
-                libtag=self._getTag(currentuser, ctarget)
-                authorize_context_member(False, self, currentuser, useras, libtag)
+                library=self.whosdb.getLibrary(currentuser, ctarget)
+                authorize_context_member(False, self, currentuser, useras, library)
                 #TODO:Need to handle the situation if klass is a TaggingDocument
-                if klass!=TaggingDocument:
-                    if userthere:
-                        itemqset=itemqset.filter(pinlibs__postfqin=ctarget, pinlibs__postedby=useras.nick)
-                    else:
-                        itemqset=itemqset.filter(pinlibs__postfqin=ctarget)
+                if userthere:
+                    itemqset=itemqset.filter(pinlibs__postfqin=ctarget, pinlibs__postedby=useras.nick)
+                else:
+                    itemqset=itemqset.filter(pinlibs__postfqin=ctarget)
             # elif ctype=="tag":
             #     datag=self._getTag(currentuser, ctarget)
             #     authorize_context_member(False, self, currentuser, useras, datag)
@@ -825,6 +827,7 @@ class Postdb():
     #than having overriding context in which all this operates
     def getItemsForTagquery(self, currentuser, useras, query, context=None, sort=None, pagtuple=None):
         #tagquery is currently assumed to be a list of [{'tagtype', 'tagname'}]
+        #or [{"posttype","postfqin"}]
         #we assume that
         tagquery=query.get("stags",[])
         libquery=query.get("libs",[])
@@ -838,15 +841,15 @@ class Postdb():
             ])
         for v in libquery:
             criteria.append([
-                {'field':'pinlibs__tagname', 'op':'eq', 'value':v['libname']}
+                {'field':'pinlibs__postfqin', 'op':'eq', 'value':v['postfqin']}
             ])
         for v in grpquery:
             criteria.append([
-                {'field':'pingrps__postfqin', 'op':'eq', 'value':v['groupfqin']}
+                {'field':'pingrps__postfqin', 'op':'eq', 'value':v['postfqin']}
             ])
         for v in appquery:
             criteria.append([
-                {'field':'pinapps__postfqin', 'op':'eq', 'value':v['appfqin']}
+                {'field':'pinapps__postfqin', 'op':'eq', 'value':v['postfqin']}
             ])
         result=getItemsForItemspec(self, currentuser, useras, criteria, context, sort, pagtuple)
         return result
@@ -892,6 +895,7 @@ class Postdb():
             else:
                 ctarget=context['value']
         SHOWNFIELDS=[   'thething.postfqin',
+                        'thething.posttype',
                         'thething.thingtopostfqin',
                         'thething.thingtoposttype',
                         'thething.whenposted',
@@ -904,18 +908,11 @@ class Postdb():
             #construct a query consistent with the users access
             #this includes the users personal group and the public group
             #should op be in?
-            if ctype != "library":
-                criteria.append([
-                    {'field':'pingrps__postfqin', 'op':'in', 'value':groupsin},
-                    {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
-                ])
-            else:
-                #BUG: I dont have the anded information for library and tag here so
-                #I actually cant support libraries as contexts. Think about this.
-                criteria.append([
-                    {'field':'pingrps__postfqin', 'op':'in', 'value':groupsin},
-                    {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
-                ])
+            #QUESTION: should there be any libraries here?
+            criteria.append([
+                {'field':'pingrps__postfqin', 'op':'in', 'value':groupsin},
+                {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
+            ])
             result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, context, sort, pagetuple)
         return result
 
@@ -926,6 +923,7 @@ class Postdb():
         result={}
         groupsin=self.whosdb.groupsForUser(currentuser, useras)
         SHOWNFIELDS=[   'thething.postfqin',
+                        'thething.posttype',
                         'thething.thingtopostfqin',
                         'thething.thingtoposttype',
                         'thething.whenposted',

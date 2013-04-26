@@ -3,6 +3,8 @@ import datetime
 
 #BUG: at some point counters on collections should be built in
 #
+
+#BEHAVIOUR BASIC
 class Basic(EmbeddedDocument):
     #namespace = StringField(required=True)
     #Is above needed? should it be saved?
@@ -39,7 +41,7 @@ class Tag(Document):
     #This is different from creator as ownership can be transferred. You
     #see this in groups and apps too. Its like a duck.
     owner = StringField(required=True)
-    members = ListField(StringField())
+    #members = ListField(StringField())
 
 
 class User(Document):
@@ -54,59 +56,36 @@ class User(Document):
     appsinvitedto = ListField(StringField())
 
 class Group(Document):
+    personalgroup=BooleanField(default=False, required=True)
+    #@interface:POSTABLE
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
     members = ListField(StringField())
-    personalgroup=BooleanField(default=False, required=True)
 
 class App(Document):
+    #@interface:POSTABLE
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
     members = ListField(StringField())
-#One could use a Generic embedded document to store item specific metadata
-##that
-##Embedded docs are not join tables. Just little dict packets that
-#go places
 
-# class TimedUserAction(EmbeddedDocument):
-#     doer = StringField(required=True)
-#     whendone = DateTimeField(required=True)
+#Do we need this at all?
+class Library(Document):
+    #@interface:POSTABLE
+    basic = EmbeddedDocumentField(Basic)
+    owner = StringField(required=True)
+    members = ListField(StringField())
 
-# class GroupPost(EmbeddedDocument):
-#     #Should we do references? Really we want these to act as references in
-#     #insertion/deletion but not in searching.
-#     fqin=StringField(required=True)
-#     postings=ListField(EmbeddedDocumentField(TimedUserAction))
-#     lastwhenposted=DateTimeField(required=True)
-#     lastposter=StringField(required=True)
-
-# class AppPost(EmbeddedDocument):
-#     #Should we do references? Really we want these to act as references in
-#     #insertion/deletion but not in searching.
-#     fqin=StringField(required=True)
-#     postings=ListField(EmbeddedDocumentField(TimedUserAction))
-#     lastwhenposted=DateTimeField(required=True)
-#     lastposter=StringField(required=True)
-
-# class LibraryPost(EmbeddedDocument):
-#     #Should we do references? Really we want these to act as references in
-#     #insertion/deletion but not in searching.
-#     fqin=StringField(required=True)
-#     postings=ListField(EmbeddedDocumentField(TimedUserAction))
-#     lastwhenposted=DateTimeField(required=True)
-#     lastposter=StringField(required=True)
-
-#This should work for groups, apps and libraries too!
-##eg groups jluker/rahuldave/group:mlgroup means
-#jluker tags as belonging to rahuldave/group:ml
 #
 #POSTING AND TAGGING ARE DUCKS
+
+#
 class Post(EmbeddedDocument):
     #includes posting to apps and groups
     #below is the wheretopostfqin
     meta = {'allow_inheritance':True}
     #this would be the fqin of the tag too.
     postfqin=StringField(required=True)
+    posttype=StringField(required=True)
     #below is the item and itemtype
     thingtopostfqin=StringField(required=True)
     thingtoposttype=StringField(required=True)
@@ -127,6 +106,9 @@ class TaggingDocument(Document):
     thething=EmbeddedDocumentField(Tagging)
     pingrps = ListField(EmbeddedDocumentField(Post))
     pinapps = ListField(EmbeddedDocumentField(Post))
+    pinlibs = ListField(EmbeddedDocumentField(Post))
+    #pinlibs = ListField(EmbeddedDocumentField(Tagging))
+
 
 class Item(Document):
     dtype = StringField(default="adsgut/item")
@@ -135,8 +117,9 @@ class Item(Document):
     basic = EmbeddedDocumentField(Basic)
     pingrps = ListField(EmbeddedDocumentField(Post))
     pinapps = ListField(EmbeddedDocumentField(Post))
+    pinlibs = ListField(EmbeddedDocumentField(Post))
     #a very specific tag is collected below, the library tag
-    pinlibs = ListField(EmbeddedDocumentField(Tagging))
+    #pinlibs = ListField(EmbeddedDocumentField(Tagging))
     #anything not library, group, or app
     stags = ListField(EmbeddedDocumentField(Tagging))
     #Really want a tagging or posting here

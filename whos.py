@@ -89,6 +89,20 @@ class Whosdb():
         authorize_context_member(False, self, currentuser, None, app)
         return app
 
+    #Get app object fiven fqan, unprotected.
+    def getLibrary(self, currentuser, fqln):
+        try:
+            library=App.objects(basic__fqin=fqln).get()
+        except:
+            doabort('NOT_FND', "Library %s not found" % fqln)
+        return library
+
+    #Get app info given fqan
+    def getLibraryInfo(self, currentuser, fqln):
+        library=self.getLibrary(currentuser, fqln)
+        authorize_context_member(False, self, currentuser, None, library)
+        return library
+
     #Add user to system, given a userspec from flask user object. commit needed
     #This should never be called from the web interface, but can be called on the fly when user
     #logs in in Giovanni's system. So will there be a cookie or not?
@@ -180,6 +194,19 @@ class Whosdb():
         else:
             return False
 
+    def isOwnerOfLibrary(self, currentuser, library):
+        if currentuser.nick==library.owner:
+            return True
+        else:
+            return False
+
+    #BUG: dont like this: should this not be getting from whether the library has a group
+    #namespace or not?
+    def isMemberOfLibrary(self, currentuser, library):
+        if currentuser.nick in library.members:
+            return True
+        else:
+            return False
     #The only person who can remove a group is the system user or the owner
     def removeGroup(self,currentuser, fqgn):
         remgrp=self.getGroup(currentuser, fqgn)
@@ -401,6 +428,11 @@ class Whosdb():
         authorize(False, self, currentuser, useras)
         applications=useras.appsowned
         return applications
+
+    # def ownerOfLibraries(self, currentuser, useras):
+    #     authorize(False, self, currentuser, useras)
+    #     applications=useras.librariesowned
+    #     return applications
 
 
     def usersInGroup(self, currentuser, fqgn):

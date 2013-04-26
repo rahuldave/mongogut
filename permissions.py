@@ -51,8 +51,8 @@ def authorize_context_owner(authstart, db, currentuser, useras, cobj):
         clause3=(db.isOwnerOfGroup(currentuser,cobj), "must be owner of group %s" % cobj.basic.fqin)
     elif cobj.__class__.__name__=='App':
         clause3=(db.isOwnerOfApp(currentuser,cobj), "must be owner of app %s" % cobj.basic.fqin)
-    elif cobj.__class__.__name__=='Tag':
-        clause3=(db.isOwnerOfTag(currentuser,cobj), "must be owner of tag %s" % cobj.basic.fqin)
+    elif cobj.__class__.__name__=='Library':
+        clause3=(db.isOwnerOfLibrary(currentuser,cobj), "must be owner of library %s" % cobj.basic.fqin)
     permit2(authstart, [clausesys, clause3, clause])
 
 def authorize_context_member(authstart, db, currentuser, useras, cobj):
@@ -63,8 +63,8 @@ def authorize_context_member(authstart, db, currentuser, useras, cobj):
         clause3=(db.isMemberOfGroup(currentuser,cobj), "must be member of group %s" % cobj.basic.fqin)
     elif cobj.__class__.__name__=='App':
         clause3=(db.isMemberOfApp(currentuser,cobj), "must be member of app %s" % cobj.basic.fqin)
-    elif cobj.__class__.__name__=='Tag':
-        clause3=(db.isMemberOfTag(currentuser,cobj), "must be member of group that owns tag %s" % cobj.basic.fqin)
+    elif cobj.__class__.__name__=='Library':
+        clause3=(db.isMemberOfLibrary(currentuser,cobj), "must be member of group that owns library %s" % cobj.basic.fqin)
     permit2(authstart, [clausesys, clause3, clause])
 
 
