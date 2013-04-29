@@ -43,6 +43,8 @@ def authorize_loggedin_or_systemuser(authstart, db, currentuser):
     return authorize(authstart, db, currentuser, currentuser)
 #For next two, for additions and such, switch between useras=currentuser and useras=None
 #where a useras is not required
+
+#BUG: need to add types here!!!!!!!!!
 def authorize_context_owner(authstart, db, currentuser, useras, cobj):
     permit(currentuser!=None, "must be logged in")
     clause = (currentuser==useras, "User %s not authorized" % currentuser.nick)

@@ -20,11 +20,14 @@ class Basic(EmbeddedDocument):
 class ItemType(Document):
     dtype = StringField(default="adsgut/itemtype")
     basic = EmbeddedDocumentField(Basic)
-    app = StringField(default="adsgut/adsgut", required=True)
+    owner = StringField(required=True)
+    postable = StringField(default="adsgut/adsgut", required=True)
+    postabletype = StringField(default="app", required=True)
 
 class TagType(Document):
     dtype = StringField(default="adsgut/tagtype")
     basic = EmbeddedDocumentField(Basic)
+    owner = StringField(required=True)
     #if tagmode=true for this tagtype, then tagging an item published to a group does not
     #result in the tag being published to the group. This is true of notes.
     tagmode = BooleanField(default=False, required=True)
@@ -41,6 +44,7 @@ class Tag(Document):
     #This is different from creator as ownership can be transferred. You
     #see this in groups and apps too. Its like a duck.
     owner = StringField(required=True)
+    #Seems like this was needed for change ownership
     #members = ListField(StringField())
 
 

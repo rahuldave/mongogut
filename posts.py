@@ -47,6 +47,7 @@ def augmenttypespec(specdict, spectype="itemtype"):
     print "INSPECDICT", specdict
     if spectype=='itemtype' or spectype=='tagtype':
         basicdict['creator']=specdict['creator']
+        specdict['creator']=specdict['owner']
         basicdict['name']=specdict['name']
         basicdict['description']=specdict.get('description','')
         basicdict['fqin']=specdict['creator']+"/"+specdict['name']
@@ -228,7 +229,8 @@ class Postdb():
         self.postItemIntoGroup(currentuser, useras, fqgn, newitem.basic.fqin)
         print '**********************'
         #IN LIEU OF ROUTING
-        fqan=self._getItemType(currentuser, newitem.itemtype).app
+        #BUG: currently assume only postables are apps
+        fqan=self._getItemType(currentuser, newitem.itemtype).postable
         self.postItemIntoApp(currentuser, useras, fqan, newitem.basic.fqin)
         #NOTE: above is now done via saving item into group, which means to say its auto done on personal group addition
         #But now idempotency, when I add it to various groups, dont want it to be added multiple times
@@ -297,12 +299,44 @@ class Postdb():
         print "FINIAH APP POST"
         return item
 
+
+    def postItemIntoLibrary(self, currentuser, useras, fqln, itemfqin):
+        lib=self.whosdb.getLibrary(currentuser, fqln)
+        item=self._getItem(currentuser, itemfqin)
+        #Does the False have something to do with this being ok if it fails?BUG
+        authorize_context_owner(False, self, currentuser, useras, lib)
+        permit(self.isMemberOfLibrary(useras, lib),
+            "Only member of group %s can post into it" % lib.basic.fqin)
+
+        try:#BUG:what if its already there?
+            newposting=Post(postfqin=lib.basic.fqin, posttype="library", postedby=useras.nick, thingtopostfqin=itemfqin, thingtoposttype=item.itemtype)
+            #newposting.save(safe=True)
+            print 'pppppppppppppppp'
+            postingdoc=PostingDocument(thing=newposting)
+            postingdoc.save(safe=True)
+            #Not sure instance updates work but we shall try.
+            item.update(safe_update=True, push__pinlibs=newposting)
+        except:
+            import sys
+            print sys.exc_info()
+            doabort('BAD_REQ', "Failed adding newposting of item %s into library %s." % (item.basic.fqin, lib.basic.fqin))
+        return item
+
     def removeItemFromApp(self, currentuser, useras, fqan, itemfqin):
         app=self.whosdb.getApp(currentuser, fqan)
         item=self._getItem(currentuser, itemfqin)
         authorize_context_owner(False, self, currentuser, useras, app)
         permit(useras==postingtoremove.user and self.whosdb.isMemberOfApp(useras, app),
             "Only member of app %s who posted this item can remove it from the app" % app.basic.fqin)
+        #No code as yet
+        return OK
+
+    def removeItemFromLibrary(self, currentuser, useras, fqln, itemfqin):
+        lib=self.whosdb.getLibrary(currentuser, fqln)
+        item=self._getItem(currentuser, itemfqin)
+        authorize_context_owner(False, self, currentuser, useras, lib)
+        permit(useras==postingtoremove.user and self.whosdb.isMemberOfLibrary(useras, lib),
+            "Only member of app %s who posted this item can remove it from the app" % lib.basic.fqin)
         #No code as yet
         return OK
 
@@ -450,42 +484,6 @@ class Postdb():
     #     else:
     #         return False
 
-    #once trnsferroed to a group, cannot be transfered back.
-    #for now, u must me member of group to transfer ownership there
-    #if you transfer to another person you lose rights
-    #groups cant create tags for now, must transfer to group
-    def changeOwnershipOfTag(self, currentuser, fqtn, newowner, groupmode=False):
-        tagq=Tag.objects(basic__fqin=fqtn)
-        if groupmode:
-            try:
-                groupq=Group.objects(basic__fqin=newowner)
-                group=groupq.get()
-                newowner=group.basic.fqin
-            except:
-                #make sure target exists.
-                doabort('BAD_REQ', "No such group %s" % newowner)
-            authorize_context_member(False, self, currentuser, None, group)
-        else:
-            try:
-                userq= User.objects(nick=newowner)
-                newowner=userq.get().nick
-            except:
-                #make sure target exists.
-                doabort('BAD_REQ', "No such user %s" % newowner)
-        try:
-            tag=tagq.get()
-        except:
-            doabort('BAD_REQ', "No such group %s" % fqtn)
-        authorize_context_owner(False, self, currentuser, None, tag)
-        try:
-            oldownernick=tag.owner
-            if groupmode:
-                tag.update(safe_update=True, set__owner = newowner, push__members=newowner)
-            else:
-                tag.update(safe_update=True, set__owner = newowner, push__members=newowner, pull__members=oldownernick)
-        except:
-            doabort('BAD_REQ', "Failed changing owner from %s to %s for tag %s" % (oldownernick, newowner, fqtn))
-        return newowner
 
     #DO WE WANT IDEMPOTENCY THING?
     def postTaggingIntoGroup(self, currentuser, useras, fqgn, taggingdoc):

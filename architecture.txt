@@ -1,0 +1,5 @@
+Critical point:
+
+there is an interface called postable, and this includes groups, apps. and libraries, and is used for posting items and tags to things.
+
+then there is an interface called taggable, and this includes tags, libraries, groups, and apps, and the idea there is that the tags can be used for reference counting on deletion.

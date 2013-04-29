@@ -403,6 +403,87 @@ class Whosdb():
             doabort('BAD_REQ', "Failed changing owner from %s to %s for group %s" % (oldownernick, usertobenewowner.nick, fqgn))
         return usertobenewownernick
 
+
+    #once trnsferroed to a group, cannot be transfered back.
+    #for now, u must me member of group to transfer ownership there
+    #if you transfer to another person you lose rights
+    #groups cant create tags for now, must transfer to group
+    #BUG: should be transferable to any 'owner' entity
+    #BUG: we want to be able to transfer itemtypes and tagtype
+    #ownerships too. But this is different from (or is it?) ownership
+    #of a group or app
+    def changeOwnershipOfLibrary(self, currentuser, fqln, newowner, groupmode=False):
+        libq=Library.objects(basic__fqin=fqln)
+        if groupmode:
+            try:
+                groupq=Group.objects(basic__fqin=newowner)
+                group=groupq.get()
+                newowner=group.basic.fqin
+            except:
+                #make sure target exists.
+                doabort('BAD_REQ', "No such group %s" % newowner)
+            authorize_context_member(False, self, currentuser, None, group)
+        else:
+            try:
+                userq= User.objects(nick=newowner)
+                newowner=userq.get().nick
+            except:
+                #make sure target exists.
+                doabort('BAD_REQ', "No such user %s" % newowner)
+        try:
+            lib=libq.get()
+        except:
+            doabort('BAD_REQ', "No such group %s" % fqtn)
+        authorize_context_owner(False, self, currentuser, None, lib)
+        try:
+            oldownernick=lib.owner
+            if groupmode:
+                lib.update(safe_update=True, set__owner = newowner, push__members=newowner)
+            else:
+                lib.update(safe_update=True, set__owner = newowner, push__members=newowner, pull__members=oldownernick)
+        except:
+            doabort('BAD_REQ', "Failed changing owner from %s to %s for lib %s" % (oldownernick, newowner, fqln))
+        return newowner
+
+    #group should be replaced by anything that can be the owner
+    #BUG: NEEDS COMPLETE REDOING
+    def changeOwnershipOfType(self, currentuser, fqtypen, typetype, newowner, groupmode=False):
+        if typetype=="itemtype":
+            typeo=ItemType
+        elif typrtype=="tagtype":
+            typeo=TagType
+        typq=typeo.objects(basic__fqin=fqtypen)
+        if groupmode:
+            try:
+                groupq=Group.objects(basic__fqin=newowner)
+                group=groupq.get()
+                newowner=group.basic.fqin
+            except:
+                #make sure target exists.
+                doabort('BAD_REQ', "No such group %s" % newowner)
+            authorize_context_member(False, self, currentuser, None, group)
+        else:
+            try:
+                userq= User.objects(nick=newowner)
+                newowner=userq.get().nick
+            except:
+                #make sure target exists.
+                doabort('BAD_REQ', "No such user %s" % newowner)
+        try:
+            typ=typq.get()
+        except:
+            doabort('BAD_REQ', "No such group %s" % fqtypen)
+        authorize_context_owner(False, self, currentuser, None, typ)
+        try:
+            oldownernick=typ.owner
+            if groupmode:
+                typ.update(safe_update=True, set__owner = newowner, push__members=newowner)
+            else:
+                typ.update(safe_update=True, set__owner = newowner, push__members=newowner, pull__members=oldownernick)
+        except:
+            doabort('BAD_REQ', "Failed changing owner from %s to %s for lib %s" % (oldownernick, newowner, fqln))
+        return newowner
+
     def allUsers(self, currentuser):
         authorize_systemuser(False, self, currentuser)
         users=User.objects.all()
