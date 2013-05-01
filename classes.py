@@ -47,30 +47,48 @@ class Tag(Document):
     #Seems like this was needed for change ownership
     #members = ListField(StringField())
 
+class PostableEmbedded(EmbeddedDocument):
+    fqpn = StringField(required=True)
+    ptype = StringField(required=True)
 
 class User(Document):
     adsid = StringField(required=True, unique=True)
     #Unless user sets nick, its equal to adsid
+    #ISMEMBER INTERFACE
     nick = StringField(required=True, unique=True)
-    groupsin = ListField(StringField())
-    groupsowned = ListField(StringField())
-    groupsinvitedto = ListField(StringField())
-    appsin = ListField(StringField())
-    appsowned = ListField(StringField())
-    appsinvitedto = ListField(StringField())
+    postablesin=ListField(EmbeddedDocumentField(PostableEmbedded))
+    postablesowned=ListField(EmbeddedDocumentField(PostableEmbedded))
+    postablesinvitedto=ListField(EmbeddedDocumentField(PostableEmbedded))
+    # groupsin = ListField(StringField())
+    # groupsowned = ListField(StringField())
+    # groupsinvitedto = ListField(StringField())
+    # appsin = ListField(StringField())
+    # appsowned = ListField(StringField())
+    # appsinvitedto = ListField(StringField())
+    # librariesin = ListField(StringField())
+    # librariesowned = ListField(StringField())
+    # librariesinvitedto = ListField(StringField())
 
+
+#POSTABLES
 class Group(Document):
     personalgroup=BooleanField(default=False, required=True)
+    #ISMEMBER INTERFACE
+    nick = StringField(required=True, unique=True)
     #@interface:POSTABLE
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
     members = ListField(StringField())
+    inviteds = ListField(StringField())
 
 class App(Document):
+    #ISMEMBER INTERFACE
+    nick = StringField(required=True, unique=True)
     #@interface:POSTABLE
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
     members = ListField(StringField())
+    inviteds = ListField(StringField())
 
 #Do we need this at all?
 class Library(Document):
@@ -78,6 +96,7 @@ class Library(Document):
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
     members = ListField(StringField())
+    inviteds = ListField(StringField())
 
 #
 #POSTING AND TAGGING ARE DUCKS

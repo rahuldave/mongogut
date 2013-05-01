@@ -446,7 +446,7 @@ class Whosdb():
         return newowner
 
     #group should be replaced by anything that can be the owner
-    #BUG: NEEDS COMPLETE REDOING
+
     def changeOwnershipOfType(self, currentuser, fqtypen, typetype, newowner, groupmode=False):
         if typetype=="itemtype":
             typeo=ItemType
@@ -477,11 +477,11 @@ class Whosdb():
         try:
             oldownernick=typ.owner
             if groupmode:
-                typ.update(safe_update=True, set__owner = newowner, push__members=newowner)
+                typ.update(safe_update=True, set__owner = newowner)
             else:
-                typ.update(safe_update=True, set__owner = newowner, push__members=newowner, pull__members=oldownernick)
+                typ.update(safe_update=True, set__owner = newowner)
         except:
-            doabort('BAD_REQ', "Failed changing owner from %s to %s for lib %s" % (oldownernick, newowner, fqln))
+            doabort('BAD_REQ', "Failed changing owner from %s to %s for type %s" % (oldownernick, newowner, fqtypen))
         return newowner
 
     def allUsers(self, currentuser):
