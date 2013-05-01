@@ -18,14 +18,14 @@ class Basic(EmbeddedDocument):
     description = StringField(default="")
 
 class ItemType(Document):
-    dtype = StringField(default="adsgut/itemtype")
+    classname="itemtype"
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
     postable = StringField(default="adsgut/adsgut", required=True)
     postabletype = StringField(default="app", required=True)
 
 class TagType(Document):
-    dtype = StringField(default="adsgut/tagtype")
+    classname="tagtype"
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
     #if tagmode=true for this tagtype, then tagging an item published to a group does not
@@ -36,7 +36,7 @@ class TagType(Document):
     singletonmode = BooleanField(default=False, required=True)
 
 class Tag(Document):
-    dtype = StringField(default="adsgut/tag")
+    classname="tag"    
     basic = EmbeddedDocumentField(Basic)
     tagtype = StringField(required=True)
     singletonmode = BooleanField(required=True, default=False)
@@ -52,10 +52,12 @@ class PostableEmbedded(EmbeddedDocument):
     ptype = StringField(required=True)
 
 class User(Document):
+    classname="user"
     adsid = StringField(required=True, unique=True)
     #Unless user sets nick, its equal to adsid
     #ISMEMBER INTERFACE
     nick = StringField(required=True, unique=True)
+    basic = EmbeddedDocumentField(Basic)
     postablesin=ListField(EmbeddedDocumentField(PostableEmbedded))
     postablesowned=ListField(EmbeddedDocumentField(PostableEmbedded))
     postablesinvitedto=ListField(EmbeddedDocumentField(PostableEmbedded))
@@ -72,6 +74,7 @@ class User(Document):
 
 #POSTABLES
 class Group(Document):
+    classname="group"
     personalgroup=BooleanField(default=False, required=True)
     #ISMEMBER INTERFACE
     nick = StringField(required=True, unique=True)
@@ -82,6 +85,7 @@ class Group(Document):
     inviteds = ListField(StringField())
 
 class App(Document):
+    classname="app"
     #ISMEMBER INTERFACE
     nick = StringField(required=True, unique=True)
     #@interface:POSTABLE
@@ -92,6 +96,7 @@ class App(Document):
 
 #Do we need this at all?
 class Library(Document):
+    classname="library"
     #@interface:POSTABLE
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
@@ -123,9 +128,11 @@ class Tagging(Post):
 
 
 class PostingDocument(Document):
+    classname="postingdocument"
     thething=EmbeddedDocumentField(Post)
 
 class TaggingDocument(Document):
+    classname="taggingdocument"
     thething=EmbeddedDocumentField(Tagging)
     pingrps = ListField(EmbeddedDocumentField(Post))
     pinapps = ListField(EmbeddedDocumentField(Post))
@@ -134,7 +141,7 @@ class TaggingDocument(Document):
 
 
 class Item(Document):
-    dtype = StringField(default="adsgut/item")
+    classname="item"
     #itypefqin
     itemtype = StringField(required=True)
     basic = EmbeddedDocumentField(Basic)

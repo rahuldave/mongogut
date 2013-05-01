@@ -77,3 +77,9 @@ def authorize_postable_member(authstart, db, currentuser, useras, cobj):
     permit2(authstart, [clausesys, clause3, clause])
 
 
+def authorize_ownable_owner(authstart, db, currentuser, useras, cobj):
+    permit(currentuser!=None, "must be logged in")
+    clause = (currentuser==useras, "User %s not authorized" % currentuser.nick)
+    clause3=(db.isOwnerOfOwnable(currentuser, useras, cobj), "must be owner of ownable %s %s" % (cobj.__class__.__name__, cobj.basic.fqin))
+    clausesys = (db.isSystemUser(currentuser), "User %s not superuser" % currentuser.nick)
+    permit2(authstart, [clausesys, clause3, clause])

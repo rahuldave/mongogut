@@ -1,7 +1,7 @@
 from classes import *
 import config
 from permissions import permit, authorize, authorize_systemuser, authorize_loggedin_or_systemuser
-from permissions import authorize_context_owner, authorize_context_member
+from permissions import authorize_ownable_owner, authorize_postable_member
 from errors import abort, doabort, ERRGUT
 import types
 
@@ -9,23 +9,40 @@ OK=200
 LOGGEDIN_A_SUPERUSER_O_USERAS=False
 MEMBER_OF_POSTABLE=False
 POSTABLES=[Group, App, Library]
+MEMBERABLES=[Group, App, User]
+OWNABLES=[Group, App, Library, ItemType, TagType]
+#TAGGISH=[Group, App, Library, Tag]: or should it be PostingDoc, TaggingDoc?
 
-def augmentspec(specdict, spectype=User):
+def augmentspec(specdict, spectype='user'):
     basicdict={}
     print "INSPECDICT", specdict
+    spectypestring = spectype.classname
     if spectype in POSTABLES:
         specdict['owner']=specdict['creator']
         basicdict['creator']=specdict['creator']
         basicdict['name']=specdict['name']
         basicdict['description']=specdict.get('description','')
-        basicdict['fqin']=specdict['creator']+"/"+spectype+":"+specdict['name']
+        basicdict['fqin']=specdict['creator']+"/"+spectypestring+":"+specdict['name']
+        specdict['nick']=basicdict['fqin']
+    elif spectype==User:
+        basicdict['creator']="adsgut"
+        basicdict['description']=specdict.get('description','')
+        basicdict['fqin']=specdict['creator']+"/"+spectypestring+":"+specdict['nick']
     specdict['basic']=Basic(**basicdict)
-    specdict['nick']=basicdict['fqin']
+    
     del specdict['name']
     del specdict['creator']
     if specdict.has_key('description'):
         del specdict['description']
     return specdict
+
+def getClass(instance):
+    return type(instance).__name__
+
+def getNSTypeName(fqin):
+    ns, val=fqin.split(':')
+    nslist=ns.split('/')
+    nstypename=nslist[-1]
 
 class Database():
 
@@ -70,11 +87,22 @@ class Database():
     def isMemberOfPostable(self, currentuser, ismember, postable):
         if ismember.nick in postable.members:
             return True
-        else:
-            return False
+        for mem in postable.members:
+            ptypestring=getNSTypeName(mem)
+            ptype=TYPEMAP[ptypestring]
+            if  ptype in POSTABLES:
+                if ismember.nick in self.getPostable(currentuser, ptype, mem):
+                    return True
+        return False
 
-    def isOwnerOfPostable(self, currentuser, ismember, postable):
-        if ismember.nick==postable.owner:
+    # def isOwnerOfPostable(self, currentuser, isowner, postable):
+    #     if isowner.nick==postable.owner:
+    #         return True
+    #     else:
+    #         return False
+
+    def isOwnerOfOwnable(self, currentuser, isowner, ownable):
+        if isowner.nick==ownable.owner:
             return True
         else:
             return False
@@ -115,7 +143,7 @@ class Database():
     
     def membersOfPostable(self, currentuser, useras, postable):
         #BUG: user may be member through another postable
-        authorize_context_member(False, self, currentuser, useras, postable)
+        authorize_postable_member(False, self, currentuser, useras, postable)
         members=postable.members
         return members
 
@@ -128,6 +156,7 @@ class Database():
     ##BUG: how should this be protected?
     def addUser(self, currentuser, userspec):
         try:
+            userspec=augmentspec(userspec)
             newuser=User(**userspec)
             newuser.save(safe=True)
         except:
@@ -169,17 +198,56 @@ class Database():
 
     def removePostable(self,currentuser, ptype, fqpn):
         rempostable=self.getPostable(currentuser, ptype, fqpn)
-        authorize_context_owner(False, self, currentuser, None, rempostable)
+        authorize_ownable_owner(False, self, currentuser, None, rempostable)
         #BUG: group deletion is very fraught. Once someone else is in there
         #the semantics go crazy. Will have to work on refcounting here. And
         #then get refcounting to come in
         rempostable.delete(safe=True)
         return OK
 
-    def addUserToPostable(elf, currentuser, ptype, fqpn, usertobeaddednick):
+    # def addUserToPostable(elf, currentuser, ptype, fqpn, usertobeaddednick):
+    #     pclass=PTYPEMAP[ptype]
+    #     postableq=pclass.objects(basic__fqin=fqpn)
+    #     userq= User.objects(nick=usertobeaddednick)
+
+    #     try:
+    #         postable=postableq.get()
+    #     except:
+    #         doabort('BAD_REQ', "No such postable %s %s" %  (ptype.__name__,fqpn))
+
+    #     if fqpn!='adsgut/group:public':
+    #         #special case so any user can add themselves to public group
+    #         #permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
+    #         authorize_ownable_owner(False, self, currentuser, None, postable)
+    #     try:
+    #         pe=PostableEmbedded(ptype=ptype,fqpn=postable.basic.fqin)
+    #         userq.update(safe_update=True, push__postablesin=pe)
+    #         postableq.update(safe_update=True, push__members=usertobeaddednick)
+    #     except:
+    #         doabort('BAD_REQ', "Failed adding user %s to postable %s %s" % (usertobeaddednick, ptype.__name__, fqpn))
+    #     return usertobeaddednick
+
+    # def removeUserFromPostable(self, currentuser, ptype, fqpn, usertoberemovednick):
+    #     postableq=ptype.objects(basic__fqin=fqpn)
+    #     userq= User.objects(nick=usertoberemovednick)
+
+    #     try:
+    #         postable=postableq.get()
+    #     except:
+    #         doabort('BAD_REQ', "No such group %s" % fqgn)
+    #     authorize_ownable_owner(False, self, currentuser, None, postable)
+    #     try:
+    #         pe=PostableEmbedded(ptype=ptype,fqpn=postable.basic.fqin)
+    #         userq.update(safe_update=True, pull_postablesin=pe)
+    #         postableq.update(safe_update=True, pull__members=usertoberemovednick)
+    #     except:
+    #         doabort('BAD_REQ', "Failed removing user %s from postable %s %s" % (usertoberemovednick, ptype.__name__, fqpn))
+    #     return OK
+
+    def addMemberableToPostable(elf, currentuser, ptype, fqpn, mtype, memberablenick):
         pclass=PTYPEMAP[ptype]
         postableq=pclass.objects(basic__fqin=fqpn)
-        userq= User.objects(nick=usertobeaddednick)
+        memberableq= mtype.objects(nick=memberablenick)
 
         try:
             postable=postableq.get()
@@ -189,36 +257,36 @@ class Database():
         if fqpn!='adsgut/group:public':
             #special case so any user can add themselves to public group
             #permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
-            authorize_context_owner(False, self, currentuser, None, postable)
+            authorize_ownable_owner(False, self, currentuser, None, postable)
         try:
             pe=PostableEmbedded(ptype=ptype,fqpn=postable.basic.fqin)
-            userq.update(safe_update=True, push__postablesin=pe)
-            postableq.update(safe_update=True, push__members=usertobeaddednick)
+            memberableq.update(safe_update=True, push__postablesin=pe)
+            postableq.update(safe_update=True, push__members=memberablenick)
         except:
-            doabort('BAD_REQ', "Failed adding user %s to postable %s %s" % (usertobeaddednick, ptype.__name__, fqpn))
+            doabort('BAD_REQ', "Failed adding memberable %s %s to postable %s %s" % (mtype.__name__, memberablenick, ptype.__name__, fqpn))
         return usertobeaddednick
 
-    def removeUserFromPostable(self, currentuser, ptype, fqpn, usertoberemovednick):
+    def removeMemberableFromPostable(self, currentuser, ptype, fqpn, mtype, memberablenick):
         postableq=ptype.objects(basic__fqin=fqpn)
-        userq= User.objects(nick=usertoberemovednick)
+        memberableq= mtype.objects(nick=usertoberemovednick)
 
         try:
             postable=postableq.get()
         except:
             doabort('BAD_REQ', "No such group %s" % fqgn)
-        authorize_context_owner(False, self, currentuser, None, postable)
+        authorize_ownable_owner(False, self, currentuser, None, postable)
         try:
             pe=PostableEmbedded(ptype=ptype,fqpn=postable.basic.fqin)
-            userq.update(safe_update=True, pull_postablesin=pe)
-            postableq.update(safe_update=True, pull__members=usertoberemovednick)
+            memberableq.update(safe_update=True, pull_postablesin=pe)
+            postableq.update(safe_update=True, pull__members=memberablenick)
         except:
-            doabort('BAD_REQ', "Failed removing user %s from postable %s %s" % (usertoberemovednick, ptype.__name__, fqpn))
+            doabort('BAD_REQ', "Failed removing memberable %s %s from postable %s %s" % (mtype.__name__, memberablenick, ptype.__name__, fqpn))
         return OK
 
     def inviteUserToPostable(self, currentuser, ptype, fqpn, usertobeaddednick):
         postable=self.getPostable(currentuser, ptype, fqpn)
         userq= User.objects(nick=usertobeaddednick)
-        authorize_context_owner(False, self, currentuser, None, postable)
+        authorize_ownable_owner(False, self, currentuser, None, postable)
         try:
             pe=PostableEmbedded(ptype=ptype,fqpn=postable.basic.fqin)
             userq.update(safe_update=True, push__postablesinvitedto=pe)
@@ -256,15 +324,15 @@ class Database():
             newowner=newownerq.get()
         except:
             #make sure target exists.
-            doabort('BAD_REQ', "No such postable %s %s" % (newownerptype.__name, newowner))
+            doabort('BAD_REQ', "No such newowner %s %s" % (newownerptype.__name__, newowner))
         if newownerptype != User:
-            authorize_context_member(False, self, currentuser, None, newowner)
+            authorize_postable_member(False, self, currentuser, None, newowner)
 
         try:
             postable=postableq.get()
         except:
             doabort('BAD_REQ', "No such postable %s %s" % (ptype.__name__,fqpn))
-        authorize_context_owner(False, self, currentuser, None, postable)
+        authorize_ownable_owner(False, self, currentuser, None, postable)
         try:
             oldownernick=postable.owner
             if newownerptype != User:
@@ -272,46 +340,32 @@ class Database():
             else:
                 postable.update(safe_update=True, set__owner = newowner.nick, push__members=newowner.nick, pull__members=oldownernick)
         except:
-            doabort('BAD_REQ', "Failed changing owner from %s to %s for postable %s %s" % (oldownernick, newowner.nick, ptype.__name__, fqln))
+            doabort('BAD_REQ', "Failed changing owner from %s to %s for postable %s %s" % (oldownernick, newowner.nick, ptype.__name__, fqpn))
         return newowner
 
     #group should be replaced by anything that can be the owner
 
-    def changeOwnershipOfOwnableType(self, currentuser, fqtypen, typetype, newowner, groupmode=False):
-        if typetype=="itemtype":
-            typeo=ItemType
-        elif typrtype=="tagtype":
-            typeo=TagType
-        typq=typeo.objects(basic__fqin=fqtypen)
-        if groupmode:
-            try:
-                groupq=Group.objects(basic__fqin=newowner)
-                group=groupq.get()
-                newowner=group.basic.fqin
-            except:
-                #make sure target exists.
-                doabort('BAD_REQ', "No such group %s" % newowner)
-            authorize_context_member(False, self, currentuser, None, group)
-        else:
-            try:
-                userq= User.objects(nick=newowner)
-                newowner=userq.get().nick
-            except:
-                #make sure target exists.
-                doabort('BAD_REQ', "No such user %s" % newowner)
-        try:
-            typ=typq.get()
+    def changeOwnershipOfOwnableType(self, currentuser, fqtypen, typetype, newownerptype, newownerfqpn):
+        typq=typetype.objects(basic__fqin=fqtypen)
+        itry:
+            newownerq=newownerptype.objects(nick=newownerfqpn)
+            newowner=newownerq.get()
         except:
-            doabort('BAD_REQ', "No such group %s" % fqtypen)
-        authorize_context_owner(False, self, currentuser, None, typ)
+            #make sure target exists.
+            doabort('BAD_REQ', "No such newowner %s %s" % (newownerptype.__name__, newowner))
+        if newownerptype != User:
+            authorize_postable_member(False, self, currentuser, None, newowner)
+
         try:
-            oldownernick=typ.owner
-            if groupmode:
-                typ.update(safe_update=True, set__owner = newowner)
-            else:
-                typ.update(safe_update=True, set__owner = newowner)
+            ownable=typq.get()
         except:
-            doabort('BAD_REQ', "Failed changing owner from %s to %s for type %s" % (oldownernick, newowner, fqtypen))
+            doabort('BAD_REQ', "No such ownable %s %s" % (typetype.__name__,fqtypen))
+        authorize_ownable_owner(False, self, currentuser, None, ownable)
+        try:
+            oldownernick=ownable.owner
+            ownable.update(safe_update=True, set__owner = newowner.nick)
+        except:
+            doabort('BAD_REQ', "Failed changing owner from %s to %s for ownable %s %s" % (oldownernick, newowner.nick, typetype.__name__, fqtypen))
         return newowner
 
     def allUsers(self, currentuser):
