@@ -69,17 +69,21 @@ def authorize_context_member(authstart, db, currentuser, useras, cobj):
         clause3=(db.isMemberOfLibrary(currentuser,cobj), "must be member of group that owns library %s" % cobj.basic.fqin)
     permit2(authstart, [clausesys, clause3, clause])
 
+#this needs to deal with both the target being a memberable as well as the target being a member of the memberable
+#BUG thus currentuser=useras and maybe other need to fixed in both below
 def authorize_postable_member(authstart, db, currentuser, useras, cobj):
     permit(currentuser!=None, "must be logged in")
     clause = (currentuser==useras, "User %s not authorized" % currentuser.nick)
+    #BUG: what if useras is a group?
     clause3=(db.isMemberOfPostable(currentuser, useras, cobj), "must be member of postable %s %s" % (cobj.__class__.__name__, cobj.basic.fqin))
     clausesys = (db.isSystemUser(currentuser), "User %s not superuser" % currentuser.nick)
     permit2(authstart, [clausesys, clause3, clause])
 
-
+#bug fix for useras being a memberable. would seem to be ok otherwise?
 def authorize_ownable_owner(authstart, db, currentuser, useras, cobj):
     permit(currentuser!=None, "must be logged in")
     clause = (currentuser==useras, "User %s not authorized" % currentuser.nick)
+    #BUG: what if useras is a group?
     clause3=(db.isOwnerOfOwnable(currentuser, useras, cobj), "must be owner of ownable %s %s" % (cobj.__class__.__name__, cobj.basic.fqin))
     clausesys = (db.isSystemUser(currentuser), "User %s not superuser" % currentuser.nick)
     permit2(authstart, [clausesys, clause3, clause])

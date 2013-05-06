@@ -8,9 +8,12 @@ import types
 OK=200
 LOGGEDIN_A_SUPERUSER_O_USERAS=False
 MEMBER_OF_POSTABLE=False
-POSTABLES=[Group, App, Library]
-MEMBERABLES=[Group, App, User]
-OWNABLES=[Group, App, Library, ItemType, TagType]
+POSTABLES=[Group, App, Library]#things that can be posted to, and you can be a member of
+MEMBERABLES=[Group, App, User]#things that can be members
+#above all use nicks
+OWNABLES=[Group, App, Library, ItemType, TagType]#things that can be owned
+#OWNERABLES=[Group, App, User]#things that can be owners. Do we need a shadow owner?
+#the above all have nicks
 #TAGGISH=[Group, App, Library, Tag]: or should it be PostingDoc, TaggingDoc?
 
 def augmentspec(specdict, spectype='user'):
@@ -47,9 +50,12 @@ def getNSTypeName(fqin):
 class Database():
 
     def __init__(self, db_session):
+        "initialize the database"
         self.session=db_session
 
+
     def isSystemUser(self, currentuser):
+        "is the current user the superuser?"
         if currentuser.nick=='adsgut':
             return True
         else:
@@ -57,13 +63,16 @@ class Database():
 
     #this one is completely UNPROTECTED
     def getUserForNick(self, currentuser, nick):
+        "gets user for nick"
         try:
             user=User.objects(nick=nick).get()
         except:
             doabort('NOT_FND', "User %s not found" % nick)
         return user
 
+    #this one is PROTECTED
     def getUserInfo(self, currentuser, nick):
+        "gets user for nick only if you are superuser or that user"
         user=self.getUserForNick(currentuser, nick)
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, user)
         return user
@@ -71,49 +80,63 @@ class Database():
 
     #POSTABLE interface
 
+    #this one is unprotected
     def getPostable(self, currentuser, ptype, fqpn):
+        "gets the postable corresponding to the ptype and fqpn"
         try:
             postable=ptype.objects(basic__fqin=fqpn)
         except:
             doabort('NOT_FND', "%s %s not found" % (ptype.__name__, fqpn))
         return postable
 
-    def getPostableInfo(self, currentuser, fqpn, ptype):
+    #this one is protected
+    def getPostableInfo(self, currentuser, memberable, fqpn, ptype):
+        "gets postable only if you are member of the postable"
         postable=self.getPostable(currentuser, ptype, fqpn)
-        authorize_postable_member(MEMBER_OF_POSTABLE, self, currentuser, None, postable)
+        #BUG:this should work for a user member of postable as well as a memberable member of postable
+        authorize_postable_member(MEMBER_OF_POSTABLE, self, currentuser, memberable, postable)
         return postable
 
-    #using ISMEMBER interface. what does currentuser do now?
-    def isMemberOfPostable(self, currentuser, ismember, postable):
-        if ismember.nick in postable.members:
+    #using MEMBERABLE interface. this one is unprotected
+    def isMemberOfPostable(self, currentuser, memberable, postable):
+        "is the memberable a member of postable"
+        if memberable.nick in postable.members:
             return True
         for mem in postable.members:
             ptypestring=getNSTypeName(mem)
             ptype=TYPEMAP[ptypestring]
             if  ptype in POSTABLES:
-                if ismember.nick in self.getPostable(currentuser, ptype, mem):
+                if memberable.nick in self.getPostable(currentuser, ptype, mem):
                     return True
         return False
 
-    # def isOwnerOfPostable(self, currentuser, isowner, postable):
-    #     if isowner.nick==postable.owner:
-    #         return True
-    #     else:
-    #         return False
 
-    def isOwnerOfOwnable(self, currentuser, isowner, ownable):
-        if isowner.nick==ownable.owner:
+    #using MEMBERABLE/OWNABLE:this can let a group be owner of the ownable, as long as its 'nick' is in the owner field.
+    #this one is unprotected
+    def isOwnerOfOwnable(self, currentuser, memberable, ownable):
+        "is memberable the owner of ownerable? ownerable is postable plus others"
+        if memberable.nick==ownable.owner:
+            return True
+        else:        
+            return False
+
+    #defined this just for completion, and in code, it will be easier to read, unprotected
+    def isOwnerOfPostable(self, currentuser, memberable, postable):
+        return self.isOwnerOfOwnable(currentuser, memberable, postable)
+
+    #invitations only work for users for now, even tho we have a memberable. unprotected
+    def isInvitedToPostable(self, currentuser, memberable, postable):
+        "is the user invited to the postable?"
+        if memberable.nick in postable.inviteds:
             return True
         else:
             return False
 
-    def isInvitedToPostable(self, currentuser, ismember, postable):
-        if ismember.nick in postable.inviteds:
-            return True
-        else:
-            return False
-
+    #unprotected
+    #BUG just for user currently. Dosent work for other memberables. Is not transitive
+    #so that a postable is listed for the owner of the memberable
     def ownerOfPostables(self, currentuser, useras, ptype=None):
+        "return the postables the user is an owner of"
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         allpostables=useras.postablesowned
         if ptype:
@@ -122,7 +145,10 @@ class Database():
             postables=allpostables
         return postables
 
+    #unprotected
+    #BUG just for user currently. Dosent work for other memberables
     def postablesForUser(self, currentuser, useras, ptype=None):
+        "return the postables the user is a member of"
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         allpostables=useras.postablesin
         if ptype:
@@ -131,7 +157,10 @@ class Database():
             postables=allpostables
         return postables
 
+    #unprotected
+    #invitations only work for users for now.
     def postableInvitesForUser(self, currentuser, useras, ptype=None):
+        "given a user, find their invitations to postables"
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         allpostables=useras.postablesinvitedto
         if ptype:
@@ -140,13 +169,19 @@ class Database():
             postables=allpostables
         return postables
 
-    
-    def membersOfPostable(self, currentuser, useras, postable):
-        #BUG: user may be member through another postable
-        authorize_postable_member(False, self, currentuser, useras, postable)
+    #unprotected
+    #user/memberable may be member through another memberable
+    #this will give just those memberables, and not their expansion: is that ok? i think so
+    def membersOfPostable(self, currentuser, memberable, postable):
+        "is user or memberable a member of the postable?"
+        #i need to have access to this if i come in through being a member of a memberable which is a member
+        #authorize_postable member takes care of this
+        authorize_postable_member(False, self, currentuser, memberable, postable)
         members=postable.members
         return members
 
+    ################################################################################
+    
     #Add user to system, given a userspec from flask user object. commit needed
     #This should never be called from the web interface, but can be called on the fly when user
     #logs in in Giovanni's system. So will there be a cookie or not?
@@ -205,44 +240,6 @@ class Database():
         rempostable.delete(safe=True)
         return OK
 
-    # def addUserToPostable(elf, currentuser, ptype, fqpn, usertobeaddednick):
-    #     pclass=PTYPEMAP[ptype]
-    #     postableq=pclass.objects(basic__fqin=fqpn)
-    #     userq= User.objects(nick=usertobeaddednick)
-
-    #     try:
-    #         postable=postableq.get()
-    #     except:
-    #         doabort('BAD_REQ', "No such postable %s %s" %  (ptype.__name__,fqpn))
-
-    #     if fqpn!='adsgut/group:public':
-    #         #special case so any user can add themselves to public group
-    #         #permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
-    #         authorize_ownable_owner(False, self, currentuser, None, postable)
-    #     try:
-    #         pe=PostableEmbedded(ptype=ptype,fqpn=postable.basic.fqin)
-    #         userq.update(safe_update=True, push__postablesin=pe)
-    #         postableq.update(safe_update=True, push__members=usertobeaddednick)
-    #     except:
-    #         doabort('BAD_REQ', "Failed adding user %s to postable %s %s" % (usertobeaddednick, ptype.__name__, fqpn))
-    #     return usertobeaddednick
-
-    # def removeUserFromPostable(self, currentuser, ptype, fqpn, usertoberemovednick):
-    #     postableq=ptype.objects(basic__fqin=fqpn)
-    #     userq= User.objects(nick=usertoberemovednick)
-
-    #     try:
-    #         postable=postableq.get()
-    #     except:
-    #         doabort('BAD_REQ', "No such group %s" % fqgn)
-    #     authorize_ownable_owner(False, self, currentuser, None, postable)
-    #     try:
-    #         pe=PostableEmbedded(ptype=ptype,fqpn=postable.basic.fqin)
-    #         userq.update(safe_update=True, pull_postablesin=pe)
-    #         postableq.update(safe_update=True, pull__members=usertoberemovednick)
-    #     except:
-    #         doabort('BAD_REQ', "Failed removing user %s from postable %s %s" % (usertoberemovednick, ptype.__name__, fqpn))
-    #     return OK
 
     def addMemberableToPostable(elf, currentuser, ptype, fqpn, mtype, memberablenick):
         pclass=PTYPEMAP[ptype]
@@ -317,50 +314,65 @@ class Database():
         return menick
 
     #changes postable ownership to a 'ownerable'
-    def changeOwnershipOfPostable(self, currentuser, ptype, fqpn, newownerptype, newownerfqpn):
+    def changeOwnershipOfPostable(self, currentuser, owner, ptype, fqpn, newownerptype, newownerfqpn):
         postableq=ptype.objects(basic__fqin=fqpn)
+        try:
+            postable=postableq.get()
+        except:
+            doabort('BAD_REQ', "No such postable %s %s" % (ptype.__name__,fqpn))
+        #Before anything else, make sure I own the stuff so can transfer it.
+        #Bug this dosent work if useras is a group
+
+        #useras must be member of postable
+        authorize_ownable_owner(False, self, currentuser, owner, postable)
+
         try:
             newownerq=newownerptype.objects(nick=newownerfqpn)
             newowner=newownerq.get()
         except:
             #make sure target exists.
-            doabort('BAD_REQ', "No such newowner %s %s" % (newownerptype.__name__, newowner))
-        if newownerptype != User:
-            authorize_postable_member(False, self, currentuser, None, newowner)
+            doabort('BAD_REQ', "No such newowner %s %s" % (newownerptype.__name__, newowner.nick))
+        #Either as a user or a group, you must be member of group/app or app respectively to
+        #transfer membership there. But what does it mean for a group to own a group. 
+        #it makes sense for library and app, but not for group. Though currently let us have it
+        #there. Then if a group owns a group, the person doing the changing must be owner.
 
-        try:
-            postable=postableq.get()
-        except:
-            doabort('BAD_REQ', "No such postable %s %s" % (ptype.__name__,fqpn))
-        authorize_ownable_owner(False, self, currentuser, None, postable)
+        #newowner must be member of the postable (group cant own itself)
+        permit(self.isMemberOfPostable(currentuser, newowner, postable), 
+            " Possible new owner %s %s must be member of postable %s %s" % (newownerptype.__name__, newowner.nick, ptype.__name__, fqpn))
+
+       
         try:
             oldownernick=postable.owner
-            if newownerptype != User:
-                postable.update(safe_update=True, set__owner = newowner.nick, push__members=newowner.nick)
-            else:
-                postable.update(safe_update=True, set__owner = newowner.nick, push__members=newowner.nick, pull__members=oldownernick)
+            #if newownerptype != User:
+            postable.update(safe_update=True, set__owner = newowner.nick, push__members=newowner.nick)
+            #else:
+            #postable.update(safe_update=True, set__owner = newowner.nick, push__members=newowner.nick, pull__members=oldownernick)
         except:
             doabort('BAD_REQ', "Failed changing owner from %s to %s for postable %s %s" % (oldownernick, newowner.nick, ptype.__name__, fqpn))
         return newowner
 
     #group should be replaced by anything that can be the owner
-
-    def changeOwnershipOfOwnableType(self, currentuser, fqtypen, typetype, newownerptype, newownerfqpn):
+    #dont want to use this for postables, even though they are ownable.
+    def changeOwnershipOfOwnableType(self, currentuser, owner, fqtypen, typetype, newownerptype, newownerfqpn):
         typq=typetype.objects(basic__fqin=fqtypen)
-        itry:
+        try:
+            ownable=typq.get()
+        except:
+            doabort('BAD_REQ', "No such ownable %s %s" % (typetype.__name__,fqtypen))
+        authorize_ownable_owner(False, self, currentuser, owner, ownable)
+
+        try:
             newownerq=newownerptype.objects(nick=newownerfqpn)
             newowner=newownerq.get()
         except:
             #make sure target exists.
             doabort('BAD_REQ', "No such newowner %s %s" % (newownerptype.__name__, newowner))
+        
+        #if transferring to a group/app I better be a member of it, else I can transfer to any user.
         if newownerptype != User:
-            authorize_postable_member(False, self, currentuser, None, newowner)
-
-        try:
-            ownable=typq.get()
-        except:
-            doabort('BAD_REQ', "No such ownable %s %s" % (typetype.__name__,fqtypen))
-        authorize_ownable_owner(False, self, currentuser, None, ownable)
+            authorize_postable_member(False, self, currentuser, owner, newowner)
+      
         try:
             oldownernick=ownable.owner
             ownable.update(safe_update=True, set__owner = newowner.nick)
