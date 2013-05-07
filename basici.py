@@ -15,6 +15,13 @@ OWNABLES=[Group, App, Library, ItemType, TagType]#things that can be owned
 #OWNERABLES=[Group, App, User]#things that can be owners. Do we need a shadow owner?
 #the above all have nicks
 #TAGGISH=[Group, App, Library, Tag]: or should it be PostingDoc, TaggingDoc?
+MAPDICT={
+    'group':Group,
+    'app':App,
+    'user':User,
+    'library':Library
+}
+
 
 def augmentspec(specdict, spectype='user'):
     basicdict={}
@@ -39,13 +46,20 @@ def augmentspec(specdict, spectype='user'):
         del specdict['description']
     return specdict
 
-def getClass(instance):
+def classname(instance):
     return type(instance).__name__
+
+def classtype(instance):
+    return type(instance)
 
 def getNSTypeName(fqin):
     ns, val=fqin.split(':')
     nslist=ns.split('/')
     nstypename=nslist[-1]
+
+def gettype(fqin):
+    return classtype(MAPDICT[getNSTypeName(fqin)])
+
 
 class Database():
 
@@ -81,32 +95,35 @@ class Database():
     #POSTABLE interface
 
     #this one is unprotected
-    def getPostable(self, currentuser, ptype, fqpn):
-        "gets the postable corresponding to the ptype and fqpn"
+    def getPostable(self, currentuser, fqpn):
+        "gets the postable corresponding to the fqpn"
+        ptype=gettype(fqpn)
         try:
             postable=ptype.objects(basic__fqin=fqpn)
         except:
-            doabort('NOT_FND', "%s %s not found" % (ptype.__name__, fqpn))
+            doabort('NOT_FND', "%s %s not found" % (classname(ptype), fqpn))
         return postable
 
     #this one is protected
-    def getPostableInfo(self, currentuser, memberable, fqpn, ptype):
+    def getPostableInfo(self, currentuser, memberable, fqpn):
         "gets postable only if you are member of the postable"
-        postable=self.getPostable(currentuser, ptype, fqpn)
+        postable=self.getPostable(currentuser, fqpn)
         #BUG:this should work for a user member of postable as well as a memberable member of postable
         authorize_postable_member(MEMBER_OF_POSTABLE, self, currentuser, memberable, postable)
         return postable
 
     #using MEMBERABLE interface. this one is unprotected
+    #also returns true if a user is a member of a postable(say a group), which is a member
+    #of this postable. Also works if the memberable is a postable itself, through the nick interface
     def isMemberOfPostable(self, currentuser, memberable, postable):
         "is the memberable a member of postable"
         if memberable.nick in postable.members:
             return True
         for mem in postable.members:
-            ptypestring=getNSTypeName(mem)
-            ptype=TYPEMAP[ptypestring]
+            ptype=gettype(mem)
             if  ptype in POSTABLES:
-                if memberable.nick in self.getPostable(currentuser, ptype, mem):
+                pos=self.getPostable(currentuser, mem)
+                if memberable.nick in pos.members:
                     return True
         return False
 
@@ -175,21 +192,23 @@ class Database():
     def membersOfPostable(self, currentuser, memberable, postable):
         "is user or memberable a member of the postable?"
         #i need to have access to this if i come in through being a member of a memberable which is a member
-        #authorize_postable member takes care of this
+        #authorize_postable member takes care of this. That memberable is NOT the same memberable in the arguments here
         authorize_postable_member(False, self, currentuser, memberable, postable)
         members=postable.members
         return members
 
     ################################################################################
-    
+
     #Add user to system, given a userspec from flask user object. commit needed
     #This should never be called from the web interface, but can be called on the fly when user
     #logs in in Giovanni's system. So will there be a cookie or not?
     #BUG: make sure this works on a pythonic API too. think about authorize in a
     #pythonic API setting
     #
-    ##BUG: how should this be protected?
+    #ought to be initialized on signup or in batch for existing users.
     def addUser(self, currentuser, userspec):
+        "add a user to the system. currently only sysadmin can do this"
+        authorize_systemuser(False, self, currentuser)
         try:
             userspec=augmentspec(userspec)
             newuser=User(**userspec)
@@ -197,26 +216,32 @@ class Database():
         except:
             doabort('BAD_REQ', "Failed adding user %s" % userspec['nick'])
         #Also add user to private default group and public group
-
-        self.addPostable(newuser, Group, dict(name='default', creator=newuser.nick,
+        self.addPostable(currentuser, newuser, Group, dict(name='default', creator=newuser.nick,
             personalgroup=True
         ))
-        self.addUserToPostable(currentuser, Group, 'adsgut/group:public', newuser.nick)
+        self.addMemberableToPostable(currentuser, currentuser, 'adsgut/group:public', newuser.nick)
+        #BUG:Bottom ought to be done via routing
         #self.addUserToApp(currentuser, 'ads@adslabs.org/app:publications', newuser, None)
+        #should this be also done by routing?
+        self.addMemberableToPostable(currentuser, currentuser, App, 'adsgut/app:adsgut', User, newuser.nick)
         return newuser
 
     #BUG: we want to blacklist users and relist them
     #currently only allow users to be removed through scripts
     def removeUser(self, currentuser, usertoberemovednick):
-        #Only sysuser can remove user. BUG: this is unfleshed
-        authorize(False, self, currentuser, None)
+        "remove a user. only systemuser can do this"
+        #Only sysuser can remove user. 
+        #BUG: this is unfleshed. routing and reference counting ought to be used to handle this
+        authorize_systemuser(False, self, currentuser)
         remuser=self.getUserForNick(currentuser, usertoberemovednick)
         #CONSIDER: remove user from users collection, but not his name elsewhere.
         remuser.delete(safe=True)
         return OK
 
-    def addPostable(self, currentuser, ptype, postablespec):
-        authorize(False, self, currentuser, currentuser)
+    def addPostable(self, currentuser, useras, ptype, postablespec):
+        "the useras adds a postable. currently either currentuser=superuser or useras"
+        #authorize(False, self, currentuser, currentuser)
+        authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         postablespec=augmentspec(postablespec, ptype)
         try:
             newpostable=ptype(**groupspec)
@@ -228,11 +253,13 @@ class Database():
             #print "result", res, currentuser.groupsowned, currentuser.to_json()
         except:
             doabort('BAD_REQ', "Failed adding postable %s %s" % (ptype.__name__, postablespec['basic'].fqin))
-        self.addUserToPostable(currentuser, ptype, newpostable.basic.fqin, newpostable.basic.creator)
+        self.addMemberableToPostable(currentuser, useras, newpostable.basic.fqin, newpostable.basic.creator)
         return newpostable
 
-    def removePostable(self,currentuser, ptype, fqpn):
-        rempostable=self.getPostable(currentuser, ptype, fqpn)
+    #BUG: why is there no useras here? perhaps too dangerous to let a useras delete?
+    def removePostable(self,currentuser, fqpn):
+        "currentuser removes a postable"
+        rempostable=self.getPostable(currentuser, fqpn)
         authorize_ownable_owner(False, self, currentuser, None, rempostable)
         #BUG: group deletion is very fraught. Once someone else is in there
         #the semantics go crazy. Will have to work on refcounting here. And
@@ -240,12 +267,15 @@ class Database():
         rempostable.delete(safe=True)
         return OK
 
-
-    def addMemberableToPostable(elf, currentuser, ptype, fqpn, mtype, memberablenick):
-        pclass=PTYPEMAP[ptype]
-        postableq=pclass.objects(basic__fqin=fqpn)
+    #BUG: there is no restriction here of what can be added to what in memberables and postables
+    def addMemberableToPostable(self, currentuser, useras, fqpn, memberablenick):
+        "add a user, group, or app to a postable=group, app, or library"
+        ptype=gettype(fqpn)
+        mtype=gettype(memberablenick)
+        postableq=ptype.objects(basic__fqin=fqpn)
         memberableq= mtype.objects(nick=memberablenick)
-
+        #BUG currently restricted admission. Later we will want groups and apps proxying for users.
+        authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         try:
             postable=postableq.get()
         except:
@@ -263,7 +293,11 @@ class Database():
             doabort('BAD_REQ', "Failed adding memberable %s %s to postable %s %s" % (mtype.__name__, memberablenick, ptype.__name__, fqpn))
         return usertobeaddednick
 
-    def removeMemberableFromPostable(self, currentuser, ptype, fqpn, mtype, memberablenick):
+    #BUG: not really fleshed out as we need to handle refcounts and all that to see if objects ought to be removed.
+    def removeMemberableFromPostable(self, currentuser, fqpn, memberablenick):
+        "remove a u/g/a from a g/a/l"
+        ptype=gettype(fqpn)
+        mtype=gettype(memberablenick)
         postableq=ptype.objects(basic__fqin=fqpn)
         memberableq= mtype.objects(nick=usertoberemovednick)
 
@@ -280,10 +314,14 @@ class Database():
             doabort('BAD_REQ', "Failed removing memberable %s %s from postable %s %s" % (mtype.__name__, memberablenick, ptype.__name__, fqpn))
         return OK
 
-    def inviteUserToPostable(self, currentuser, ptype, fqpn, usertobeaddednick):
-        postable=self.getPostable(currentuser, ptype, fqpn)
+
+    #do we want to use this for libraries? why not? Ca we invite other memberables?
+    def inviteUserToPostable(self, currentuser, useras, fqpn, usertobeaddednick):
+        "invite a user to a postable."
+        ptype=gettype(fqpn)
+        postable=self.getPostable(currentuser, fqpn)
         userq= User.objects(nick=usertobeaddednick)
-        authorize_ownable_owner(False, self, currentuser, None, postable)
+        authorize_ownable_owner(False, self, currentuser, useras, postable)
         try:
             pe=PostableEmbedded(ptype=ptype,fqpn=postable.basic.fqin)
             userq.update(safe_update=True, push__postablesinvitedto=pe)
@@ -292,7 +330,11 @@ class Database():
         #print "IIIII", userq.get().groupsinvitedto
         return usertobeaddednick
 
-    def acceptInviteToPostable(self, currentuser, ptype, fqpn, menick):
+    #this cannot be masqueraded, must be explicitly approved by user
+    #can we do without the menick?
+    def acceptInviteToPostable(self, currentuser, fqpn, menick):
+        "do i accept the invite?"
+        ptype=gettype(fqpn)
         postableq=ptype.objects(basic__fqin=fqpn)
         userq= User.objects(nick=menick)
         try:
@@ -314,7 +356,10 @@ class Database():
         return menick
 
     #changes postable ownership to a 'ownerable'
-    def changeOwnershipOfPostable(self, currentuser, owner, ptype, fqpn, newownerptype, newownerfqpn):
+    def changeOwnershipOfPostable(self, currentuser, owner, fqpn, newownerfqpn):
+        "give ownership over to another user/group etc for g/a/l"
+        ptype=gettype(fqpn)
+        newownerptype = gettype(newownerfqpn)
         postableq=ptype.objects(basic__fqin=fqpn)
         try:
             postable=postableq.get()
@@ -354,7 +399,10 @@ class Database():
 
     #group should be replaced by anything that can be the owner
     #dont want to use this for postables, even though they are ownable.
-    def changeOwnershipOfOwnableType(self, currentuser, owner, fqtypen, typetype, newownerptype, newownerfqpn):
+    def changeOwnershipOfOwnableType(self, currentuser, owner, fqtypen, newownerfqpn):
+        "this is used for things like itentypes and tagtypes, not for g/a/l"
+        typetype=gettype(fqtypen)
+        newownerptype = gettype(newownerfqpn)
         typq=typetype.objects(basic__fqin=fqtypen)
         try:
             ownable=typq.get()
@@ -401,10 +449,10 @@ class Database():
         return libs
 
     def getGroup(self, currentuser, fqgn):
-        return self.getPostable(currentuser, Group, fqgn)
+        return self.getPostable(currentuser, fqgn)
 
     def getGroup(self, currentuser, fqan):
-        return self.getPostable(currentuser, App, fqan)
+        return self.getPostable(currentuser, fqan)
 
     def getGroup(self, currentuser, fqln):
-        return self.getPostable(currentuser, Library, fqln)
+        return self.getPostable(currentuser, fqln)
