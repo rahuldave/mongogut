@@ -451,8 +451,8 @@ class Database():
     def getGroup(self, currentuser, fqgn):
         return self.getPostable(currentuser, fqgn)
 
-    def getGroup(self, currentuser, fqan):
+    def getApplication(self, currentuser, fqan):
         return self.getPostable(currentuser, fqan)
 
-    def getGroup(self, currentuser, fqln):
+    def getLibrary(self, currentuser, fqln):
         return self.getPostable(currentuser, fqln)
