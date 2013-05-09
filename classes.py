@@ -28,6 +28,8 @@ class TagType(Document):
     classname="tagtype"
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
+    postable = StringField(required=True)
+    postabletype = StringField(required=True)
     #if tagmode=true for this tagtype, then tagging an item published to a group does not
     #result in the tag being published to the group. This is true of notes.
     tagmode = BooleanField(default=False, required=True)
@@ -134,9 +136,10 @@ class PostingDocument(Document):
 class TaggingDocument(Document):
     classname="taggingdocument"
     thething=EmbeddedDocumentField(Tagging)
-    pingrps = ListField(EmbeddedDocumentField(Post))
-    pinapps = ListField(EmbeddedDocumentField(Post))
-    pinlibs = ListField(EmbeddedDocumentField(Post))
+    #pingrps = ListField(EmbeddedDocumentField(Post))
+    #pinapps = ListField(EmbeddedDocumentField(Post))
+    #pinlibs = ListField(EmbeddedDocumentField(Post))
+    pinpostables = ListField(EmbeddedDocumentField(Post))
     #pinlibs = ListField(EmbeddedDocumentField(Tagging))
 
 
@@ -145,9 +148,7 @@ class Item(Document):
     #itypefqin
     itemtype = StringField(required=True)
     basic = EmbeddedDocumentField(Basic)
-    pingrps = ListField(EmbeddedDocumentField(Post))
-    pinapps = ListField(EmbeddedDocumentField(Post))
-    pinlibs = ListField(EmbeddedDocumentField(Post))
+    pinpostables = ListField(EmbeddedDocumentField(Post))
     #a very specific tag is collected below, the library tag
     #pinlibs = ListField(EmbeddedDocumentField(Tagging))
     #anything not library, group, or app
