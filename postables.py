@@ -32,6 +32,14 @@ class Database():
             doabort('NOT_FND', "User %s not found" % nick)
         return user
 
+    def getUserForFqin(self, currentuser, userfqin):
+        "gets user for nick"
+        try:
+            user=User.objects(basic__fqin=userfqin).get()
+        except:
+            doabort('NOT_FND', "User %s not found" % userfqin)
+        return user
+
     #this one is PROTECTED
     def getUserInfo(self, currentuser, nick):
         "gets user for nick only if you are superuser or that user"

@@ -211,9 +211,36 @@ class Postdb(Database):
         print '&&&&&&&&&&&&&&&&&&&&&&', 'FINISHED SAVING'
         return newitem
 
+    #BUG when will we make these useras other memberables?
+    #BUG need to deal with tagmode and singletonmode here
     def canUseThisTag(self, currentuser, useras, tag):
         "return true is this user can use this tag from access to tagtype, namespace, etc"
-        return True
+        #If you OWN this tag
+        if useras.basic.fqin==tag.owner:
+            return True
+        #if you could have created this tag
+        if not self.canCreateThisTag(currentuser, useras, tag.tagtype):
+            return False
+        tagownertype=gettype(tag.owner)
+        if tagownertype in POSTABLES:
+            tagowner=self.getPostable(currentuser,tag.owner)
+            if self.isMemberOfPostable(currentuser, useras, tagowner):
+                return True
+        return False
+
+    def canCreateThisTag(self, currentuser, useras, tagtype):
+        "return true is this user can use this tag from access to tagtype, namespace, etc"
+        tagype=self._getTagType(currentuser, tagtype)
+        ttowner=tagtype.owner
+        ttownertype=gettype(ttowner)
+        if ttownertype==User:
+            if useras.basic.fqin==ttowner:
+                return True
+        elif ttownertype in POSTABLES:
+            postable=self.getPostable(currentuser,ttowner)
+            if self.isMemberOfPostable(currentuser, useras, postable):
+                return True
+        return False
 
     #this is done for making a standalone tag, without tagging anything with it
     def makeTag(self, currentuser, useras, tagspec, tagmode=False):
@@ -232,6 +259,8 @@ class Postdb(Database):
         try:
             print "TRY CREATING TAG"
             #not needed for now tags dont have members tagspec['push__members']=useras.nick
+            if not self.canCreateThisTag(currentuser, useras, tagspec['tagtype']):
+                doabort('NOT_AUT', "Not authorized for tag %s" % tagspec['basic'].fqin)
             tag=Tag(**tagspec)
             tag.save(safe=True)
         except:
@@ -308,7 +337,7 @@ class Postdb(Database):
     def postTaggingIntoPostable(self, currentuser, useras, fqpn, taggingdoc):
         itemtag=taggingdoc.thething
         postable=self.whosdb.getPostable(currentuser, fqpn)
-        authorize_context_owner(False, self, currentuser, useras, postable)
+        authorize_postablecontext_owner(False, self, currentuser, useras, postable)
 
         permit(self.whosdb.isMemberOfPostable(useras, postable),
             "Only member of gpostable %s can post into it" % postable.basic.fqin)
@@ -346,7 +375,7 @@ class Postdb(Database):
 
         grp=self.whosdb.getGPostable(currentuser, fqpn)
 
-        authorize_context_owner(False, self, currentuser, useras, grp)
+        authorize_postablecontext_owner(False, self, currentuser, useras, grp)
         #BUG: no other auths. But the model for this must be figured out.
         #The itemtag must exist at first
         # itemtag=self._getTagging(currentuser, tag, item)
@@ -376,3 +405,259 @@ class Postdb(Database):
 
     def removeItemFromLibrary(self, currentuser, useras, fqln, itemfqin):
         removeTaggingFromPostable(self, currentuser, useras, fqln, itemfqin, tagfqin)
+
+    # SO HERE WE LIST THE SEARCHES
+    #
+    #Use cases
+    #(0) get tags, as in get libraries, for a group/user/app/type.
+    #(1) get items by tags, and tags intersections, tagspec/itemspec in general
+    #(2) get tags for item, and tags for item compatible with user
+    #(3) get items for group and app, and filter them further: the postablecontext filter
+    #(4) to filter further down by user, the userthere filter.
+    #(5) ordering is important. Set up default orders and allow for sorting
+
+    #searchspec has :
+    #   should searchspec have libraries?
+    #   postablecontext={user:True|False, type:None|group|app, value:None|specificvalue}/None
+    #   sort={by:field, ascending:True}/None #currently
+    #   criteria=[{field:fieldname, op:operator, value:val}...]
+    #   CURRENTLY we use AND outside. To do OR use an op:in query
+    #   Finally we need to handle pagination/offsets
+    def _makeQuery(self, klass, currentuser, useras, criteria, postablecontext=None, sort=None, shownfields=None, pagtuple=None):
+        DEFPAGOFFSET=0
+        DEFPAGSIZE=10
+        kwdict={}
+        qterms=[]
+        #make sure we are atleast logged in and useras or superuser
+
+        authorize(False, self, currentuser, useras)
+        for l in criteria:
+            kwdict={}
+            for d in l:
+                if d['op']=='eq':
+                    kwdict[d['field']]=d['value']
+                else:
+                    kwdict[d['field']+'__'+d['op']]=d['value']
+            qterms.append(Q(**kwdict))
+        if len(qterms) == 1:
+            qclause=qterms[0]
+        else:
+            qclause = reduce(lambda q1, q2: q1.__and__(q2), qterms)
+
+        userthere=False
+        if not postablecontext:
+            postablecontext={'user':True, 'type':'group', 'value':useras.basic.fqin}
+        #BUG validate the values this can take. for eg: type must be a postable. none of then can be None
+
+        itemqset=klass.objects.filter(qclause)
+        
+        userthere=postablecontext['user']
+        ctype=postablecontext['type']
+        ctarget=postablecontext['value']
+        postable=self.whosdb.getPostable(currentuser, ctarget)
+        if userthere:
+            itemqset=itemqset.filter(pinpostables__postfqin=ctarget, pinpostables__postedby=useras.basic.fqin)
+        else:
+            itemqset=itemqset.filter(pinpostables__postfqin=ctarget)
+
+        if sort:
+            prefix=""
+            if not sort['ascending']:
+                prefix='-'
+            sorter=prefix+sort['field']
+            itemqset=itemqset.order_by(sorter)
+        else:
+            print "NO SORT"
+        if shownfields:
+            itemqset=itemqset.only(*shownfields)
+        count=itemqset.count()
+
+        if pagtuple:
+            pagoffset=pagtuple[0]
+            pagsize=pagtuple[1]
+            if pagsize==None:
+                pagsize=DEFPAGSIZE
+            pagend=pagoffset+pagsize
+            retset=itemqset[pagoffset:pagend]
+        else:
+            pagoffset=DEFPAGOFFSET
+            pagsize=DEFPAGSIZE
+            retset=itemqset
+
+        return count, retset
+
+    #This can be used to somply get tags in a particular context
+    def getTagsForTagspec(self, currentuser, useras, criteria, context=None, sort=None):
+        SHOWNFIELDS=['tagtype', 'singletonmode', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri', 'basic.creator', 'owner']
+        klass=Tag
+        result=self._makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, None)
+        return result
+
+    #get tags by owner and tagtype. remember this does not do libraries for us anymore.
+    #we assume that tagtype based restrictions were taken care of at tag addition time
+    def getTagsByOwner(self, currentuser, useras, tagtype=None, context=None, singletonmode=False):
+        criteria=[
+            {'field':'owner', 'op':'eq', 'value':useras.basic.fqin},
+            {'field':'singleton', 'op':'eq', 'value':singletonmode}
+        ]
+        if tagtype:
+            criteria.append({'field':'tagtype', 'op':tagtype[0], 'value':tagtype[1]})
+        result=getTagsForTagspec(self, currentuser, useras, criteria, context, sort)
+        return result
+
+    #You also have access to tags through group ownership of tags
+    #no singletonmodes are usually transferred to group ownership
+    #this will give me all
+    def getTagsAsMemberAndOwner(self, currentuser, useras, tagtype=None, singletonmode=False, context=None, sort=None):
+        criteria=[
+            {'field':'members', 'op':'eq', 'value':useras.nick},
+            {'field':'singleton', 'op':'eq', 'value':singletonmode}
+        ]
+        if tagtype:
+            criteria.append({'field':'tagtype', 'op':tagtype[0], 'value':tagtype[1]})
+        result=getTagsForTagspec(self, currentuser, useras, criteria, context, sort)
+        return result
+
+    #this is the stuff you get from group membership only
+    def getTagsAsMemberOnly(self, currentuser, useras, tagtype=None, singletonmode=False, context=None, sort=None):
+        criteria=[
+            {'field':'owner', 'op':'ne', 'value':useras.nick},
+            {'field':'members', 'op':'eq', 'value':useras.nick},
+            {'field':'singleton', 'op':'eq', 'value':singletonmode}
+        ]
+        if tagtype:
+            criteria.append({'field':'tagtype', 'op':tagtype[0], 'value':tagtype[1]})
+        result=getTagsForTagspec(self, currentuser, useras, criteria, context, sort)
+        return result
+
+    def getItemsForItemspec(self, currentuser, useras, criteria, context=None, sort=None, pagtuple=None):
+        SHOWNFIELDS=['itemtype', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri']
+        klass=Item
+        result=self._makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, pagtuple)
+        return result
+
+    #gets frpm groups, apps and libraries..ie items in them, not tags posted in them
+
+    #TODO: add userthere in here so that requests are symmetric rather 
+    #than having overriding context in which all this operates
+    def getItemsForTagquery(self, currentuser, useras, query, context=None, sort=None, pagtuple=None):
+        #tagquery is currently assumed to be a list of [{'tagtype', 'tagname'}]
+        #or [{"posttype","postfqin"}]
+        #we assume that
+        tagquery=query.get("stags",[])
+        libquery=query.get("libs",[])
+        grpquery=query.get("groups",[])
+        appquery=query.get("apps",[])
+        criteria=[]
+        for v in tagquery:
+            criteria.append([
+                {'field':'stags__tagname', 'op':'eq', 'value':v['tagname']},
+                {'field':'stags__tagtype', 'op':'eq', 'value':v['tagtype']}
+            ])
+        for v in libquery:
+            criteria.append([
+                {'field':'pinlibs__postfqin', 'op':'eq', 'value':v['postfqin']}
+            ])
+        for v in grpquery:
+            criteria.append([
+                {'field':'pingrps__postfqin', 'op':'eq', 'value':v['postfqin']}
+            ])
+        for v in appquery:
+            criteria.append([
+                {'field':'pinapps__postfqin', 'op':'eq', 'value':v['postfqin']}
+            ])
+        result=getItemsForItemspec(self, currentuser, useras, criteria, context, sort, pagtuple)
+        return result
+
+    #one can use this to query the tag pingrps and pinapps
+    #BUG we dont deal with stuff in the apps for now. Not sure
+    #what that even means as apps are just copies.
+
+    #filter taggings and postings by hand further if you want just your stuff
+    #criteria exis to filter things down further, say by itemtype or tagtype
+    #will be done on each item separately. Ditto for sort and pagetuple
+
+    #BUG: not sure we handle libraries or tag ownership change correctly
+
+    #run these without paginations to get everything we want.
+
+    #BUG: in not enough, as we somehow separately need to get all the postings
+    #consistent with the users access (array=individ item ok with eq
+    #not other way around, and, well, in does or, but is that ok?)
+    #BUG: no app access as yet
+
+    #the context is critical here, as if you are in group or user/group
+    #context i will only give you tagging docs for which that tagging
+    #was  published to the context. So for u, u/g, u/a contexts, this does
+    #the right thing.
+
+    #but what about for libraries? There is no pinlibs in Taggingdocuments
+    #so the context search will fail. I do want to restrict the search to be
+    #to the subset of documents in a group or something which are tagged with the library
+    
+    #furthermore notice that in the main search too, the context only allows one thing
+    #so if i want group and library how do i do it?
+    def getTaggingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[], context=None, sort=None, pagetuple=None):
+        result={}
+        groupsin=self.whosdb.groupsForUser(currentuser, useras)
+        klass=TaggingDocument
+        if context:
+            userthere=context['user']
+            ctype=context['type']
+            if userthere==True and ctype==None:
+                ctype="group"
+                ctarget=useras.nick+"/group:default"
+            else:
+                ctarget=context['value']
+        SHOWNFIELDS=[   'thething.postfqin',
+                        'thething.posttype',
+                        'thething.thingtopostfqin',
+                        'thething.thingtoposttype',
+                        'thething.whenposted',
+                        'thething.postedby',
+                        'thething.tagtype',
+                        'thething.tagname',
+                        'thething.tagdescription']
+        for fqin in itemfqinlist:
+            criteria=[]
+            #construct a query consistent with the users access
+            #this includes the users personal group and the public group
+            #should op be in?
+            #QUESTION: should there be any libraries here?
+            criteria.append([
+                {'field':'pingrps__postfqin', 'op':'in', 'value':groupsin},
+                {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
+            ])
+            result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, context, sort, pagetuple)
+        return result
+
+    #and this us the postings consistent with items  to show a groups list
+    #for all these items to further filter them down. 
+    #No context here as PostingDocument has none. This is purely items
+    def getPostingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[], sort=None, pagetuple=None):
+        result={}
+        groupsin=self.whosdb.groupsForUser(currentuser, useras)
+        SHOWNFIELDS=[   'thething.postfqin',
+                        'thething.posttype',
+                        'thething.thingtopostfqin',
+                        'thething.thingtoposttype',
+                        'thething.whenposted',
+                        'thething.postedby']
+
+        klass=PostingDocument
+        for fqin in itemfqinlist:
+            criteria=[]
+            #construct a query consistent with the users access
+            #this includes the users personal group and the public group
+            #should op be in?
+            criteria.append([
+                {'field':'thething__postfqin', 'op':'in', 'value':groupsin},
+                {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
+            ])
+
+            result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, None, sort, pagetuple)
+        return result
+
+    #this should be the one giving us tags consistent with a context
+    def getTagPostingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[], context=None, sort=None, pagetuple=None):
+        pass
