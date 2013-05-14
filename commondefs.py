@@ -3,7 +3,9 @@ OK=200
 LOGGEDIN_A_SUPERUSER_O_USERAS=False
 MEMBER_OF_POSTABLE=False
 POSTABLES=[Group, App, Library]#things that can be posted to, and you can be a member of
+#Postables are both membable and ownable
 MEMBERABLES=[Group, App, User]#things that can be members
+MEMBABLE=[Group, App, Library, Tag]#things you can be a member of
 #above all use nicks
 OWNABLES=[Group, App, Library, ItemType, TagType]#things that can be owned
 #OWNERABLES=[Group, App, User]#things that can be owners. Do we need a shadow owner?

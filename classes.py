@@ -47,7 +47,8 @@ class Tag(Document):
     #see this in groups and apps too. Its like a duck.
     owner = StringField(required=True)
     #Seems like this was needed for change ownership
-    #members = ListField(StringField())
+    members = ListField(StringField())
+    inviteds = ListField(StringField())
 
 class PostableEmbedded(EmbeddedDocument):
     fqpn = StringField(required=True)

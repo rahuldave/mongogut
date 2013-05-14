@@ -222,9 +222,18 @@ class Postdb(Database):
         if not self.canCreateThisTag(currentuser, useras, tag.tagtype):
             return False
         tagownertype=gettype(tag.owner)
+        #you are member of a group.app/library which owns this tag
         if tagownertype in POSTABLES:
             tagowner=self.getPostable(currentuser,tag.owner)
             if self.isMemberOfPostable(currentuser, useras, tagowner):
+                return True
+        #finally when a tagging is posted to a group, the group becomes a member of the tag
+        #(not tagging)
+        #and members of the group(postable) can use it
+        memberables=tag.members
+        #CHECK: a tags members are only postables so we short cut. we catch the first.
+        for m in memberables:
+            if self.isMemberOfPostable(currentuser, useras, m):
                 return True
         return False
 
@@ -348,6 +357,8 @@ class Postdb(Database):
             newposting=Post(postfqin=postable.basic.fqin, posttype=getNSTypeName(postable),
                 postedby=useras.nick, thingtopostfqin=itemtag.postfqin, thingtoposttype=itemtag.thingtoposttype)
             taggingdoc.update(safe_update=True, push__pinpostables=newposting)
+            tag=self._getTag(currentuser, itemtag.postfqin)
+            tag.update(safe_update=True, push__members=postable.basic.fqin)
         except:
             import sys
             print sys.exc_info()
@@ -510,7 +521,7 @@ class Postdb(Database):
     #this will give me all
     def getTagsAsMemberAndOwner(self, currentuser, useras, tagtype=None, singletonmode=False, context=None, sort=None):
         criteria=[
-            {'field':'members', 'op':'eq', 'value':useras.nick},
+            {'field':'members', 'op':'eq', 'value':useras.basic.fqin},
             {'field':'singleton', 'op':'eq', 'value':singletonmode}
         ]
         if tagtype:
@@ -521,8 +532,8 @@ class Postdb(Database):
     #this is the stuff you get from group membership only
     def getTagsAsMemberOnly(self, currentuser, useras, tagtype=None, singletonmode=False, context=None, sort=None):
         criteria=[
-            {'field':'owner', 'op':'ne', 'value':useras.nick},
-            {'field':'members', 'op':'eq', 'value':useras.nick},
+            {'field':'owner', 'op':'ne', 'value':useras.basic.fqin},
+            {'field':'members', 'op':'eq', 'value':useras.basic.fqin},
             {'field':'singleton', 'op':'eq', 'value':singletonmode}
         ]
         if tagtype:

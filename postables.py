@@ -48,17 +48,26 @@ class Database():
         return user
 
 
-    #POSTABLE interface
+    #MEMBABLE AND POSTABLE interfaces. Postables are subsets of membables
 
-    #this one is unprotected
-    def getPostable(self, currentuser, fqpn):
-        "gets the postable corresponding to the fqpn"
+    #generally, membable interface will only be internally used in postable functions
+    #or for tagging. So I wont expose external functions to start with, and as we
+    #go along, I will make sure to.
+
+    def getMembable(self, currentuser, fqpn):
+        "gets the membable corresponding to the fqpn"
         ptype=gettype(fqpn)
         try:
             postable=ptype.objects(basic__fqin=fqpn)
         except:
             doabort('NOT_FND', "%s %s not found" % (classname(ptype), fqpn))
         return postable
+
+    #this one is unprotected
+    #BUG make sure ptype is in MEMBABLES.
+    def getPostable(self, currentuser, fqpn):
+        "gets the postable corresponding to the fqpn"
+        return self.getMembable(currentuser, fqpn)
 
     #this one is protected
     def getPostableInfo(self, currentuser, memberable, fqpn):
@@ -71,17 +80,24 @@ class Database():
     #using MEMBERABLE interface. this one is unprotected
     #also returns true if a user is a member of a postable(say a group), which is a member
     #of this postable. Also works if the memberable is a postable itself, through the memberable.basic.fqin interface
-    def isMemberOfPostable(self, currentuser, memberable, postable):
-        "is the memberable a member of postable"
-        if memberable.basic.fqin in postable.members:
+
+    #BUG other membable things need to be added, as needed
+
+    def isMemberOfMembable(self, currentuser, memberable, membable, memclass=MEMBABLES):
+        "is the memberable a member of membable"
+        if memberable.basic.fqin in membable.members:
             return True
-        for mem in postable.members:
+        for mem in membable.members:
             ptype=gettype(mem)
-            if  ptype in POSTABLES:
-                pos=self.getPostable(currentuser, mem)
+            if  ptype in memclass:
+                pos=self.getMembable(currentuser, mem)
                 if memberable.basic.fqin in pos.members:
                     return True
         return False
+
+    def isMemberOfPostable(self, currentuser, memberable, postable):
+        "is the memberable a member of postable"
+        return self.isMemberOfMembable(currentuser, memberable, postable, POSTABLES)
 
 
     #using MEMBERABLE/OWNABLE:this can let a group be owner of the ownable, as long as its 'fqin' is in the owner field.
@@ -98,12 +114,15 @@ class Database():
         return self.isOwnerOfOwnable(currentuser, memberable, postable)
 
     #invitations only work for users for now, even tho we have a memberable. unprotected
-    def isInvitedToPostable(self, currentuser, memberable, postable):
-        "is the user invited to the postable?"
-        if memberable.basic.fqin in postable.inviteds:
+    def isInvitedToMembable(self, currentuser, memberable, membable):
+        if memberable.basic.fqin in membable.inviteds:
             return True
         else:
             return False
+
+    def isInvitedToPostable(self, currentuser, memberable, postable):
+        "is the user invited to the postable?"
+        return self.isInvitedToMembable(currentuser, memberable, postable)
 
     #unprotected
     #BUG just for user currently. Dosent work for other memberables. Is not transitive
@@ -261,11 +280,45 @@ class Database():
             postable=postableq.get()
         except:
             doabort('BAD_REQ', "No such group %s" % fqgn)
+        #Bug shouldnt this have memberable?
         authorize_ownable_owner(False, self, currentuser, None, postable)
         try:
             pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin)
             memberableq.update(safe_update=True, pull_postablesin=pe)
             postableq.update(safe_update=True, pull__members=memberablefqin)
+        except:
+            doabort('BAD_REQ', "Failed removing memberable %s %s from postable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
+        return OK
+
+    #BUG: there is no restriction here of what can be added to what in memberables and postables
+    def addMemberableToMembable(self, currentuser, useras, fqpn, memberablefqin):
+        "add a user, group, or app to a postable=group, app, or library"
+        ptype=gettype(fqpn)
+        mtype=gettype(memberablefqin)
+        membableq=ptype.objects(basic__fqin=fqpn)
+        memberableq= mtype.objects(basic__fqin=memberablefqin)
+        try:
+            membableq.update(safe_update=True, push__members=memberablefqin)
+        except:
+            doabort('BAD_REQ', "Failed adding memberable %s %s to membable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
+        return memberablefqin
+
+    #BUG: not really fleshed out as we need to handle refcounts and all that to see if objects ought to be removed.
+    def removeMemberableFromMembable(self, currentuser, fqpn, memberablefqin):
+        "remove a u/g/a from a g/a/l"
+        ptype=gettype(fqpn)
+        mtype=gettype(memberablefqin)
+        membableq=ptype.objects(basic__fqin=fqpn)
+        memberableq= mtype.objects(basic__fqin=memberablefqin)
+
+        try:
+            membable=membableq.get()
+        except:
+            doabort('BAD_REQ', "No such membable %s" % fqpn)
+        #Bug: this is currentuser for now
+        authorize_ownable_owner(False, self, currentuser, None, membable)
+        try:
+            membableq.update(safe_update=True, pull__members=memberablefqin)
         except:
             doabort('BAD_REQ', "Failed removing memberable %s %s from postable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
         return OK
