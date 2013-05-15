@@ -211,6 +211,12 @@ class Postdb(Database):
         print '&&&&&&&&&&&&&&&&&&&&&&', 'FINISHED SAVING'
         return newitem
 
+    def isMemberOfTag(self, currentuser, useras, tagfqin):
+        tag=self._getTag(currentuser, tagfqin)
+        ismember=self.whosdb.isMemberOfMembable(currentuser, useras, tag)
+        return ismember
+
+
     #BUG when will we make these useras other memberables?
     #BUG need to deal with tagmode and singletonmode here
     def canUseThisTag(self, currentuser, useras, tag):
@@ -223,20 +229,24 @@ class Postdb(Database):
             return False
         tagownertype=gettype(tag.owner)
         #you are member of a group.app/library which owns this tag
-        if tagownertype in POSTABLES:
-            tagowner=self.getPostable(currentuser,tag.owner)
-            if self.isMemberOfPostable(currentuser, useras, tagowner):
-                return True
+        #CHECK this means owner is member of tag
+        # if tagownertype in POSTABLES:
+        #     tagowner=self.getPostable(currentuser,tag.owner)
+        #     if self.isMemberOfPostable(currentuser, useras, tagowner):
+        #         return True
         #finally when a tagging is posted to a group, the group becomes a member of the tag
         #(not tagging)
         #and members of the group(postable) can use it
-        memberables=tag.members
-        #CHECK: a tags members are only postables so we short cut. we catch the first.
-        for m in memberables:
-            if self.isMemberOfPostable(currentuser, useras, m):
-                return True
+        # memberables=tag.members
+        # #CHECK: a tags members are only postables so we short cut. we catch the first.
+        # for m in memberables:
+        #     if self.isMemberOfPostable(currentuser, useras, m):
+        #         return True
+        if self.isMemberOfTag(currentuser, useras, tag):
+            return True
         return False
 
+    #can pattern below be refactored out?
     def canCreateThisTag(self, currentuser, useras, tagtype):
         "return true is this user can use this tag from access to tagtype, namespace, etc"
         tagype=self._getTagType(currentuser, tagtype)
@@ -460,12 +470,13 @@ class Postdb(Database):
             postablecontext={'user':True, 'type':'group', 'value':useras.basic.fqin}
         #BUG validate the values this can take. for eg: type must be a postable. none of then can be None
 
-        itemqset=klass.objects.filter(qclause)
-        
         userthere=postablecontext['user']
         ctype=postablecontext['type']
         ctarget=postablecontext['value']
+        itemqset=klass.objects.filter(qclause)
+
         postable=self.whosdb.getPostable(currentuser, ctarget)
+        #BUG: no pinpostables for Tag. How does that work?
         if userthere:
             itemqset=itemqset.filter(pinpostables__postfqin=ctarget, pinpostables__postedby=useras.basic.fqin)
         else:
@@ -504,9 +515,12 @@ class Postdb(Database):
         result=self._makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, None)
         return result
 
+
+    #the next two are for autocomplete and stuff. They are NOT the tags consistent with the current search.(left hand tags)
+    #indeed i am not sure if context works there at all!!!
     #get tags by owner and tagtype. remember this does not do libraries for us anymore.
     #we assume that tagtype based restrictions were taken care of at tag addition time
-    def getTagsByOwner(self, currentuser, useras, tagtype=None, context=None, singletonmode=False):
+    def getTagsAsOwnerOnly(self, currentuser, useras, tagtype=None, context=None, singletonmode=False):
         criteria=[
             {'field':'owner', 'op':'eq', 'value':useras.basic.fqin},
             {'field':'singleton', 'op':'eq', 'value':singletonmode}
@@ -519,21 +533,13 @@ class Postdb(Database):
     #You also have access to tags through group ownership of tags
     #no singletonmodes are usually transferred to group ownership
     #this will give me all
-    def getTagsAsMemberAndOwner(self, currentuser, useras, tagtype=None, singletonmode=False, context=None, sort=None):
-        criteria=[
-            {'field':'members', 'op':'eq', 'value':useras.basic.fqin},
-            {'field':'singleton', 'op':'eq', 'value':singletonmode}
-        ]
-        if tagtype:
-            criteria.append({'field':'tagtype', 'op':tagtype[0], 'value':tagtype[1]})
-        result=getTagsForTagspec(self, currentuser, useras, criteria, context, sort)
-        return result
-
-    #this is the stuff you get from group membership only
-    def getTagsAsMemberOnly(self, currentuser, useras, tagtype=None, singletonmode=False, context=None, sort=None):
+    def getTagsAsMemberOnly(self, currentuser, useras, tagtype=None, ptypestring=None, singletonmode=False, context=None, sort=None):
+        #the postables for which user is a member
+        postablesforuser=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
+        #notice in op does OR not AND
         criteria=[
             {'field':'owner', 'op':'ne', 'value':useras.basic.fqin},
-            {'field':'members', 'op':'eq', 'value':useras.basic.fqin},
+            {'field':'members', 'op':'in', 'value':postablesforuser},
             {'field':'singleton', 'op':'eq', 'value':singletonmode}
         ]
         if tagtype:
@@ -551,31 +557,23 @@ class Postdb(Database):
 
     #TODO: add userthere in here so that requests are symmetric rather 
     #than having overriding context in which all this operates
+    #BUG: do we need a context. context only provides a background thing to operate on now.
+    #The actual stuff is done in here.
     def getItemsForTagquery(self, currentuser, useras, query, context=None, sort=None, pagtuple=None):
         #tagquery is currently assumed to be a list of [{'tagtype', 'tagname'}]
         #or [{"posttype","postfqin"}]
         #we assume that
         tagquery=query.get("stags",[])
-        libquery=query.get("libs",[])
-        grpquery=query.get("groups",[])
-        appquery=query.get("apps",[])
+        postablequery=query.get("postables",[])
         criteria=[]
         for v in tagquery:
             criteria.append([
                 {'field':'stags__tagname', 'op':'eq', 'value':v['tagname']},
                 {'field':'stags__tagtype', 'op':'eq', 'value':v['tagtype']}
             ])
-        for v in libquery:
+        for v in postablequery:
             criteria.append([
-                {'field':'pinlibs__postfqin', 'op':'eq', 'value':v['postfqin']}
-            ])
-        for v in grpquery:
-            criteria.append([
-                {'field':'pingrps__postfqin', 'op':'eq', 'value':v['postfqin']}
-            ])
-        for v in appquery:
-            criteria.append([
-                {'field':'pinapps__postfqin', 'op':'eq', 'value':v['postfqin']}
+                {'field':'pinpostables__postfqin', 'op':'eq', 'value':v['postfqin']}
             ])
         result=getItemsForItemspec(self, currentuser, useras, criteria, context, sort, pagtuple)
         return result
@@ -608,18 +606,18 @@ class Postdb(Database):
     
     #furthermore notice that in the main search too, the context only allows one thing
     #so if i want group and library how do i do it?
-    def getTaggingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[], context=None, sort=None, pagetuple=None):
+    def getTaggingsForSpec(self, currentuser, useras, itemfqinlist, ptypestring=None, criteria=[], context=None, sort=None, pagetuple=None):
         result={}
-        groupsin=self.whosdb.groupsForUser(currentuser, useras)
+        postablesforuser=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
         klass=TaggingDocument
-        if context:
-            userthere=context['user']
-            ctype=context['type']
-            if userthere==True and ctype==None:
-                ctype="group"
-                ctarget=useras.nick+"/group:default"
-            else:
-                ctarget=context['value']
+        if not context:
+            context={'user':True, 'type':'group', 'value':useras.basic.fqin}
+        #BUG validate the values this can take. for eg: type must be a postable. none of then can be None
+                
+        userthere=postablecontext['user']
+        ctype=postablecontext['type']
+        ctarget=postablecontext['value']
+
         SHOWNFIELDS=[   'thething.postfqin',
                         'thething.posttype',
                         'thething.thingtopostfqin',
@@ -634,9 +632,10 @@ class Postdb(Database):
             #construct a query consistent with the users access
             #this includes the users personal group and the public group
             #should op be in?
+            #BUG:understand how restricting to a particular kind of postable, or all postable affects this
             #QUESTION: should there be any libraries here?
             criteria.append([
-                {'field':'pingrps__postfqin', 'op':'in', 'value':groupsin},
+                {'field':'pinpostables__postfqin', 'op':'in', 'value':postablesforuser},
                 {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
             ])
             result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, context, sort, pagetuple)
@@ -645,9 +644,9 @@ class Postdb(Database):
     #and this us the postings consistent with items  to show a groups list
     #for all these items to further filter them down. 
     #No context here as PostingDocument has none. This is purely items
-    def getPostingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[], sort=None, pagetuple=None):
+    def getPostingsForSpec(self, currentuser, useras, itemfqinlist, ptypestring=None, criteria=[], sort=None, pagetuple=None):
         result={}
-        groupsin=self.whosdb.groupsForUser(currentuser, useras)
+        postablesforuser=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
         SHOWNFIELDS=[   'thething.postfqin',
                         'thething.posttype',
                         'thething.thingtopostfqin',
@@ -661,8 +660,11 @@ class Postdb(Database):
             #construct a query consistent with the users access
             #this includes the users personal group and the public group
             #should op be in?
+            #BUG:understand how restricting to a particular kind of postable, or all postable affects this
+            #QUESTION: should there be any libraries here?
+            #QUESTION: should there be any libraries here?
             criteria.append([
-                {'field':'thething__postfqin', 'op':'in', 'value':groupsin},
+                {'field':'thething__postfqin', 'op':'in', 'value':postablesforuser},
                 {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
             ])
 
@@ -670,5 +672,6 @@ class Postdb(Database):
         return result
 
     #this should be the one giving us tags consistent with a context
+    #QUESTION:does this give us a list of tags for each item in a group?
     def getTagPostingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[], context=None, sort=None, pagetuple=None):
         pass
