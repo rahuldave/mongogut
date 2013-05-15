@@ -527,7 +527,7 @@ class Postdb(Database):
         ]
         if tagtype:
             criteria.append({'field':'tagtype', 'op':tagtype[0], 'value':tagtype[1]})
-        result=getTagsForTagspec(self, currentuser, useras, criteria, context, sort)
+        result=self.getTagsForTagspec(currentuser, useras, criteria, context, sort)
         return result
 
     #You also have access to tags through group ownership of tags
@@ -544,7 +544,7 @@ class Postdb(Database):
         ]
         if tagtype:
             criteria.append({'field':'tagtype', 'op':tagtype[0], 'value':tagtype[1]})
-        result=getTagsForTagspec(self, currentuser, useras, criteria, context, sort)
+        result=self.getTagsForTagspec(currentuser, useras, criteria, context, sort)
         return result
 
     def getItemsForItemspec(self, currentuser, useras, criteria, context=None, sort=None, pagtuple=None):
@@ -575,7 +575,43 @@ class Postdb(Database):
             criteria.append([
                 {'field':'pinpostables__postfqin', 'op':'eq', 'value':v['postfqin']}
             ])
-        result=getItemsForItemspec(self, currentuser, useras, criteria, context, sort, pagtuple)
+        result=self.getItemsForItemspec(currentuser, useras, criteria, context, sort, pagtuple)
+        return result
+
+    #Get TaggingDocs consistent with the users perms
+    #BUG: in more general screens, when all we want to draw is all the tags of type lensing, how do we do it?
+    def getTaggingsForTagquery(self, currentuser, useras, query, ptypestring=None, context=None, sort=None, pagtuple=None):
+        #tagquery is currently assumed to be a list of [{'tagfqin'}]
+        #or [{"postfqin"}]
+        #we assume that
+        postablesforuser=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
+        klass=TaggingDocument
+        tagquery=query.get("stags",[])
+        postablequery=query.get("postables",[])
+        criteria=[]
+        SHOWNFIELDS=[   'thething.postfqin',
+                        'thething.posttype',
+                        'thething.thingtopostfqin',
+                        'thething.thingtoposttype',
+                        'thething.whenposted',
+                        'thething.postedby',
+                        'thething.tagtype',
+                        'thething.tagname',
+                        'thething.tagdescription']
+        #BUG: the split is not between tagname and tagtype, but whether their ought to be a namespace ot not
+
+        #this is to get the correct items in taggingdocs we need
+        for v in tagquery:
+            criteria.append([
+                {'field':'thething__tagfqin', 'op':'eq', 'value':v['tagfqin']}
+            ])
+        #this is to make sure what we get the tagguings posted to groups i have access to.
+        #note this is for posting of taggings not items
+        criteria.append([
+                {'field':'pinpostables__postfqin', 'op':'in', 'value':postablesforuser}
+            ])
+        
+        result=self.makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, pagtuple)
         return result
 
     #one can use this to query the tag pingrps and pinapps
@@ -606,6 +642,9 @@ class Postdb(Database):
     
     #furthermore notice that in the main search too, the context only allows one thing
     #so if i want group and library how do i do it?
+
+    #NOTE: we want users groups for these next ones, not users apps, as that might get in all kinds of stuff that the user is not
+    #supposed to get. Thus we must write layered functions on top of this to make it the case
     def getTaggingsForSpec(self, currentuser, useras, itemfqinlist, ptypestring=None, criteria=[], context=None, sort=None, pagetuple=None):
         result={}
         postablesforuser=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
@@ -673,5 +712,6 @@ class Postdb(Database):
 
     #this should be the one giving us tags consistent with a context
     #QUESTION:does this give us a list of tags for each item in a group?
+    #I dont believe we need this. More precisely i think we get this implicitly from the taggings
     def getTagPostingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[], context=None, sort=None, pagetuple=None):
         pass

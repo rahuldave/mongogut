@@ -123,7 +123,7 @@ class Post(EmbeddedDocument):
     whenposted=DateTimeField(required=True, default=datetime.datetime.now)
     postedby=StringField(required=True)
 
-#BUG:what uniqueness constraints on tagname, etc are needed?
+#BUG:what uniqueness constraints on tagname, etc are needed? Add tagfqin? no its there as postfqin
 class Tagging(Post):
     tagtype=StringField(default="ads/tag", required=True)
     tagname=StringField(required=True)
