@@ -1,4 +1,5 @@
 from classes import *
+from errors import *
 OK=200
 LOGGEDIN_A_SUPERUSER_O_USERAS=False
 MEMBER_OF_POSTABLE=False
@@ -33,12 +34,20 @@ def gettype(fqin):
     return classtype(MAPDICT[getNSTypeName(fqin)])
 
 #BUG: add a function musthave which can then be used to validate in augmentitspec
+#this function currently dosent throw an exception it should when not in flask mode
+def musthavekeys(indict, listofkeys):
+    for k in listofkeys:
+        if not indict.has_key(k):
+            doabort('BAD_REQ', "Indict does not have key %s" % k)
+    return indict
 
 def augmentspec(specdict, spectype='user'):
     basicdict={}
     print "INSPECDICT", specdict
     spectypestring = spectype.classname
+
     if spectype in POSTABLES:
+        specdict=musthavekeys(specdict, ['creator', 'name'])
         specdict['owner']=specdict['creator']
         basicdict['creator']=specdict['creator']
         basicdict['name']=specdict['name']
@@ -46,6 +55,7 @@ def augmentspec(specdict, spectype='user'):
         basicdict['fqin']=specdict['creator']+"/"+spectypestring+":"+specdict['name']
         specdict['nick']=basicdict['fqin']
     elif spectype==User:
+        specdict=musthavekeys(specdict, ['creator', 'nick'])
         basicdict['creator']="adsgut/user:adsgut"
         basicdict['description']=specdict.get('description','')
         basicdict['fqin']=specdict['creator']+"/"+spectypestring+":"+specdict['nick']
@@ -60,6 +70,7 @@ def augmentspec(specdict, spectype='user'):
 def augmentitspec(specdict, spectype="item"):
     basicdict={}
     print "INSPECDICT", specdict
+    specdict=musthavekeys(specdict,['creator', 'name'])
     if spectype=='item' or spectype=='tag':
         basicdict['creator']=specdict['creator']
         basicdict['name']=specdict['name']
@@ -95,9 +106,10 @@ def augmenttypespec(specdict, spectype="itemtype"):
     basicdict={}
     #for itemtype, come in with an postabletype=app and a postable=appfqin
     print "INSPECDICT", specdict
+    specdict=musthavekeys(specdict,['creator', 'name'])
     if spectype=='itemtype' or spectype=='tagtype':
         basicdict['creator']=specdict['creator']
-        specdict['creator']=specdict['owner']
+        specdict['owner']=specdict['creator']
         basicdict['name']=specdict['name']
         basicdict['description']=specdict.get('description','')
         basicdict['fqin']=specdict['creator']+"/"+spectype+":"+specdict['name']

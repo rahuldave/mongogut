@@ -10,10 +10,28 @@ from commondefs import *
 
 from postables import Database
 
+from blinker import signal
+
+def reciever(f):
+    def realreciever(sender, data):
+        otherargs{}
+        if e not in ['obj', 'currentuser', 'useras']:
+            otherargs[e]=data[e]
+        obj=data['obj']
+        currentuser=data['currentuser']
+        useras=data['useras']
+        val=f(obj, currentuser, useras, **otherargs)
+        return val
+    return realreciever
+
 
 
 class Postdb(Database):
-
+    SIGNALS={
+        "added-to-group":[reciever(self.postItemIntoPersonal)]
+        "added-to-app":[]
+        "added-to-library":[]
+    }
     def __init__(self, db_session, wdb):
         self.session=db_session
         self.whosdb=wdb
@@ -21,6 +39,11 @@ class Postdb(Database):
         self.isOwnerOfOwnable=self.whosdb.isOwnerOfOwnable
         self.isOwnerOfPostable=self.whosdb.isOwnerOfPostable
         self.isMemberOfPostable=self.whosdb.isMemberOfPostable
+        self.signals={}
+        for ele in SIGNALS:
+            self.signals[ele]=signal(ele)
+            for r in SIGNALS[ele]:
+                self.signals[ele].connect(r)
 
     def _getItemType(self, currentuser, fullyQualifiedItemType):
         try:
@@ -117,6 +140,7 @@ class Postdb(Database):
     def postItemIntoPostable(self, currentuser, useras, fqpn, itemfqin):
         ptype=gettype(fqpn)
         postable=self.whosdb.getPostable(currentuser, fqpn)
+        typename=classname(postable).lower()
         item=self._getItem(currentuser, itemfqin)
         #Does the False have something to do with this being ok if it fails?BUG
         permit(self.isMemberOfPostable(useras, postable),
@@ -133,19 +157,24 @@ class Postdb(Database):
         except:
             import sys
             print sys.exc_info()
-            doabort('BAD_REQ', "Failed adding newposting of item %s into %s %s." % (item.basic.fqin, classname(postable), postable.basic.fqin))
-        personalfqgn=useras.nick+"/group:default"
-
-        if postable.basic.fqin!=personalfqgn:
-            if personalfqgn in [ptt.postfqin for ptt in item.pingrps]:
-                print "NOT IN PERSONAL GRP"
-                self.postItemIntoPostable(currentuser, useras, personalfqgn, itemfqin)
+            doabort('BAD_REQ', "Failed adding newposting of item %s into %s %s." % (item.basic.fqin, ctypename, postable.basic.fqin))
+        #BUG: now send to personal group via routing
+        self.signals['added-to-'+typename].send(self, obj=self, currentuser=currentuser, useras=useras, itemfqin=itemfqin)
         return item
 
     def postItemIntoGroup(self, currentuser, useras, fqgn, itemfqin):
         item=postItemIntoPostable(self, currentuser, useras, fqpn, itemfqin)
         return item
 
+    def postItemIntoPersonal(self, currentuser, useras, **kwargs):
+        kwargs=musthavekeys(kwargs,['itemfqin'])
+        itemfqin=kwargs['itemfqin']
+        personalfqgn=useras.nick+"/group:default"
+        item=self._getItem(currentuser, itemfqin)
+        if postable.basic.fqin!=personalfqgn:
+            if personalfqgn in [ptt.postfqin for ptt in item.pingrps]:
+                print "NOT IN PERSONAL GRP"
+                self.postItemIntoPostable(currentuser, useras, personalfqgn, itemfqin)
 
     def postItemIntoApp(self, currentuser, useras, fqan, itemfqin):
         item=postItemIntoPostable(self, currentuser, useras, fqan, itemfqin)
@@ -578,6 +607,9 @@ class Postdb(Database):
         result=self.getItemsForItemspec(currentuser, useras, criteria, context, sort, pagtuple)
         return result
 
+
+    #PTYPESTRING MUST BE GROUP ONLY TO GET APPROPRIATE POSTABLES FOR USER
+
     #Get TaggingDocs consistent with the users perms
     #BUG: in more general screens, when all we want to draw is all the tags of type lensing, how do we do it?
     def getTaggingsForTagquery(self, currentuser, useras, query, ptypestring=None, context=None, sort=None, pagtuple=None):
@@ -587,7 +619,7 @@ class Postdb(Database):
         postablesforuser=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
         klass=TaggingDocument
         tagquery=query.get("stags",[])
-        postablequery=query.get("postables",[])
+        #postablequery=query.get("postables",[])
         criteria=[]
         SHOWNFIELDS=[   'thething.postfqin',
                         'thething.posttype',
