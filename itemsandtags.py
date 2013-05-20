@@ -28,9 +28,11 @@ def reciever(f):
 
 class Postdb(Database):
     SIGNALS={
-        "added-to-group":[reciever(self.postItemIntoPersonal)]
-        "added-to-app":[]
-        "added-to-library":[]
+        "saved-item":[reciever(self.recv_postItemIntoPersonal), reciever(self.recv_postItemIntoItemtypesApp)],
+        "added-to-group":[reciever(self.recv_postItemIntoPersonal)],
+        "tagged-item":[reciever(self.recv_postTaggingIntoPersonal)],
+        "added-to-app":[],
+        "added-to-library":[],
     }
     def __init__(self, db_session, wdb):
         self.session=db_session
@@ -158,23 +160,25 @@ class Postdb(Database):
             import sys
             print sys.exc_info()
             doabort('BAD_REQ', "Failed adding newposting of item %s into %s %s." % (item.basic.fqin, ctypename, postable.basic.fqin))
-        #BUG: now send to personal group via routing
-        self.signals['added-to-'+typename].send(self, obj=self, currentuser=currentuser, useras=useras, itemfqin=itemfqin)
+        #BUG: now send to personal group via routing. Still have to add to datatypes app
+        personalfqgn=useras.nick+"/group:default"
+        #not sure below is needed. Being defensive CHECK
+        if postable.basic.fqin!=personalfqgn:
+            self.signals['added-to-'+typename].send(self, obj=self, currentuser=currentuser, useras=useras, itemfqin=itemfqin)
         return item
 
     def postItemIntoGroup(self, currentuser, useras, fqgn, itemfqin):
         item=postItemIntoPostable(self, currentuser, useras, fqpn, itemfqin)
         return item
 
-    def postItemIntoPersonal(self, currentuser, useras, **kwargs):
+    def recv_postItemIntoPersonal(self, currentuser, useras, **kwargs):
         kwargs=musthavekeys(kwargs,['itemfqin'])
         itemfqin=kwargs['itemfqin']
         personalfqgn=useras.nick+"/group:default"
         item=self._getItem(currentuser, itemfqin)
-        if postable.basic.fqin!=personalfqgn:
-            if personalfqgn in [ptt.postfqin for ptt in item.pingrps]:
-                print "NOT IN PERSONAL GRP"
-                self.postItemIntoPostable(currentuser, useras, personalfqgn, itemfqin)
+        if personalfqgn not in [ptt.postfqin for ptt in item.pinpostables]:
+            print "NOT IN PERSONAL GRP"
+            self.postItemIntoPostable(currentuser, useras, personalfqgn, itemfqin)
 
     def postItemIntoApp(self, currentuser, useras, fqan, itemfqin):
         item=postItemIntoPostable(self, currentuser, useras, fqan, itemfqin)
@@ -204,10 +208,17 @@ class Postdb(Database):
     def removeItemFromLibrary(self, currentuser, useras, fqln, itemfqin):
         removeItemFromPostable(self, currentuser, useras, fqln, itemfqin)
 
+    def self.recv_postItemIntoItemtypesApp(self, currentuser, useras, **kwargs):
+        kwargs=musthavekeys(kwargs,['itemfqin'])
+        itemfqin=kwargs['itemfqin']
+        item=self._getItem(currentuser, itemfqin)
+        fqan=self._getItemType(currentuser, item.itemtype).postable
+        self.postItemIntoApp(currentuser, useras, fqan, item.basic.fqin)
+
     def saveItem(self, currentuser, useras, itemspec):
         #permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
         authorize(False, self, currentuser, useras)#sysadmin or any logged in user where but cu and ua must be same
-        fqgn=useras.nick+"/group:default"
+        personalfqgn=useras.nick+"/group:default"
         itemspec=augmentitspec(itemspec)
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
         try:
@@ -228,12 +239,14 @@ class Postdb(Database):
                 # print sys.exc_info()
                 doabort('BAD_REQ', "Failed adding item %s" % itemspec['basic'].fqin)
 
-        self.postItemIntoGroup(currentuser, useras, fqgn, newitem.basic.fqin)
+        self.signals['saved-item'].send(self, obj=self, currentuser=currentuser, useras=useras, itemfqin=newitem.basic.fqin)
+        #not needed due to above:self.postItemIntoGroup(currentuser, useras, personalfqgn, newitem.basic.fqin)
         print '**********************'
         #IN LIEU OF ROUTING
         #BUG: shouldnt this be done by routing
-        fqan=self._getItemType(currentuser, newitem.itemtype).postable
-        self.postItemIntoApp(currentuser, useras, fqan, newitem.basic.fqin)
+        #Now taken care of by routingp
+        #fqan=self._getItemType(currentuser, newitem.itemtype).postable
+        #self.postItemIntoApp(currentuser, useras, fqan, newitem.basic.fqin)
         #NOTE: above is now done via saving item into group, which means to say its auto done on personal group addition
         #But now idempotency, when I add it to various groups, dont want it to be added multiple times
         #thus we'll do it only when things are added to personal groups: which they always are
@@ -331,6 +344,12 @@ class Postdb(Database):
         try:
             print "was the itemtag found"
             itemtag=self._getTagging(currentuser, tag, itemtobetagged)
+            #BUG: this would be very slow or does it work at all?
+            #we would be using an embedded doc as a key
+            try:
+                taggingdoc=TaggingDocument.objects(thething=itemtag).get()
+            except:
+                doabort('SRV_ERR', "Itemtag found but corresponding taggingdoc not found")
         except:
             print "NOTAGGING YET. CREATING"
             tagtype=self._getTagType(currentuser, tag.tagtype)
@@ -358,19 +377,21 @@ class Postdb(Database):
                 doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s" % (itemtobetagged.basic.fqin, tag.basic.fqin))
 
             personalfqgn=useras.nick+"/group:default"
-            print "adding to %s" % personalfqgn
-            self.postTaggingIntoGroup(currentuser, useras, personalfqgn, taggingdoc)
-        #at this point it goes to the itemtypes app too.
-        #BUG: must add to groups item is posted into
-        #BUG: All tagmode stuff to be done via routing
-        # if tagmode:
-        #     groupsitemisin=itemtobetagged.get_groupsin(useras)
-        #     #the groups user is in that item is in: in tagmode we make sure, whatever groups item is in, tags are in
-        #     for grp in groupsitemisin:
-        #         if grp.fqin!=personalfqgn:
-        #             #wont be added to app for these
-        #             self.postTaggingIntoGroupFromItemtag(currentuser, useras, grp, itemtag)
-        # #print itemtobetagged.itemtags, "WEE", newtag.taggeditems, newtagging.tagtype.name
+            #print "adding to %s" % personalfqgn
+            self.signals['tagged-item'].send(self, obj=self, currentuser=currentuser, useras=useras, taggingdoc=taggingdoc)
+            #hasbeen now replaced by above signal
+            #self.postTaggingIntoGroup(currentuser, useras, personalfqgn, taggingdoc)
+            #at this point it goes to the itemtypes app too.
+            #BUG: must add to groups item is posted into
+            #BUG: All tagmode stuff to be done via routing
+            # if tagmode:
+            #     groupsitemisin=itemtobetagged.get_groupsin(useras)
+            #     #the groups user is in that item is in: in tagmode we make sure, whatever groups item is in, tags are in
+            #     for grp in groupsitemisin:
+            #         if grp.fqin!=personalfqgn:
+            #             #wont be added to app for these
+            #             self.postTaggingIntoGroupFromItemtag(currentuser, useras, grp, itemtag)
+            # #print itemtobetagged.itemtags, "WEE", newtag.taggeditems, newtagging.tagtype.name
 
         #if itemtag found just return it, else create, add to group, return
         return taggingdoc
@@ -438,6 +459,12 @@ class Postdb(Database):
     def postTaggingIntoGroup(self, currentuser, useras, fqgn, taggingdoc):
         itemtag=postTaggingIntoPostable(self, currentuser, useras, fqgn, taggingdoc)
         return itemtag
+
+    def recv_postTaggingIntoPersonal(self, currentuser, useras, **kwargs):
+        kwargs=musthavekeys(kwargs,['taggingdoc'])
+        taggingdoc=kwargs['taggingdoc']
+        personalfqgn=useras.nick+"/group:default"
+        self.postTaggingIntoGroup(currentuser, useras, personalfqgn, taggingdoc)
 
     def postTaggingIntoApp(self, currentuser, useras, fqan, taggingdoc):
         itemtag=postTaggingIntoPostable(self, currentuser, useras, fqan, taggingdoc)
