@@ -30,7 +30,10 @@ class Postdb(Database):
     SIGNALS={
         "saved-item":[reciever(self.recv_postItemIntoPersonal), reciever(self.recv_postItemIntoItemtypesApp)],
         "added-to-group":[reciever(self.recv_postItemIntoPersonal)],
-        "tagged-item":[reciever(self.recv_postTaggingIntoPersonal)],
+        "tagged-item":[reciever(self.recv_postTaggingIntoPersonal), 
+                        reciever(self.recv_spreadTaggingToAppropriateGroups),
+                        reciever(self.recv_postTaggingIntoItemtypesApp)
+                    ],
         "added-to-app":[],
         "added-to-library":[],
     }
@@ -142,15 +145,17 @@ class Postdb(Database):
     def postItemIntoPostable(self, currentuser, useras, fqpn, itemfqin):
         ptype=gettype(fqpn)
         postable=self.whosdb.getPostable(currentuser, fqpn)
-        typename=classname(postable).lower()
+        typename=getNSTypeNameFromInstance(postable)
         item=self._getItem(currentuser, itemfqin)
         #Does the False have something to do with this being ok if it fails?BUG
         permit(self.isMemberOfPostable(useras, postable),
-            "Only member of %s %s can post into it" % (classname(postable), postable.basic.fqin))
-
-        try:#BUG:what if its already there?
+            "Only member of %s %s can post into it" % (typename, postable.basic.fqin))
+        postablefqpns=[ele.postfqin for ele in item.pinpostables]
+        if fqpn in postablefqpns:
+            return item
+        try:#BUG:what if its already there? Now fixed?
             newposting=Post(postfqin=grp.basic.fqin, posttype=getNSTypeName(fqpn), 
-                postedby=useras.nick, thingtopostfqin=itemfqin, 
+                postedby=useras.basic.fqin, thingtopostfqin=itemfqin, 
                 thingtoposttype=item.itemtype)
             postingdoc=PostingDocument(thing=newposting)
             postingdoc.save(safe=True)
@@ -159,7 +164,7 @@ class Postdb(Database):
         except:
             import sys
             print sys.exc_info()
-            doabort('BAD_REQ', "Failed adding newposting of item %s into %s %s." % (item.basic.fqin, ctypename, postable.basic.fqin))
+            doabort('BAD_REQ', "Failed adding newposting of item %s into %s %s." % (item.basic.fqin, typename, postable.basic.fqin))
         #BUG: now send to personal group via routing. Still have to add to datatypes app
         personalfqgn=useras.nick+"/group:default"
         #not sure below is needed. Being defensive CHECK
@@ -311,23 +316,22 @@ class Postdb(Database):
         try:
             print "was tha tag found"
             #this gets the tag regardless of if you are allowed to.
-            tag=self._getTag(currentuser, tagspec['basic'].fqin)           
+            tag=self._getTag(currentuser, tagspec['basic'].fqin)
+            if not self.canUseThisTag(currentuser, useras, tag):
+                doabort('NOT_AUT', "Not authorized for tag %s" % tagspec['basic'].fqin)      
         except:
-            #yes it was. Throw an exception.
-            doabort('BAD_REQ', "Tag %s already exists" % tagspec['basic'].fqin)
-        if not self.canUseThisTag(currentuser, useras, tag):
-            doabort('NOT_AUT', "Not authorized for tag %s" % tagspec['basic'].fqin)
-        try:
-            print "TRY CREATING TAG"
-            #not needed for now tags dont have members tagspec['push__members']=useras.nick
-            if not self.canCreateThisTag(currentuser, useras, tagspec['tagtype']):
-                doabort('NOT_AUT', "Not authorized for tag %s" % tagspec['basic'].fqin)
-            tag=Tag(**tagspec)
-            tag.save(safe=True)
-        except:
-            import sys
-            print sys.exc_info()
-            doabort('BAD_REQ', "Failed adding tag %s" % tagspec['basic'].fqin)
+            #it wasnt, make it
+            try:
+                print "TRY CREATING TAG"
+                #not needed for now tags dont have members tagspec['push__members']=useras.nick
+                if not self.canCreateThisTag(currentuser, useras, tagspec['tagtype']):
+                    doabort('NOT_AUT', "Not authorized for tag %s" % tagspec['basic'].fqin)
+                tag=Tag(**tagspec)
+                tag.save(safe=True)
+                #can obviously use tag if i created it
+            except:
+                doabort('BAD_REQ', "Failed making tag %s" % tagspec['basic'].fqin)
+      
         return tag
 
     #BUG: not creating a delete tag until we know what it means
@@ -342,14 +346,12 @@ class Postdb(Database):
         tag = self.makeTag(currentuser, useras, tagspec, tagmode)
         #Now that we have a tag item, we need to create a tagging
         try:
-            print "was the itemtag found"
-            itemtag=self._getTagging(currentuser, tag, itemtobetagged)
-            #BUG: this would be very slow or does it work at all?
-            #we would be using an embedded doc as a key
-            try:
-                taggingdoc=TaggingDocument.objects(thething=itemtag).get()
-            except:
-                doabort('SRV_ERR', "Itemtag found but corresponding taggingdoc not found")
+            print "was the taggingdoc found?"
+            #note we put the posted by in. This function itself prevents posted_by twice
+            #but BUG: we have uniqued on the other terms in constructor below. This requires us
+            #to get our primary key and uniqueness story right. (or does this func do it for us)
+            taggingdoc=self._getTaggingDoc(currentuser, itemtobetagged.basic.fqin, tag.basic.fqin, useras.basic.fqin)
+            itemtag=taggingdoc.thething
         except:
             print "NOTAGGING YET. CREATING"
             tagtype=self._getTagType(currentuser, tag.tagtype)
@@ -361,7 +363,7 @@ class Postdb(Database):
             try:
                 itemtag=Tagging(postfqin=tag.basic.fqin,
                                 posttype="tag",
-                                postedby=useras.nick,
+                                postedby=useras.basic.fqin,
                                 thingtopostfqin=itemtobetagged.basic.fqin,
                                 thingtoposttype=itemtobetagged.itemtype,
                                 tagname=tag.basic.name,
@@ -375,24 +377,8 @@ class Postdb(Database):
                 itemtobetagged.update(safe_update=True, push__stags=itemtag)
             except:
                 doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s" % (itemtobetagged.basic.fqin, tag.basic.fqin))
-
-            personalfqgn=useras.nick+"/group:default"
             #print "adding to %s" % personalfqgn
             self.signals['tagged-item'].send(self, obj=self, currentuser=currentuser, useras=useras, taggingdoc=taggingdoc)
-            #hasbeen now replaced by above signal
-            #self.postTaggingIntoGroup(currentuser, useras, personalfqgn, taggingdoc)
-            #at this point it goes to the itemtypes app too.
-            #BUG: must add to groups item is posted into
-            #BUG: All tagmode stuff to be done via routing
-            # if tagmode:
-            #     groupsitemisin=itemtobetagged.get_groupsin(useras)
-            #     #the groups user is in that item is in: in tagmode we make sure, whatever groups item is in, tags are in
-            #     for grp in groupsitemisin:
-            #         if grp.fqin!=personalfqgn:
-            #             #wont be added to app for these
-            #             self.postTaggingIntoGroupFromItemtag(currentuser, useras, grp, itemtag)
-            # #print itemtobetagged.itemtags, "WEE", newtag.taggeditems, newtagging.tagtype.name
-
         #if itemtag found just return it, else create, add to group, return
         return taggingdoc
 
@@ -403,6 +389,61 @@ class Postdb(Database):
         #BUG POSTPONE until we have refcounting implementation
         return OK
 
+    def _getTaggingDoc(self, currentuser, fqin, fqtn, fqun):
+        taggingdoc=TaggingDocument.objects(thething__thingtopostfqin=fqin, thething__postfqin=fqtn, thething__postedby=fqun).get()
+        return taggingdoc
+
+    def _getTaggingDocsForItemandUser(self, currentuser, fqin, fqun):
+        taggingdocs=TaggingDocument.objects(thething__thingtopostfqin=fqin, thething__postedby=fqun)
+        return taggingdocs
+
+    def self.recv_postTaggingIntoItemtypesApp(self, currentuser, useras, **kwargs):
+        kwargs=musthavekeys(kwargs,['itemfqin', 'taggingdoc', 'tagmode'])
+        itemfqin=kwargs['itemfqin']
+        taggingdoc=kwargs['taggingdoc']
+        tagmode=kwargs['tagmode']
+        if tagmode:
+            item=self._getItem(currentuser, itemfqin)
+            fqan=self._getItemType(currentuser, item.itemtype).postable
+            self.postTaggingIntoApp(currentuser, useras, fqan, taggingdoc)
+    #BUG how do things get into apps? Perhaps a bit solved
+    #As it is now it will automatically post YOUR tags to apps, libraries, groups you are a member of
+    #if tagmode allows it
+    def recv_spreadTaggingToAppropriatePostables(self, currentuser, useras, **kwargs):
+        kwargs=musthavekeys(kwargs,['tagmode', 'itemfqin', 'tagdoc'])
+        itemfqin=kwargs['itemfqin']
+        taggingdoc=kwargs['taggingdoc']
+        tagmode=kwargs['tagmode']
+        item=self._getItem(currentuser, itemfqin)
+        personalfqgn=useras.nick+"/group:default"
+        if tagmode:
+            postablesin=[]
+            for ptt in item.pinpostables:
+                if self.whosdb.isMemberOfPostable(currentuser, useras, ptt):
+                    postablesin.append(ptt)
+            for postable in postablesin:
+                self.postTaggingIntoPostable(currentuser, useras, postables.basic.fqin, taggingdoc)
+
+    #this one reacts to the posted-to-postable kind of signal. It takes the taggings on the item that I made and
+    def recv_spreadOwnedTaggingIntoPostable(self, currentuser, useras, **kwargs):
+        kwargs=musthavekeys(kwargs,['itemfqin', 'fqpn'])
+        itemfqin=kwargs['itemfqin']
+        fqpn=kwargs['itemfqpn']
+        itemtobetagged=self._getItem(currentuser, itemfqin)
+        personalfqgn=useras.nick+"/group:default"
+        taggingstopost=[]
+        #Now note this will NOT do libraries. BUG: have we changed model to group is member of libraries? i think so
+        for tagging in item.stags:
+            if stagging.postedby==useras.basic.fqin:#you did this tagging
+                taggingstopost.append(tagging)
+        for tagging in taggingstopost:
+            #not sure this will work
+            taggingdoc=TaggingDocument.objects(thething=tagging)
+            #if tagmode allows us to post it, then we post it. This could be made faster later
+            if _getTagType(tagging.tagtype).tagmode:
+                self.postTaggingIntoPostable(currentuser, useras, fqpn, taggingdoc)
+
+    #BUG only do if postable does not exist
     def postTaggingIntoPostable(self, currentuser, useras, fqpn, taggingdoc):
         itemtag=taggingdoc.thething
         postable=self.whosdb.getPostable(currentuser, fqpn)
@@ -413,32 +454,22 @@ class Postdb(Database):
         permit(useras.nick==itemtag.postedby,
             "Only creator of tag can post into group %s" % postable.basic.fqin)
         #item=self._getItem(currentuser, itemtag.thingtopostfqin)
+        postablefqpns =[ele.postfqin for ele in taggingdoc.pinpostables]
+        if fqpn in postablefqpns:
+            return taggingdoc
         try:
             newposting=Post(postfqin=postable.basic.fqin, posttype=getNSTypeName(postable),
                 postedby=useras.nick, thingtopostfqin=itemtag.postfqin, thingtoposttype=itemtag.thingtoposttype)
             taggingdoc.update(safe_update=True, push__pinpostables=newposting)
             tag=self._getTag(currentuser, itemtag.postfqin)
+            #BUG:postables will be pushed multiple times here. How to unique?
             tag.update(safe_update=True, push__members=postable.basic.fqin)
         except:
             import sys
             print sys.exc_info()
             doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in postable %s" % (itemtag.thingtopostfqin, itemtag.postfqin, postable.basic.fqin))
 
-
-        #use routing for make sure we go into itemtypes app?
-        #personalfqgn=useras.nick+"/group:default"
-        #only when we do post tagging to personal group do we post tagging to app. this ensures app dosent have multiples.
-        # if grp.fqin==personalfqgn:
-        #     personalgrp=self.whosdb.getGroup(currentuser, personalfqgn)
-        #     appstring=itemtag.item.itemtype.app
-        #     itemtypesapp=self.whosdb.getApp(currentuser, appstring)
-        #     self.postTaggingIntoAppFromItemtag(currentuser, useras, itemtypesapp, itemtag)
-        #grp.groupitems.append(newitem)
-        # self.commit()
-        # print itemtag.groupsin, 'jee', grp.itemtags
-        # itgto=self.session.query(TagitemGroup).filter_by(itemtag=itemtag, group=grp).one()
-        # print itgto
-        return itemtag
+        return taggingdoc
 
     #BUG: currently not sure what the logic for everyone should be on this, or if it should even be supported
     #as other users have now seen stuff in the group. What happens to tagging. Leave alone for now.

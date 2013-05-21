@@ -30,6 +30,9 @@ def getNSTypeName(fqin):
     nslist=ns.split('/')
     nstypename=nslist[-1]
 
+def getNSTypeNameFromInstance(instance):
+    return classname(instance).lower()
+
 def gettype(fqin):
     return classtype(MAPDICT[getNSTypeName(fqin)])
 
