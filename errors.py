@@ -3,6 +3,8 @@
 # @app.route("/test")
 # def view():
 #     abort(422, {'errors': dict(password="Wrong password")})
+WEBMODE=False
+from commondefs import *
 from werkzeug.exceptions import default_exceptions, HTTPException
 from flask import make_response, abort as flask_abort, request
 from flask.exceptions import JSONHTTPException
@@ -56,8 +58,25 @@ def abort(status_code, body=None, headers={}):
     #This is just a hack to get the code and the name in currently
     flask_abort(make_response(errori, status_code, headers))
 
+webabort=abort
+
 import sys
+
+class Error(Exception):
+    pass
+
+def codeabort(status_code, reason):
+    raise Error(status_code, reason)
+
 def doabort(codestring, reason):
-    #abort(ERRGUT[codestring], {'reason':reason})
-    print ERRGUT[codestring], {'reason':reason}
-    #sys.exit(0)
+    if webmode:
+        webabort(ERRGUT[codestring], {'reason':reason})
+    else:
+        #print ERRGUT[codestring], {'reason':reason}
+        #sys.exit(0)
+        try:
+            print sys.exc_info()
+            codeabort(status_code, reason)
+        except Error, e:
+            print e[0], e[1]
+            sys.exit(0)
