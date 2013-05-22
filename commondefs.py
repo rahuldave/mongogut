@@ -8,7 +8,7 @@ POSTABLES=[Group, App, Library]#things that can be posted to, and you can be a m
 MEMBERABLES=[Group, App, User]#things that can be members
 MEMBABLE=[Group, App, Library, Tag]#things you can be a member of
 #above all use nicks
-OWNABLES=[Group, App, Library, ItemType, TagType]#things that can be owned
+OWNABLES=[Group, App, Library, ItemType, TagType, Tag]#things that can be owned
 #OWNERABLES=[Group, App, User]#things that can be owners. Do we need a shadow owner?
 #the above all have nicks
 #TAGGISH=[Group, App, Library, Tag]: or should it be PostingDoc, TaggingDoc?

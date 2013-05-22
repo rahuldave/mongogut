@@ -1,7 +1,7 @@
 from classes import *
 import config
 from permissions import permit, authorize, authorize_systemuser, authorize_loggedin_or_systemuser
-from permissions import authorize_ownable_owner, authorize_postable_member
+from permissions import authorize_ownable_owner, authorize_postable_member, authorize_postable_owner, authorize_membable_member
 from errors import abort, doabort, ERRGUT
 import types
 
@@ -408,15 +408,15 @@ class Database():
 
     #group should be replaced by anything that can be the owner
     #dont want to use this for postables, even though they are ownable.
-    def changeOwnershipOfOwnableType(self, currentuser, owner, fqtypen, newownerfqpn):
+    def changeOwnershipOfOwnable(self, currentuser, owner, fqon, newownerfqpn):
         "this is used for things like itentypes and tagtypes, not for g/a/l"
-        typetype=gettype(fqtypen)
+        otype=gettype(fqon)
         newownerptype = gettype(newownerfqpn)
-        typq=typetype.objects(basic__fqin=fqtypen)
+        oq=otype.objects(basic__fqin=fqon)
         try:
-            ownable=typq.get()
+            ownable=oq.get()
         except:
-            doabort('BAD_REQ', "No such ownable %s %s" % (typetype.__name__,fqtypen))
+            doabort('BAD_REQ', "No such ownable %s %s" % (otype.__name__,fqon))
         authorize_ownable_owner(False, self, currentuser, owner, ownable)
 
         try:
@@ -434,7 +434,7 @@ class Database():
             oldownerfqpn=ownable.owner
             ownable.update(safe_update=True, set__owner = newowner.basic.fqin)
         except:
-            doabort('BAD_REQ', "Failed changing owner from %s to %s for ownable %s %s" % (oldownerfqpn, newowner.basic.fqin, typetype.__name__, fqtypen))
+            doabort('BAD_REQ', "Failed changing owner from %s to %s for ownable %s %s" % (oldownerfqpn, newowner.basic.fqin, otype.__name__, fqon))
         return newowner
 
     def allUsers(self, currentuser):

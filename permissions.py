@@ -77,21 +77,22 @@ def classtype(instance):
     return type(instance)
 #this needs to deal with both the target being a memberable as well as the target being a member of the memberable
 #BUG thus currentuser=useras and maybe other need to fixed in both below
-def authorize_postable_member(authstart, db, currentuser, memberable, cobj):
+def authorize_membable_member(authstart, db, currentuser, memberable, cobj):
     permit(currentuser!=None, "must be logged in")
     #clause = (currentuser==useras, "User %s not authorized" % currentuser.nick)
     if classtype(memberable)==User:
         clause = (currentuser==memberable, "User %s not authorized" % currentuser.nick)
     elif classtype(memberable) in [Group, App]:
         #CHOICE:if you are testing membership, is it enough to be member? or should you be owner of memberable
-        clause = (db.isOwnerOfPostable(currentuser, currentuser, useras), "must be owner of postable %s %s" % (classname(useras), useras.basic.fqin))
+        clause = (db.isMemberOfPostable(currentuser, currentuser, memberable), "must be owner of postable %s %s" % (classname(memberable), memberable.basic.fqin))
     else:
         clause=False
     #BUG: what if useras is a group?
-    clause3=(db.isMemberOfPostable(currentuser, memberable, cobj), "must be member of postable %s %s" % (classname(cobj), cobj.basic.fqin))
+    clause3=(db.isMemberOfMembable(currentuser, memberable, cobj), "must be member of membable %s %s" % (classname(cobj), cobj.basic.fqin))
     clausesys = (db.isSystemUser(currentuser), "User %s not superuser" % currentuser.nick)
     permit2(authstart, [clausesys, clause3, clause])
 
+authorize_postable_member=authorize_membable_member
 #bug fix for useras being a memberable. would seem to be ok otherwise?
 def authorize_ownable_owner(authstart, db, currentuser, memberable, cobj):
     permit(currentuser!=None, "must be logged in")
@@ -106,3 +107,5 @@ def authorize_ownable_owner(authstart, db, currentuser, memberable, cobj):
     clause3=(db.isOwnerOfOwnable(currentuser, memberable, cobj), "must be owner of ownable %s %s" % (classname(cobj), cobj.basic.fqin))
     clausesys = (db.isSystemUser(currentuser), "User %s not superuser" % currentuser.nick)
     permit2(authstart, [clausesys, clause3, clause])
+
+authorize_postable_owner=authorize_ownable_owner

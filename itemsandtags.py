@@ -1,7 +1,7 @@
 from classes import *
 import config
 from permissions import permit, authorize, authorize_systemuser, authorize_loggedin_or_systemuser
-from permissions import authorize_ownable_owner, authorize_postable_member
+from permissions import authorize_ownable_owner, authorize_postable_member, authorize_postable_owner, authorize_membable_member
 from errors import abort, doabort, ERRGUT
 import types
 
@@ -25,7 +25,10 @@ def reciever(f):
     return realreciever
 
 
-
+#BUG need signal handlers for added to app, added to lib. Especially for lib, do we post tags to lib.
+#what does that even mean? We will do it but i am not sure what it means. I mean we will get tags
+#consistent with user from his groups, not libs, so what does it mean to get tags posted to a lib?
+#BUG:is there conflict between spreadOwnedTaggingIntoPostable and postTaggingIntoItemtypesApp
 class Postdb(Database):
     SIGNALS={
         "saved-item":[reciever(self.recv_postItemIntoPersonal), reciever(self.recv_postItemIntoItemtypesApp)],
@@ -35,8 +38,8 @@ class Postdb(Database):
                         reciever(self.recv_postTaggingIntoItemtypesApp)
                     ],
         "tagmode-changed":[reciever(self.recv_spreadTaggingToAppropriatePostables)],
-        "added-to-app":[],
-        "added-to-library":[],
+        "added-to-app":[reciever(self.recv_spreadOwnedTaggingIntoPostable)],
+        "added-to-library":[reciever(self.recv_spreadOwnedTaggingIntoPostable)],
     }
     def __init__(self, db_session, wdb):
         self.session=db_session
@@ -471,7 +474,7 @@ class Postdb(Database):
     def postTaggingIntoPostable(self, currentuser, useras, fqpn, taggingdoc):
         itemtag=taggingdoc.thething
         postable=self.whosdb.getPostable(currentuser, fqpn)
-        authorize_postablecontext_owner(False, self, currentuser, useras, postable)
+        authorize_postable_owner(False, self, currentuser, useras, postable)
 
         permit(self.whosdb.isMemberOfPostable(useras, postable),
             "Only member of postable %s can post into it" % postable.basic.fqin)
@@ -501,7 +504,7 @@ class Postdb(Database):
 
         grp=self.whosdb.getGPostable(currentuser, fqpn)
 
-        authorize_postablecontext_owner(False, self, currentuser, useras, grp)
+        authorize_postable_owner(False, self, currentuser, useras, grp)
         #BUG: no other auths. But the model for this must be figured out.
         #The itemtag must exist at first
         # itemtag=self._getTagging(currentuser, tag, item)
@@ -631,6 +634,9 @@ class Postdb(Database):
     #indeed i am not sure if context works there at all!!!
     #get tags by owner and tagtype. remember this does not do libraries for us anymore.
     #we assume that tagtype based restrictions were taken care of at tag addition time
+    #REMEMBER these are searches on tag fields, not on taggings, so postables dont matter a whit
+    #except by membership. So either these give global answers, or we need to vary how we use context.
+
     def getTagsAsOwnerOnly(self, currentuser, useras, tagtype=None, context=None, singletonmode=False):
         criteria=[
             {'field':'owner', 'op':'eq', 'value':useras.basic.fqin},
@@ -670,10 +676,13 @@ class Postdb(Database):
     #than having overriding context in which all this operates
     #BUG: do we need a context. context only provides a background thing to operate on now.
     #The actual stuff is done in here.
-    def getItemsForTagquery(self, currentuser, useras, query, context=None, sort=None, pagtuple=None):
-        #tagquery is currently assumed to be a list of [{'tagtype', 'tagname'}]
-        #or [{"posttype","postfqin"}]
+
+
+    def getItemsForQuery(self, currentuser, useras, query, context=None, sort=None, pagtuple=None):
+        #tagquery is currently assumed to be a list of stags=[{'tagtype', 'tagname'}]
+        #or postables=[{"posttype","postfqin"}]
         #we assume that
+        SHOWNFIELDS=['itemtype', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri']
         tagquery=query.get("stags",[])
         postablequery=query.get("postables",[])
         criteria=[]
@@ -686,15 +695,25 @@ class Postdb(Database):
             criteria.append([
                 {'field':'pinpostables__postfqin', 'op':'eq', 'value':v['postfqin']}
             ])
-        result=self.getItemsForItemspec(currentuser, useras, criteria, context, sort, pagtuple)
+        result=self.getItemsForItemspec(currentuser, useras, criteria, context, sort, SHOWNFIELDS, pagtuple)
         return result
 
+    #Note there is a context here too. This context can be used to get a users items in existing libs etc
+    #it could also be used to do intersections, but user can be on one postable only.
+    def getItemsForPostableQuery(self, currentuser, useras, postablequery, context, sort, pagtuple):
+        query={'stags':[], 'postables':postablequery}
+        result=getItemsForQuery(self, currentuser, useras, query, context=None, sort=None, pagtuple=None)
+        return result
 
     #PTYPESTRING MUST BE GROUP ONLY TO GET APPROPRIATE POSTABLES FOR USER
+    #otherwise we will pull in apps and get other things from users who have no connections to this user
 
     #Get TaggingDocs consistent with the users perms
     #BUG: in more general screens, when all we want to draw is all the tags of type lensing, how do we do it?
-    def getTaggingsForTagquery(self, currentuser, useras, query, ptypestring=None, context=None, sort=None, pagtuple=None):
+    #then from the taggings we would need tags!
+
+    #THIS GETS USED FOR LHS STUFF
+    def getTaggingsForQuery(self, currentuser, useras, query, ptypestring=None, context=None, sort=None):
         #tagquery is currently assumed to be a list of [{'tagfqin'}]
         #or [{"postfqin"}]
         #we assume that
@@ -725,9 +744,17 @@ class Postdb(Database):
                 {'field':'pinpostables__postfqin', 'op':'in', 'value':postablesforuser}
             ])
         
-        result=self.makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, pagtuple)
+        result=self.makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, None)
         return result
 
+    def getTaggingsConsistentWithUserQueryAndContext(self, currentuser, useras, query, context=None, sort=None):
+        result=self.getTaggingsForQuery(currentuser, useras, query, "group", context, sort)
+        return result
+
+    def getTagsConsistentWithUserQueryAndContext(self, currentuser, useras, query, context=None, sort=None):
+        taggings=self.getTaggingsConsistentWithUserQueryAndContext(currentuser, useras, query, context, sort)
+        fqtns=set([e.thething.postfqin for e in taggings])
+        return fqtns
     #one can use this to query the tag pingrps and pinapps
     #BUG we dont deal with stuff in the apps for now. Not sure
     #what that even means as apps are just copies.
@@ -759,18 +786,13 @@ class Postdb(Database):
 
     #NOTE: we want users groups for these next ones, not users apps, as that might get in all kinds of stuff that the user is not
     #supposed to get. Thus we must write layered functions on top of this to make it the case
-    def getTaggingsForSpec(self, currentuser, useras, itemfqinlist, ptypestring=None, criteria=[], context=None, sort=None, pagetuple=None):
+
+    #This one assumes the tag intersection was used to get the items, and now asks, consistent eith ptypestring and the users
+    #access, what taggings do we get per item. This is meant to decorate the item listing.
+    def getTaggingsForSpec(self, currentuser, useras, itemfqinlist, ptypestring=None, sort=None):
         result={}
         postablesforuser=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
         klass=TaggingDocument
-        if not context:
-            context={'user':True, 'type':'group', 'value':useras.basic.fqin}
-        #BUG validate the values this can take. for eg: type must be a postable. none of then can be None
-                
-        userthere=postablecontext['user']
-        ctype=postablecontext['type']
-        ctarget=postablecontext['value']
-
         SHOWNFIELDS=[   'thething.postfqin',
                         'thething.posttype',
                         'thething.thingtopostfqin',
@@ -791,13 +813,19 @@ class Postdb(Database):
                 {'field':'pinpostables__postfqin', 'op':'in', 'value':postablesforuser},
                 {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
             ])
-            result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, context, sort, pagetuple)
+            result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, None, sort, SHOWNFIELDS, None)
         return result
 
+    def getTaggingsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None):
+        result=self.getTaggingsForSpec(currentuser, useras, query, "group", None, sort, None)
+        return result
     #and this us the postings consistent with items  to show a groups list
     #for all these items to further filter them down. 
     #No context here as PostingDocument has none. This is purely items
-    def getPostingsForSpec(self, currentuser, useras, itemfqinlist, ptypestring=None, criteria=[], sort=None, pagetuple=None):
+
+    #BUGHoever context can be useful here if all i want is the items in a group. But perhaps that ought to be another
+    #function
+    def getPostingsForSpec(self, currentuser, useras, itemfqinlist, ptypestring=None, sort=None):
         result={}
         postablesforuser=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
         SHOWNFIELDS=[   'thething.postfqin',
@@ -821,9 +849,12 @@ class Postdb(Database):
                 {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
             ])
 
-            result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, None, sort, pagetuple)
+            result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, None, sort, SHOWNFIELDS, None)
         return result
 
+    def getPostingsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None):
+        result=self.getPostingsForSpec(currentuser, useras, query, "group", None, sort, None)
+        return result
     #this should be the one giving us tags consistent with a context
     #QUESTION:does this give us a list of tags for each item in a group?
     #I dont believe we need this. More precisely i think we get this implicitly from the taggings
