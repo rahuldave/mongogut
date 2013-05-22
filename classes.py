@@ -128,6 +128,7 @@ class Tagging(Post):
     tagtype=StringField(default="ads/tag", required=True)
     tagname=StringField(required=True)
     tagdescription=StringField(default="", required=True)
+    tagmode = BooleanField(default=False, required=True)
 
 
 class PostingDocument(Document):

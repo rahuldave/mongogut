@@ -29,11 +29,12 @@ def reciever(f):
 class Postdb(Database):
     SIGNALS={
         "saved-item":[reciever(self.recv_postItemIntoPersonal), reciever(self.recv_postItemIntoItemtypesApp)],
-        "added-to-group":[reciever(self.recv_postItemIntoPersonal)],
+        "added-to-group":[reciever(self.recv_postItemIntoPersonal), reciever(self.recv_spreadOwnedTaggingIntoPostable)],
         "tagged-item":[reciever(self.recv_postTaggingIntoPersonal), 
-                        reciever(self.recv_spreadTaggingToAppropriateGroups),
+                        reciever(self.recv_spreadTaggingToAppropriatePostables),
                         reciever(self.recv_postTaggingIntoItemtypesApp)
                     ],
+        "tagmode-changed":[reciever(self.recv_spreadTaggingToAppropriatePostables)],
         "added-to-app":[],
         "added-to-library":[],
     }
@@ -265,7 +266,7 @@ class Postdb(Database):
 
 
     #BUG when will we make these useras other memberables?
-    #BUG need to deal with tagmode and singletonmode here
+    #BUG need to deal with tagmode and singletonmode here. Do we?
     def canUseThisTag(self, currentuser, useras, tag):
         "return true is this user can use this tag from access to tagtype, namespace, etc"
         #If you OWN this tag
@@ -368,6 +369,7 @@ class Postdb(Database):
                                 thingtoposttype=itemtobetagged.itemtype,
                                 tagname=tag.basic.name,
                                 tagtype=tag.tagtype,
+                                tagmode=tagmode,
                                 tagdescription=tagdescript
                 )
                 #itemtag.save(safe=True)
@@ -378,7 +380,8 @@ class Postdb(Database):
             except:
                 doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s" % (itemtobetagged.basic.fqin, tag.basic.fqin))
             #print "adding to %s" % personalfqgn
-            self.signals['tagged-item'].send(self, obj=self, currentuser=currentuser, useras=useras, taggingdoc=taggingdoc)
+            self.signals['tagged-item'].send(self, obj=self, currentuser=currentuser, useras=useras, 
+                taggingdoc=taggingdoc, tagmode=tagmode, itemfqin=itemtobetagged.basic.fqin)
         #if itemtag found just return it, else create, add to group, return
         return taggingdoc
 
@@ -389,20 +392,38 @@ class Postdb(Database):
         #BUG POSTPONE until we have refcounting implementation
         return OK
 
+    #Note that the following provide a model for the uniqueness of posting and tagging docs.
     def _getTaggingDoc(self, currentuser, fqin, fqtn, fqun):
         taggingdoc=TaggingDocument.objects(thething__thingtopostfqin=fqin, thething__postfqin=fqtn, thething__postedby=fqun).get()
+        return taggingdoc
+
+    #BUG: protection of this tagging? Use useras.basic.fqin for now
+    #BUG: this does not work in the direction of making tagging private for now
+    def changeTagmodeOfTagging(self, currentuser, useras, fqin, fqtn, tomode=False):
+        taggingdoc=self._getTaggingDoc(currentuser, fqin, fqtn, useras.basic.fqin)
+        taggingdoc.update(safe_update=True, thething__tagmode=tomode)
+        self.signals['tagmode-changed'].send(self, obj=self, currentuser=currentuser, useras=useras, 
+                taggingdoc=taggingdoc, tagmode=tagmode, itemfqin=itemtobetagged.basic.fqin)
         return taggingdoc
 
     def _getTaggingDocsForItemandUser(self, currentuser, fqin, fqun):
         taggingdocs=TaggingDocument.objects(thething__thingtopostfqin=fqin, thething__postedby=fqun)
         return taggingdocs
 
+    def _getPostingDoc(self, currentuser, fqin, fqpn, fqun):
+        postingdoc=PostingDocument.objects(thething__thingtopostfqin=fqin, thething__postfqin=fqpn, thething__postedby=fqun).get()
+        return postingdoc
+
+    def _getPostingDocsForItemandUser(self, currentuser, fqin, fqun):
+        postingdocs=PostingDocument.objects(thething__thingtopostfqin=fqin, thething__postedby=fqun)
+        return postingdocs
+
     def self.recv_postTaggingIntoItemtypesApp(self, currentuser, useras, **kwargs):
         kwargs=musthavekeys(kwargs,['itemfqin', 'taggingdoc', 'tagmode'])
         itemfqin=kwargs['itemfqin']
         taggingdoc=kwargs['taggingdoc']
         tagmode=kwargs['tagmode']
-        if tagmode:
+        if not tagmode:
             item=self._getItem(currentuser, itemfqin)
             fqan=self._getItemType(currentuser, item.itemtype).postable
             self.postTaggingIntoApp(currentuser, useras, fqan, taggingdoc)
@@ -416,7 +437,7 @@ class Postdb(Database):
         tagmode=kwargs['tagmode']
         item=self._getItem(currentuser, itemfqin)
         personalfqgn=useras.nick+"/group:default"
-        if tagmode:
+        if not tagmode:
             postablesin=[]
             for ptt in item.pinpostables:
                 if self.whosdb.isMemberOfPostable(currentuser, useras, ptt):
@@ -437,10 +458,13 @@ class Postdb(Database):
             if stagging.postedby==useras.basic.fqin:#you did this tagging
                 taggingstopost.append(tagging)
         for tagging in taggingstopost:
-            #not sure this will work
-            taggingdoc=TaggingDocument.objects(thething=tagging)
+            #BUG:not sure this will work, searching on a full embedded doc, at the least it would be horribly slow
+            #so we shall map instead on some thething properties
+            taggingdoc=TaggingDocument.objects(thething__postfqin=tagging__postfqin, 
+                    thething__thingtopostfqin=tagging_thingtopostfqin, 
+                    thething__postedby=tagging_postedby)
             #if tagmode allows us to post it, then we post it. This could be made faster later
-            if _getTagType(tagging.tagtype).tagmode:
+            if not _getTagType(tagging.tagtype).tagmode:
                 self.postTaggingIntoPostable(currentuser, useras, fqpn, taggingdoc)
 
     #BUG only do if postable does not exist
@@ -450,7 +474,7 @@ class Postdb(Database):
         authorize_postablecontext_owner(False, self, currentuser, useras, postable)
 
         permit(self.whosdb.isMemberOfPostable(useras, postable),
-            "Only member of gpostable %s can post into it" % postable.basic.fqin)
+            "Only member of postable %s can post into it" % postable.basic.fqin)
         permit(useras.nick==itemtag.postedby,
             "Only creator of tag can post into group %s" % postable.basic.fqin)
         #item=self._getItem(currentuser, itemtag.thingtopostfqin)
