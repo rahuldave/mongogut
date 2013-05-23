@@ -4,7 +4,6 @@
 # def view():
 #     abort(422, {'errors': dict(password="Wrong password")})
 WEBMODE=False
-from commondefs import *
 from werkzeug.exceptions import default_exceptions, HTTPException
 from flask import make_response, abort as flask_abort, request
 from flask.exceptions import JSONHTTPException
@@ -60,7 +59,7 @@ def abort(status_code, body=None, headers={}):
 
 webabort=abort
 
-import sys
+import sys, traceback
 
 class Error(Exception):
     pass
@@ -69,14 +68,20 @@ def codeabort(status_code, reason):
     raise Error(status_code, reason)
 
 def doabort(codestring, reason):
-    if webmode:
+    x=sys.exc_info()
+    print '==============================='
+    print x
+    print traceback.print_tb(x[2])
+    print '==============================='
+    if WEBMODE:
         webabort(ERRGUT[codestring], {'reason':reason})
     else:
+        codeabort(ERRGUT[codestring], reason)
         #print ERRGUT[codestring], {'reason':reason}
         #sys.exit(0)
-        try:
-            print sys.exc_info()
-            codeabort(status_code, reason)
-        except Error, e:
-            print e[0], e[1]
-            sys.exit(0)
+        # try:
+        #     print sys.exc_info()
+        #     codeabort(ERRGUT[codestring], reason)
+        # except Error, e:
+        #     print e[0], e[1]
+        #     sys.exit(0)

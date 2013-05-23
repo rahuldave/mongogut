@@ -5,7 +5,7 @@ from permissions import authorize_ownable_owner, authorize_postable_member, auth
 from errors import abort, doabort, ERRGUT
 import types
 
-
+import sys
 from commondefs import *
 
 
@@ -183,22 +183,37 @@ class Database():
     #ought to be initialized on signup or in batch for existing users.
     def addUser(self, currentuser, userspec):
         "add a user to the system. currently only sysadmin can do this"
-        authorize_systemuser(False, self, currentuser)
+        #BUG BUG BUG: big security hole opened here for testing. This should be added externally to mongo.
+        if not userspec['nick']=='adsgut':
+            authorize_systemuser(False, self, currentuser)
         try:
             userspec=augmentspec(userspec)
             newuser=User(**userspec)
             newuser.save(safe=True)
         except:
+            print sys.exc_info()
             doabort('BAD_REQ', "Failed adding user %s" % userspec['nick'])
+
+        #BUG: more leakage here in bootstrap
+        if userspec['nick']=='adsgut':
+            currentuser=newuser
+
         #Also add user to private default group and public group
-        self.addPostable(currentuser, newuser, Group, dict(name='default', creator=newuser.basic.fqin,
+
+        #currentuser adds this as newuser
+        #print adding default personal group
+        self.addPostable(currentuser, newuser, "group", dict(name='default', creator=newuser.basic.fqin,
             personalgroup=True
         ))
-        self.addMemberableToPostable(currentuser, currentuser, 'adsgut/group:public', newuser.basic.fqin)
+        #currentuser adds this as root
+        if not userspec['nick']=='adsgut':
+            self.addMemberableToPostable(currentuser, currentuser, 'adsgut/group:public', newuser.basic.fqin)
         #BUG:Bottom ought to be done via routing
         #self.addUserToApp(currentuser, 'ads@adslabs.org/app:publications', newuser, None)
         #should this be also done by routing?
-        self.addMemberableToPostable(currentuser, currentuser, App, 'adsgut/app:adsgut', User, newuser.basic.fqin)
+        #This is also added as root
+        if not userspec['nick']=='adsgut':
+            self.addMemberableToPostable(currentuser, currentuser, 'adsgut/app:adsgut', newuser.basic.fqin)
         return newuser
 
     #BUG: we want to blacklist users and relist them
@@ -217,7 +232,10 @@ class Database():
         "the useras adds a postable. currently either currentuser=superuser or useras"
         #authorize(False, self, currentuser, currentuser)
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
-        postablespec=augmentspec(postablespec, ptype)
+        postablespec['creator']=useras.basic.fqin
+        postablespec=augmentspec(postablespec, ptypestr)
+        ptype=gettype(postablespec['basic'].fqin)
+        print "In addPostable", ptypestr, ptype
         try:
             newpostable=ptype(**postablespec)
             newpostable.save(safe=True)
@@ -230,6 +248,15 @@ class Database():
             doabort('BAD_REQ', "Failed adding postable %s %s" % (ptype.__name__, postablespec['basic'].fqin))
         self.addMemberableToPostable(currentuser, useras, newpostable.basic.fqin, newpostable.basic.creator)
         return newpostable
+
+    def addGroup(self, currentuser, useras, groupspec):
+        return self.addPostable(currentuser, useras, "group", groupspec)
+
+    def addApp(self, currentuser, useras, appspec):
+        return self.addPostable(currentuser, useras, "app", appspec)
+
+    def addLibrary(self, currentuser, useras, libraryspec):
+        return self.addPostable(currentuser, useras, "library", libraryspec)
 
     #BUG: why is there no useras here? perhaps too dangerous to let a useras delete?
     def removePostable(self,currentuser, fqpn):
@@ -247,6 +274,7 @@ class Database():
         "add a user, group, or app to a postable=group, app, or library"
         ptype=gettype(fqpn)
         mtype=gettype(memberablefqin)
+        print "types", fqpn, ptype, memberablefqin,mtype
         postableq=ptype.objects(basic__fqin=fqpn)
         memberableq= mtype.objects(basic__fqin=memberablefqin)
         #BUG currently restricted admission. Later we will want groups and apps proxying for users.
@@ -255,11 +283,15 @@ class Database():
             postable=postableq.get()
         except:
             doabort('BAD_REQ', "No such postable %s %s" %  (ptype.__name__,fqpn))
+        try:
+            memberable=memberableq.get()
+        except:
+            doabort('BAD_REQ', "No such memberable %s %s" %  (mtype.__name__,memberablefqin))
 
         if fqpn!='adsgut/group:public':
             #special case so any user can add themselves to public group
             #permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
-            authorize_ownable_owner(False, self, currentuser, None, postable)
+            authorize_ownable_owner(False, self, currentuser, memberable, postable)
         try:
             pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin)
             memberableq.update(safe_update=True, push__postablesin=pe)
@@ -267,6 +299,10 @@ class Database():
         except:
             doabort('BAD_REQ', "Failed adding memberable %s %s to postable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
         return memberablefqin
+
+    def addUserToPostable(self, currentuser, fqpn, nick):
+        user=self.getUserForNick(currentuser,nick)
+        return self.addMemberableToPostable(currentuser, currentuser, fqpn, user.basic.fqin)
 
     #BUG: not really fleshed out as we need to handle refcounts and all that to see if objects ought to be removed.
     def removeMemberableFromPostable(self, currentuser, fqpn, memberablefqin):
@@ -338,6 +374,11 @@ class Database():
             doabort('BAD_REQ', "Failed inviting user %s to postable %s" % (usertobeaddedfqin, fqpn))
         #print "IIIII", userq.get().groupsinvitedto
         return usertobeaddedfqin
+
+    def inviteUserToPostableUsingNick(self, currentuser, fqpn, nick):
+        "invite a user to a postable."
+        user=self.getUserForNick(currentuser,nick)
+        return self.inviteUserToPostable(currentuser, currentuser, fqpn, user.basic.fqin)
 
     #this cannot be masqueraded, must be explicitly approved by user
     #can we do without the mefqin?
@@ -465,3 +506,66 @@ class Database():
 
     def getLibrary(self, currentuser, fqln):
         return self.getPostable(currentuser, fqln)
+
+def initialize_application(db_session):
+    print Group
+    currentuser=None
+    whosdb=Database(db_session)
+    adsgutuser=whosdb.addUser(currentuser, dict(nick='adsgut', adsid='adsgut'))
+    currentuser=adsgutuser
+    print "Added Initial User, this should have added private group too"
+    igspec=dict(personalgroup=False, name="public", description="Public Group")
+    publicgrp=whosdb.addGroup(currentuser, adsgutuser, igspec)
+    print "Added Initial Public group"
+    adsgutapp=whosdb.addApp(currentuser, adsgutuser, dict(name='adsgut', description="The MotherShip App"))
+    print "Added Mothership app"
+    adsuser=whosdb.addUser(currentuser, dict(nick='ads', adsid='ads'))
+    print "Added ADS user"
+    currentuser=adsuser
+    adspubsapp=whosdb.addApp(currentuser, adsuser, dict(name='publications', description="ADS's flagship publication app"))
+    print "ADS user added publications app"
+
+def initialize_testing(db_session):
+    print "INIT TEST"
+    whosdb=Database(db_session)
+    currentuser=None
+    adsgutuser=whosdb.getUserForNick(currentuser, "adsgut")
+    currentuser=adsgutuser
+    rahuldave=whosdb.addUser(currentuser, dict(nick='rahuldave', adsid="rahuldave"))
+    mlg=whosdb.addGroup(rahuldave, rahuldave, dict(name='ml', description="Machine Learning Group"))
+    whosdb.addUserToPostable(currentuser, 'ads/app:publications', 'rahuldave')
+    #rahuldave.applicationsin.append(adspubsapp)
+    adsuser=whosdb.getUserForNick(currentuser, "ads")
+    print "currentuser", currentuser.nick
+    jayluker=whosdb.addUser(currentuser, dict(nick='jayluker', adsid="jayluker"))
+    whosdb.addUserToPostable(adsuser, 'ads/app:publications', 'jayluker')
+    #jayluker.applicationsin.append(adspubsapp)
+    print "testing invite"
+    whosdb.inviteUserToPostableUsingNick(rahuldave, 'rahuldave/group:ml', 'jayluker')
+    print "invited", jayluker.to_json()
+
+    whosdb.acceptInviteToPostable(jayluker, 'rahuldave/group:ml', jayluker.basic.fqin)
+    spg=whosdb.addGroup(jayluker, jayluker, dict(name='sp', description="Solr Programming Group"))
+    import random
+    for i in range(20):
+        r=random.choice([1,2])
+        userstring='user'+str(i)
+        userst=whosdb.addUser(adsgutuser, dict(nick=userstring, adsid=userstring))
+        whosdb.addUserToPostable(adsuser, 'ads/app:publications', userstring)
+
+        if r==1:
+            whosdb.inviteUserToPostableUsingNick(rahuldave, 'rahuldave/group:ml', userstring)
+        else:
+            whosdb.inviteUserToPostableUsingNick(jayluker, 'jayluker/group:sp', userstring)
+    #whosdb.addGroupToApp(currentuser, 'ads@adslabs.org/app:publications', 'adsgut@adslabs.org/group:public', None )
+    #public.applicationsin.append(adspubsapp)
+    #rahuldavedefault.applicationsin.append(adspubsapp)
+    rahuldave.reload()
+
+    print "ending init", whosdb.ownerOfPostables(rahuldave, rahuldave), whosdb.ownerOfPostables(rahuldave, rahuldave, "group")
+    print rahuldave.to_json()
+
+if __name__=="__main__":
+    db_session=connect("adsgut")
+    initialize_application(db_session)
+    initialize_testing(db_session)

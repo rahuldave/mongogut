@@ -6,7 +6,7 @@ MEMBER_OF_POSTABLE=False
 POSTABLES=[Group, App, Library]#things that can be posted to, and you can be a member of
 #Postables are both membable and ownable
 MEMBERABLES=[Group, App, User]#things that can be members
-MEMBABLE=[Group, App, Library, Tag]#things you can be a member of
+MEMBABLES=[Group, App, Library, Tag]#things you can be a member of
 #above all use nicks
 OWNABLES=[Group, App, Library, ItemType, TagType, Tag]#things that can be owned
 #OWNERABLES=[Group, App, User]#things that can be owners. Do we need a shadow owner?
@@ -26,15 +26,24 @@ def classtype(instance):
     return type(instance)
 
 def getNSTypeName(fqin):
-    ns, val=fqin.split(':')
-    nslist=ns.split('/')
+    print "fqin", fqin
+    lst=fqin.split(':')
+    nslist=lst[-2].split('/')
     nstypename=nslist[-1]
+    return nstypename
+
+def getNSVal(fqin):
+    print "fqin", fqin
+    lst=fqin.split(':')
+    return lst[-1]
 
 def getNSTypeNameFromInstance(instance):
     return classname(instance).lower()
 
 def gettype(fqin):
-    return classtype(MAPDICT[getNSTypeName(fqin)])
+    nstypename=getNSTypeName(fqin)
+    print 'FQIN',fqin, nstypename
+    return MAPDICT[nstypename]
 
 #BUG: add a function musthave which can then be used to validate in augmentitspec
 #this function currently dosent throw an exception it should when not in flask mode
@@ -44,9 +53,10 @@ def musthavekeys(indict, listofkeys):
             doabort('BAD_REQ', "Indict does not have key %s" % k)
     return indict
 
-def augmentspec(specdict, spectype='user'):
+def augmentspec(specdict, specstr="user"):
     basicdict={}
     print "INSPECDICT", specdict
+    spectype=MAPDICT[specstr]
     spectypestring = spectype.classname
 
     if spectype in POSTABLES:
@@ -55,19 +65,24 @@ def augmentspec(specdict, spectype='user'):
         basicdict['creator']=specdict['creator']
         basicdict['name']=specdict['name']
         basicdict['description']=specdict.get('description','')
-        basicdict['fqin']=specdict['creator']+"/"+spectypestring+":"+specdict['name']
+        crnick=getNSVal(specdict['creator'])
+        basicdict['fqin']=crnick+"/"+spectypestring+":"+specdict['name']
         specdict['nick']=basicdict['fqin']
+        del specdict['name']
     elif spectype==User:
-        specdict=musthavekeys(specdict, ['creator', 'nick'])
-        basicdict['creator']="adsgut/user:adsgut"
+        specdict=musthavekeys(specdict, ['adsid', 'nick'])
+        specdict['creator']="adsgut/user:adsgut"
+        basicdict['creator']=specdict['creator']
+        crnick=getNSVal(specdict['creator'])
+        basicdict['name']=specdict['nick']
         basicdict['description']=specdict.get('description','')
-        basicdict['fqin']=specdict['creator']+"/"+spectypestring+":"+specdict['nick']
+        basicdict['fqin']=crnick+"/"+spectypestring+":"+specdict['nick']
     specdict['basic']=Basic(**basicdict)
     
-    del specdict['name']
     del specdict['creator']
     if specdict.has_key('description'):
         del specdict['description']
+    print "OUTSPECDICT", specdict
     return specdict
 
 def augmentitspec(specdict, spectype="item"):
