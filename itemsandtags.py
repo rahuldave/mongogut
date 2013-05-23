@@ -12,6 +12,7 @@ from postables import Database
 
 from blinker import signal
 
+#BUG:replace obj by the sender
 def reciever(f):
     def realreciever(sender, data):
         otherargs{}
@@ -52,7 +53,7 @@ class Postdb(Database):
         for ele in SIGNALS:
             self.signals[ele]=signal(ele)
             for r in SIGNALS[ele]:
-                self.signals[ele].connect(r)
+                self.signals[ele].connect(r, sender=self)
 
     def _getItemType(self, currentuser, fullyQualifiedItemType):
         try:
@@ -173,7 +174,7 @@ class Postdb(Database):
         personalfqgn=useras.nick+"/group:default"
         #not sure below is needed. Being defensive CHECK
         if postable.basic.fqin!=personalfqgn:
-            self.signals['added-to-'+typename].send(self, obj=self, currentuser=currentuser, useras=useras, itemfqin=itemfqin)
+            self.signals['added-to-'+typename].send(self, obj=self, currentuser=currentuser, useras=useras, itemfqin=itemfqin, fqpn=fqpn)
         return item
 
     def postItemIntoGroup(self, currentuser, useras, fqgn, itemfqin):
@@ -217,7 +218,7 @@ class Postdb(Database):
     def removeItemFromLibrary(self, currentuser, useras, fqln, itemfqin):
         removeItemFromPostable(self, currentuser, useras, fqln, itemfqin)
 
-    def self.recv_postItemIntoItemtypesApp(self, currentuser, useras, **kwargs):
+    def recv_postItemIntoItemtypesApp(self, currentuser, useras, **kwargs):
         kwargs=musthavekeys(kwargs,['itemfqin'])
         itemfqin=kwargs['itemfqin']
         item=self._getItem(currentuser, itemfqin)
@@ -421,7 +422,7 @@ class Postdb(Database):
         postingdocs=PostingDocument.objects(thething__thingtopostfqin=fqin, thething__postedby=fqun)
         return postingdocs
 
-    def self.recv_postTaggingIntoItemtypesApp(self, currentuser, useras, **kwargs):
+    def recv_postTaggingIntoItemtypesApp(self, currentuser, useras, **kwargs):
         kwargs=musthavekeys(kwargs,['itemfqin', 'taggingdoc', 'tagmode'])
         itemfqin=kwargs['itemfqin']
         taggingdoc=kwargs['taggingdoc']
