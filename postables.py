@@ -26,6 +26,8 @@ class Database():
     #this one is completely UNPROTECTED
     def getUserForNick(self, currentuser, nick):
         "gets user for nick"
+        print "ingetuser", [e.nick for e in User.objects]
+        print "nick", nick
         try:
             user=User.objects(nick=nick).get()
         except:
@@ -537,7 +539,7 @@ def initialize_application(db_session):
     adsgutuser, adsgutapp=whosdb.addApp(currentuser, adsgutuser, dict(name='adsgut', description="The MotherShip App"))
     print "Added Mothership app"
     adsuser=whosdb.addUser(currentuser, dict(nick='ads', adsid='ads'))
-    print "Added ADS user"
+    print "Added ADS user", adsuser.to_json()
     currentuser=adsuser
     adsuser, adspubsapp=whosdb.addApp(currentuser, adsuser, dict(name='publications', description="ADS's flagship publication app"))
     print "ADS user added publications app"
@@ -581,6 +583,9 @@ def initialize_testing(db_session):
     print "ending init", whosdb.ownerOfPostables(rahuldave, rahuldave), whosdb.ownerOfPostables(rahuldave, rahuldave, "group")
     print "=============================="
     print rahuldave.to_json(), mlg.to_json()
+    print "=============================="
+    print adsuser.to_json()
+    print "=============================="
 
 if __name__=="__main__":
     db_session=connect("adsgut")

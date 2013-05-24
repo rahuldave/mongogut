@@ -26,14 +26,14 @@ def classtype(instance):
     return type(instance)
 
 def getNSTypeName(fqin):
-    print "fqin", fqin
+    #print "fqin", fqin
     lst=fqin.split(':')
     nslist=lst[-2].split('/')
     nstypename=nslist[-1]
     return nstypename
 
 def getNSVal(fqin):
-    print "fqin", fqin
+    #print "fqin", fqin
     lst=fqin.split(':')
     return lst[-1]
 
@@ -42,7 +42,7 @@ def getNSTypeNameFromInstance(instance):
 
 def gettype(fqin):
     nstypename=getNSTypeName(fqin)
-    print 'FQIN',fqin, nstypename
+    #print 'FQIN',fqin, nstypename
     return MAPDICT[nstypename]
 
 #BUG: add a function musthave which can then be used to validate in augmentitspec
@@ -55,7 +55,7 @@ def musthavekeys(indict, listofkeys):
 
 def augmentspec(specdict, specstr="user"):
     basicdict={}
-    print "INSPECDICT", specdict
+    #print "INSPECDICT", specdict
     spectype=MAPDICT[specstr]
     spectypestring = spectype.classname
 
@@ -82,7 +82,7 @@ def augmentspec(specdict, specstr="user"):
     del specdict['creator']
     if specdict.has_key('description'):
         del specdict['description']
-    print "OUTSPECDICT", specdict
+    #print "OUTSPECDICT", specdict
     return specdict
 
 def augmentitspec(specdict, spectype="item"):
@@ -122,15 +122,18 @@ def augmentitspec(specdict, spectype="item"):
 #user can use it.
 def augmenttypespec(specdict, spectype="itemtype"):
     basicdict={}
+    #BUG: validate the specdict
     #for itemtype, come in with an postabletype=app and a postable=appfqin
-    print "INSPECDICT", specdict
-    specdict=musthavekeys(specdict,['creator', 'name'])
-    if spectype=='itemtype' or spectype=='tagtype':
-        basicdict['creator']=specdict['creator']
-        specdict['owner']=specdict['creator']
-        basicdict['name']=specdict['name']
-        basicdict['description']=specdict.get('description','')
-        basicdict['fqin']=specdict['creator']+"/"+spectype+":"+specdict['name']
+    #print "INSPECDICT", specdict
+    specdict=musthavekeys(specdict,['creator', 'name', 'postable'])
+    #BUG validate its in the choices wanted ie app and grp (what about tagtypes in libs)
+    specdict['postabletype']=getNSVal(specdict['postable'])
+    basicdict['creator']=specdict['creator']
+    specdict['owner']=specdict['creator']
+    basicdict['name']=specdict['name']
+    basicdict['description']=specdict.get('description','')
+    crnick=getNSVal(specdict['creator'])
+    basicdict['fqin']=crnick+"/"+spectype+":"+specdict['name']
     specdict['basic']=Basic(**basicdict)
     del specdict['name']
     del specdict['creator']

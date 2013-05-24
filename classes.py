@@ -22,7 +22,7 @@ class ItemType(Document):
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
     postable = StringField(default="adsgut/adsgut", required=True)
-    postabletype = StringField(default="app", required=True)
+    postabletype = StringField(required=True)
 
 class TagType(Document):
     classname="tagtype"

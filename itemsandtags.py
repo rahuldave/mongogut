@@ -1,4 +1,5 @@
 from classes import *
+import sys
 import config
 from permissions import permit, authorize, authorize_systemuser, authorize_loggedin_or_systemuser
 from permissions import authorize_ownable_owner, authorize_postable_member, authorize_postable_owner, authorize_membable_member
@@ -13,9 +14,9 @@ from postables import Database
 from blinker import signal
 
 #BUG:replace obj by the sender
-def reciever(f):
-    def realreciever(sender, data):
-        otherargs{}
+def receiver(f):
+    def realreceiver(sender, data):
+        otherargs={}
         if e not in ['obj', 'currentuser', 'useras']:
             otherargs[e]=data[e]
         obj=data['obj']
@@ -23,33 +24,35 @@ def reciever(f):
         useras=data['useras']
         val=f(obj, currentuser, useras, **otherargs)
         return val
-    return realreciever
+    return realreceiver
 
 
 #BUG need signal handlers for added to app, added to lib. Especially for lib, do we post tags to lib.
 #what does that even mean? We will do it but i am not sure what it means. I mean we will get tags
 #consistent with user from his groups, not libs, so what does it mean to get tags posted to a lib?
 #BUG:is there conflict between spreadOwnedTaggingIntoPostable and postTaggingIntoItemtypesApp
-class Postdb(Database):
-    SIGNALS={
-        "saved-item":[reciever(self.recv_postItemIntoPersonal), reciever(self.recv_postItemIntoItemtypesApp)],
-        "added-to-group":[reciever(self.recv_postItemIntoPersonal), reciever(self.recv_spreadOwnedTaggingIntoPostable)],
-        "tagged-item":[reciever(self.recv_postTaggingIntoPersonal), 
-                        reciever(self.recv_spreadTaggingToAppropriatePostables),
-                        reciever(self.recv_postTaggingIntoItemtypesApp)
-                    ],
-        "tagmode-changed":[reciever(self.recv_spreadTaggingToAppropriatePostables)],
-        "added-to-app":[reciever(self.recv_spreadOwnedTaggingIntoPostable)],
-        "added-to-library":[reciever(self.recv_spreadOwnedTaggingIntoPostable)],
-    }
-    def __init__(self, db_session, wdb):
+class Postdb():
+    
+    def __init__(self, db_session):
         self.session=db_session
-        self.whosdb=wdb
+        self.whosdb=Database(db_session)
         self.isSystemUser=self.whosdb.isSystemUser
         self.isOwnerOfOwnable=self.whosdb.isOwnerOfOwnable
         self.isOwnerOfPostable=self.whosdb.isOwnerOfPostable
         self.isMemberOfPostable=self.whosdb.isMemberOfPostable
+        self.isMemberOfMembable=self.whosdb.isMemberOfMembable
         self.signals={}
+        SIGNALS={
+            "saved-item":[receiver(self.recv_postItemIntoPersonal), receiver(self.recv_postItemIntoItemtypesApp)],
+            "added-to-group":[receiver(self.recv_postItemIntoPersonal), receiver(self.recv_spreadOwnedTaggingIntoPostable)],
+            "tagged-item":[receiver(self.recv_postTaggingIntoPersonal), 
+                        receiver(self.recv_spreadTaggingToAppropriatePostables),
+                        receiver(self.recv_postTaggingIntoItemtypesApp)
+                    ],
+            "tagmode-changed":[receiver(self.recv_spreadTaggingToAppropriatePostables)],
+            "added-to-app":[receiver(self.recv_spreadOwnedTaggingIntoPostable)],
+            "added-to-library":[receiver(self.recv_spreadOwnedTaggingIntoPostable)],
+        }
         for ele in SIGNALS:
             self.signals[ele]=signal(ele)
             for r in SIGNALS[ele]:
@@ -90,12 +93,13 @@ class Postdb(Database):
     #one must change ownership
     def addItemType(self, currentuser, typespec):
         "add an itemtype. only owners of apps can do this for now"
+        typespec['creator']=currentuser.basic.fqin
         typespec=augmenttypespec(typespec)
-        useras=self.whosdb.getUserForNick(currentuser,typespec['basic'].creator)
+        useras=currentuser
         authorize(False, self, currentuser, useras)
-        app=self.whosdb.getApp(currentuser, typespec['postable'])
-        #user must be owner of app whos namespece he is using
-        authorize_ownable_owner(False, self, currentuser, useras, app)
+        postable=self.whosdb.getPostable(currentuser, typespec['postable'])
+        #To add a new itemtype you must be owner!
+        authorize_ownable_owner(False, self, currentuser, useras, postable)
         try:
             itemtype=ItemType(**typespec)
             itemtype.save(safe=True)
@@ -103,7 +107,7 @@ class Postdb(Database):
         except:
             # import sys
             # print sys.exc_info()
-            doabort('BAD_REQ', "Failed adding itemtype %s" % typespec['fqin'])
+            doabort('BAD_REQ', "Failed adding itemtype %s" % typespec['basic'].name)
         return itemtype
 
 
@@ -119,15 +123,23 @@ class Postdb(Database):
         return OK
 
     def addTagType(self, currentuser, typespec):
+        typespec['creator']=currentuser.basic.fqin
         typespec=augmenttypespec(typespec, "tagtype")
-        useras=self.whosdb.getUserForNick(currentuser,typespec['basic'].creator)
+        useras=currentuser
         authorize(False, self, currentuser, useras)
+        postable=self.whosdb.getPostable(currentuser, typespec['postable'])
+        #BUG CHECK: do we want anyone to be able to add stuff to an app? or only groups and libraries?
+        #or should we revert to only owners having tagtypes
+        #also what are implications for personal and public groups and all that, either way.
+        #can you post a tag to a group if the tagtype is not in that groups scope?
+        authorize_postable_member(False, self, currentuser, useras, postable)
         try:
+            print "TAGSPEC", typespec, typespec['basic'].to_json()
             tagtype=TagType(**typespec)
             tagtype.save(safe=True)
             tagtype.reload()
         except:
-            doabort('BAD_REQ', "Failed adding tagtype %s" % typespec['fqin'])
+            doabort('BAD_REQ', "Failed adding tagtype %s" % typespec['basic'].name)
         return tagtype
 
     #BUG: completely not dealing with all the things of that itemtype
@@ -867,3 +879,150 @@ class Postdb(Database):
     #I dont believe we need this. More precisely i think we get this implicitly from the taggings
     def getTagPostingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[], context=None, sort=None, pagetuple=None):
         pass
+
+
+
+
+def initialize_application(sess):
+    currentuser=None
+    postdb=Postdb(sess)
+    whosdb=postdb.whosdb
+    print "getting adsgutuser"
+    adsgutuser=whosdb.getUserForNick(currentuser, "adsgut")
+    print "getting adsuser"
+    adsuser=whosdb.getUserForNick(adsgutuser, "ads")
+    #adsapp=whosdb.getApp(adsuser, "ads@adslabs.org/app:publications")
+    currentuser=adsuser
+    postdb.addItemType(adsuser, dict(name="pub", postable="ads/app:publications"))
+    postdb.addItemType(adsuser, dict(name="search", postable="ads/app:publications"))
+    postdb.addTagType(adsuser, dict(name="tag",  postable="ads/app:publications"))
+    postdb.addTagType(adsuser, dict(name="note", 
+        postable="ads/app:publications", tagmode=True, singletonmode=True))
+
+
+def initialize_testing(db_session):
+    from whos import Whosdb
+    whosdb=Whosdb(db_session)
+    postdb=Postdb(db_session, whosdb)
+
+    currentuser=None
+    adsuser=whosdb.getUserForNick(currentuser, "ads")
+    currentuser=adsuser
+
+    rahuldave=whosdb.getUserForNick(currentuser, "rahuldave")
+    jayluker=whosdb.getUserForNick(currentuser, "jayluker")
+    currentuser=rahuldave
+    #postdb.saveItem(currentuser, rahuldave, dict(name="rahulbrary", itemtype="ads/library", creator=rahuldave.nick))
+    postdb.makeTag(currentuser,rahuldave, dict(tagtype="ads/library", creator=rahuldave.nick, name="rahulbrary"))
+    import simplejson as sj
+    papers=sj.loads(open("file.json").read())
+    currentuser=jayluker
+    for k in papers.keys():
+        paper={}
+        paper['name']=papers[k]['bibcode']
+        paper['creator']=jayluker.nick
+        paper['itemtype']='ads/pub'
+        print "========", paper
+        postdb.saveItem(currentuser, jayluker, paper)
+        print "paper", paper
+        postdb.postItemIntoGroup(currentuser,jayluker, "rahuldave/group:ml", "ads/"+paper['basic'].name)
+
+    #run this as rahuldave? Whats he point of useras then?
+    currentuser=rahuldave
+    postdb.saveItem(currentuser, rahuldave, dict(name="hello kitty", itemtype="ads/pub", creator=rahuldave.nick))
+    #postdb.commit()
+    postdb.saveItem(currentuser, rahuldave, dict(name="hello doggy", itemtype="ads/pub", creator=rahuldave.nick))
+    postdb.saveItem(currentuser, rahuldave, dict(name="hello barkley", itemtype="ads/pub", creator=rahuldave.nick))
+    postdb.saveItem(currentuser, rahuldave, dict(name="hello machka", itemtype="ads/pub", creator=rahuldave.nick))
+    print "here"
+    taggingdoc=postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/tag", creator=rahuldave.nick, name="stupid"))
+    postdb.tagItem(currentuser, rahuldave, "ads/hello barkley", dict(tagtype="ads/tag", creator=rahuldave.nick, name="stupid"))
+    print "W++++++++++++++++++"
+    postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/tag", creator=rahuldave.nick, name="dumb"))
+    postdb.tagItem(currentuser, rahuldave, "ads/hello doggy", dict(tagtype="ads/tag", creator=rahuldave.nick, name="dumb"))
+
+    postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/note",
+        creator=rahuldave.nick, name="somethingunique1", description="this is a note for the kitty", singletonmode=True))
+
+    postdb.tagItem(currentuser, rahuldave, "ads/hello doggy", dict(tagtype="ads/tag", creator=rahuldave.nick, name="dumbdog"))
+    postdb.tagItem(currentuser, rahuldave, "ads/hello doggy", dict(tagtype="ads/library", creator=rahuldave.nick, name="dumbdoglibrary"))
+    postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/note",
+        creator=rahuldave.nick, name="somethingunique2", description="this is a note for the doggy", singletonmode=True))
+
+    print "LALALALALA"
+    #Wen a tagging is posted to a group, the item should be autoposted into there too
+    #NOTE: actually this is taken care of by posting into group on tagging, and making sure tags are posted
+    #along with items into groups
+    postdb.postItemIntoGroup(currentuser,rahuldave, "rahuldave/group:ml", "ads/hello kitty")
+    postdb.postItemIntoGroup(currentuser,rahuldave, "adsgut/group:public", "ads/hello kitty")#public post
+    postdb.postItemIntoGroup(currentuser,rahuldave, "rahuldave/group:ml", "ads/hello doggy")
+    postdb.postItemIntoGroup(jayluker,jayluker, "rahuldave/group:ml", "ads/hello doggy")
+    #TODO: below NOT NEEDED GOT FROM DEFAULT: SHOULD IT ERROR OUT GRACEFULLY OR BE IDEMPOTENT?
+    postdb.postItemIntoApp(currentuser,rahuldave, "ads/app:publications", "ads/hello doggy")
+    # print "PTGS"
+    postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave/group:ml", taggingdoc)
+    # print "1"
+    # postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave@gmail.com/group:ml", "ads@adslabs.org/hello kitty", "rahuldave@gmail.com/ads@adslabs.org/tag:dumb")
+    # postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave@gmail.com/group:ml", "ads@adslabs.org/hello doggy", "rahuldave@gmail.com/ads@adslabs.org/tag:dumbdog")
+    # print "2"
+    # #bottom commented as now autoadded
+    # #postdb.postTaggingIntoApp(currentuser, rahuldave, "ads@adslabs.org/app:publications", "ads@adslabs.org/hello doggy", "rahuldave@gmail.com/ads@adslabs.org/tag:dumbdog")
+    # print "HOOCH"
+    # postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave@gmail.com/group:ml", "ads@adslabs.org/hello doggy", "rahuldave@gmail.com/ads@adslabs.org/tag2:dumbdog2")
+    # #postdb.saveItem(currentuser, rahuldave, datadict)
+    #
+def test_gets(db_session):
+    from whos import Whosdb
+    whosdb=Whosdb(db_session)
+    postdb=Postdb(db_session, whosdb)
+
+    currentuser=None
+    adsuser=whosdb.getUserForNick(currentuser, "ads")
+    currentuser=adsuser
+
+    rahuldave=whosdb.getUserForNick(currentuser, "rahuldave")
+    currentuser=rahuldave
+    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
+        [[{'field':'basic__name', 'op':'eq', 'value':'hello kitty'}]])
+    print "1++++", num, [v.basic.fqin for v in vals]
+    #now disallowed as we removed the fallthrough
+    # num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
+    #     [[{'field':'pingrps__postfqin', 'op':'eq', 'value':'rahuldave/group:ml'}]])
+    # print "2++++", num, [v.basic.fqin for v in vals]
+    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
+        [[{'field':'stags__tagname', 'op':'eq', 'value':'stupid'}]])
+    print "3++++", num, [v.basic.fqin for v in vals]
+    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
+        [[{'field':'pinlibs__tagname', 'op':'eq', 'value':'dumbdoglibrary'}]])
+    print "4++++", num, [v.basic.fqin for v in vals]
+    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
+        [[{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}]], 
+        {'user':False, 'type':'group', 'value':'rahuldave/group:ml'})
+    print "5++++", num, [v.basic.fqin for v in vals]
+    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave, 
+        [[{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}]], 
+        {'user':True, 'type':'group', 'value':'rahuldave/group:ml'})
+    print "6++++", num, [v.basic.fqin for v in vals]
+    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave,
+        [[{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}]],
+        {'user':False, 'type':'group', 'value':'rahuldave/group:ml'},
+        {'ascending':False, 'field':'basic__name'})
+    print "7++++", num, [v.basic.fqin for v in vals]
+    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave,
+        [[{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}]],
+        {'user':False, 'type':'group', 'value':'rahuldave/group:ml'},
+        {'ascending':False, 'field':'basic__name'},
+        (10, None))
+    print "8++++", num, [v.basic.fqin for v in vals]
+    num, vals=postdb.getItemsForItemspec(currentuser, rahuldave,
+        [[{'field':'basic__name', 'op':'ne', 'value':'hello kitty'}]],
+        {'user':False, 'type':'group', 'value':'rahuldave/group:ml'},
+        {'ascending':False, 'field':'basic__name'},
+        (5, 1))
+    print "9++++", num, len(vals), vals, vals[0].to_json()
+
+if __name__=="__main__":
+    db_session=connect("adsgut")
+    initialize_application(db_session)
+    #initialize_testing(db_session)
+    #test_gets(db_session)
