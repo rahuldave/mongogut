@@ -58,7 +58,7 @@ class Database():
         "gets the membable corresponding to the fqpn"
         ptype=gettype(fqpn)
         try:
-            postable=ptype.objects(basic__fqin=fqpn)
+            postable=ptype.objects(basic__fqin=fqpn).get()
         except:
             doabort('NOT_FND', "%s %s not found" % (classname(ptype), fqpn))
         return postable
@@ -115,6 +115,7 @@ class Database():
 
     #invitations only work for users for now, even tho we have a memberable. unprotected
     def isInvitedToMembable(self, currentuser, memberable, membable):
+        print "MEMBERABLE", memberable.to_json(), "MEMBABLE", membable.to_json()
         if memberable.basic.fqin in membable.inviteds:
             return True
         else:
@@ -214,6 +215,7 @@ class Database():
         #This is also added as root
         if not userspec['nick']=='adsgut':
             self.addMemberableToPostable(currentuser, currentuser, 'adsgut/app:adsgut', newuser.basic.fqin)
+        newuser.reload()
         return newuser
 
     #BUG: we want to blacklist users and relist them
@@ -244,10 +246,13 @@ class Database():
             newpe=PostableEmbedded(ptype=ptypestr,fqpn=newpostable.basic.fqin)
             res=userq.update(safe_update=True, push__postablesowned=newpe)
             #print "result", res, currentuser.groupsowned, currentuser.to_json()
+            
         except:
             doabort('BAD_REQ', "Failed adding postable %s %s" % (ptype.__name__, postablespec['basic'].fqin))
         self.addMemberableToPostable(currentuser, useras, newpostable.basic.fqin, newpostable.basic.creator)
-        return newpostable
+        #print "autoRELOAD?", userq.get().to_json()
+        newpostable.reload()
+        return userq.get(), newpostable
 
     def addGroup(self, currentuser, useras, groupspec):
         return self.addPostable(currentuser, useras, "group", groupspec)
@@ -270,6 +275,7 @@ class Database():
         return OK
 
     #BUG: there is no restriction here of what can be added to what in memberables and postables
+    #BUG: when do we use get and when not. And what makes sure the fqins are kosher?
     def addMemberableToPostable(self, currentuser, useras, fqpn, memberablefqin):
         "add a user, group, or app to a postable=group, app, or library"
         ptype=gettype(fqpn)
@@ -298,7 +304,8 @@ class Database():
             postableq.update(safe_update=True, push__members=memberablefqin)
         except:
             doabort('BAD_REQ', "Failed adding memberable %s %s to postable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
-        return memberablefqin
+        memberable.reload()
+        return memberable, postableq.get()
 
     def addUserToPostable(self, currentuser, fqpn, nick):
         user=self.getUserForNick(currentuser,nick)
@@ -331,13 +338,14 @@ class Database():
         "add a user, group, or app to a postable=group, app, or library"
         ptype=gettype(fqpn)
         mtype=gettype(memberablefqin)
+        #BUG: need exception handling here, also want to make sure no strange fqins are accepted
         membableq=ptype.objects(basic__fqin=fqpn)
         memberableq= mtype.objects(basic__fqin=memberablefqin)
         try:
             membableq.update(safe_update=True, push__members=memberablefqin)
         except:
             doabort('BAD_REQ', "Failed adding memberable %s %s to membable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
-        return memberablefqin
+        return memberableq.get(), membableq.get()
 
     #BUG: not really fleshed out as we need to handle refcounts and all that to see if objects ought to be removed.
     def removeMemberableFromMembable(self, currentuser, fqpn, memberablefqin):
@@ -370,10 +378,14 @@ class Database():
         try:
             pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin)
             userq.update(safe_update=True, push__postablesinvitedto=pe)
+            #BUG: ok to use fqin here instead of getting from oblect?
+            postable.update(safe_update=True, push__inviteds=usertobeaddedfqin)
+            #print "userq", userq.to_json()
         except:
             doabort('BAD_REQ', "Failed inviting user %s to postable %s" % (usertobeaddedfqin, fqpn))
         #print "IIIII", userq.get().groupsinvitedto
-        return usertobeaddedfqin
+        postable.reload()
+        return userq.get(), postable
 
     def inviteUserToPostableUsingNick(self, currentuser, fqpn, nick):
         "invite a user to a postable."
@@ -396,14 +408,15 @@ class Database():
         except:
             doabort('BAD_REQ', "No such postable %s %s" % (ptype.__name__,fqpn))
         authorize(False, self, currentuser, me)
-        permit(self.isInvitedToPostable(currentuser, me, postable.basic.fqin), "User %s must be invited to postable %s %s" % (mefqin, ptype.__name__,fqpn))
+        permit(self.isInvitedToPostable(currentuser, me, postable), "User %s must be invited to postable %s %s" % (mefqin, ptype.__name__,fqpn))
         try:
             pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin)
             userq.update(safe_update=True, push__postablesin=pe, pull__postablesinvitedto=pe)
-            postableq.update(safe_update=True, push__members=mefqin)
+            postableq.update(safe_update=True, push__members=mefqin, pull__inviteds=mefqin)
         except:
             doabort('BAD_REQ', "Failed in user %s accepting invite to gpostable %s %s" % (mefqin, ptype.__name__, fqpn))
-        return mefqin
+        me.reload()
+        return me, postableq.get()
 
     #changes postable ownership to a 'ownerable'
     def changeOwnershipOfPostable(self, currentuser, owner, fqpn, newownerfqpn):
@@ -445,7 +458,9 @@ class Database():
             #postable.update(safe_update=True, set__owner = newowner.basic.fqin, push__members=newowner.basic.fqin, pull__members=oldownerfqpn)
         except:
             doabort('BAD_REQ', "Failed changing owner from %s to %s for postable %s %s" % (oldownerfqpn, newowner.basic.fqin, ptype.__name__, fqpn))
-        return newowner
+        newowner.reload()
+        postable.reload()
+        return newowner, postable
 
     #group should be replaced by anything that can be the owner
     #dont want to use this for postables, even though they are ownable.
@@ -476,7 +491,9 @@ class Database():
             ownable.update(safe_update=True, set__owner = newowner.basic.fqin)
         except:
             doabort('BAD_REQ', "Failed changing owner from %s to %s for ownable %s %s" % (oldownerfqpn, newowner.basic.fqin, otype.__name__, fqon))
-        return newowner
+        newowner.reload()
+        ownable.reload()
+        return newowner, ownable
 
     def allUsers(self, currentuser):
         authorize_systemuser(False, self, currentuser)
@@ -515,14 +532,14 @@ def initialize_application(db_session):
     currentuser=adsgutuser
     print "Added Initial User, this should have added private group too"
     igspec=dict(personalgroup=False, name="public", description="Public Group")
-    publicgrp=whosdb.addGroup(currentuser, adsgutuser, igspec)
+    adsgutuser, publicgrp=whosdb.addGroup(currentuser, adsgutuser, igspec)
     print "Added Initial Public group"
-    adsgutapp=whosdb.addApp(currentuser, adsgutuser, dict(name='adsgut', description="The MotherShip App"))
+    adsgutuser, adsgutapp=whosdb.addApp(currentuser, adsgutuser, dict(name='adsgut', description="The MotherShip App"))
     print "Added Mothership app"
     adsuser=whosdb.addUser(currentuser, dict(nick='ads', adsid='ads'))
     print "Added ADS user"
     currentuser=adsuser
-    adspubsapp=whosdb.addApp(currentuser, adsuser, dict(name='publications', description="ADS's flagship publication app"))
+    adsuser, adspubsapp=whosdb.addApp(currentuser, adsuser, dict(name='publications', description="ADS's flagship publication app"))
     print "ADS user added publications app"
 
 def initialize_testing(db_session):
@@ -532,38 +549,38 @@ def initialize_testing(db_session):
     adsgutuser=whosdb.getUserForNick(currentuser, "adsgut")
     currentuser=adsgutuser
     rahuldave=whosdb.addUser(currentuser, dict(nick='rahuldave', adsid="rahuldave"))
-    mlg=whosdb.addGroup(rahuldave, rahuldave, dict(name='ml', description="Machine Learning Group"))
-    whosdb.addUserToPostable(currentuser, 'ads/app:publications', 'rahuldave')
+    rahuldave, mlg=whosdb.addGroup(rahuldave, rahuldave, dict(name='ml', description="Machine Learning Group"))
+    rahuldave, adspubapp=whosdb.addUserToPostable(currentuser, 'ads/app:publications', 'rahuldave')
     #rahuldave.applicationsin.append(adspubsapp)
     adsuser=whosdb.getUserForNick(currentuser, "ads")
     print "currentuser", currentuser.nick
     jayluker=whosdb.addUser(currentuser, dict(nick='jayluker', adsid="jayluker"))
-    whosdb.addUserToPostable(adsuser, 'ads/app:publications', 'jayluker')
+    jayluker, adspubapp=whosdb.addUserToPostable(adsuser, 'ads/app:publications', 'jayluker')
     #jayluker.applicationsin.append(adspubsapp)
     print "testing invite"
-    whosdb.inviteUserToPostableUsingNick(rahuldave, 'rahuldave/group:ml', 'jayluker')
+    jayluker, mlg=whosdb.inviteUserToPostableUsingNick(rahuldave, 'rahuldave/group:ml', 'jayluker')
     print "invited", jayluker.to_json()
 
-    whosdb.acceptInviteToPostable(jayluker, 'rahuldave/group:ml', jayluker.basic.fqin)
-    spg=whosdb.addGroup(jayluker, jayluker, dict(name='sp', description="Solr Programming Group"))
+    jayluker, mlg = whosdb.acceptInviteToPostable(jayluker, 'rahuldave/group:ml', jayluker.basic.fqin)
+    jayluker, spg=whosdb.addGroup(jayluker, jayluker, dict(name='sp', description="Solr Programming Group"))
     import random
     for i in range(20):
         r=random.choice([1,2])
         userstring='user'+str(i)
-        userst=whosdb.addUser(adsgutuser, dict(nick=userstring, adsid=userstring))
-        whosdb.addUserToPostable(adsuser, 'ads/app:publications', userstring)
+        user=whosdb.addUser(adsgutuser, dict(nick=userstring, adsid=userstring))
+        user, adspubapp = whosdb.addUserToPostable(adsuser, 'ads/app:publications', userstring)
 
         if r==1:
-            whosdb.inviteUserToPostableUsingNick(rahuldave, 'rahuldave/group:ml', userstring)
+            user, mlg=whosdb.inviteUserToPostableUsingNick(rahuldave, 'rahuldave/group:ml', userstring)
         else:
-            whosdb.inviteUserToPostableUsingNick(jayluker, 'jayluker/group:sp', userstring)
+            user, spg=whosdb.inviteUserToPostableUsingNick(jayluker, 'jayluker/group:sp', userstring)
     #whosdb.addGroupToApp(currentuser, 'ads@adslabs.org/app:publications', 'adsgut@adslabs.org/group:public', None )
     #public.applicationsin.append(adspubsapp)
     #rahuldavedefault.applicationsin.append(adspubsapp)
-    rahuldave.reload()
 
     print "ending init", whosdb.ownerOfPostables(rahuldave, rahuldave), whosdb.ownerOfPostables(rahuldave, rahuldave, "group")
-    print rahuldave.to_json()
+    print "=============================="
+    print rahuldave.to_json(), mlg.to_json()
 
 if __name__=="__main__":
     db_session=connect("adsgut")

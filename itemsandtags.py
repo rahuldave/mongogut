@@ -99,6 +99,7 @@ class Postdb(Database):
         try:
             itemtype=ItemType(**typespec)
             itemtype.save(safe=True)
+            itemtype.reload()
         except:
             # import sys
             # print sys.exc_info()
@@ -124,6 +125,7 @@ class Postdb(Database):
         try:
             tagtype=TagType(**typespec)
             tagtype.save(safe=True)
+            tagtype.reload()
         except:
             doabort('BAD_REQ', "Failed adding tagtype %s" % typespec['fqin'])
         return tagtype
@@ -164,6 +166,7 @@ class Postdb(Database):
                 thingtoposttype=item.itemtype)
             postingdoc=PostingDocument(thing=newposting)
             postingdoc.save(safe=True)
+            postingdoc.reload()
             #Not sure instance updates work but we shall try.
             item.update(safe_update=True, push__pinpostables=newposting)
         except:
@@ -243,6 +246,7 @@ class Postdb(Database):
                 print "ITSPEC", itemspec
                 newitem=Item(**itemspec)
                 newitem.save(safe=True)
+                newitem.reload()
                 # print "Newitem is", newitem.info()
             except:
                 # import sys
@@ -333,6 +337,7 @@ class Postdb(Database):
                     doabort('NOT_AUT', "Not authorized for tag %s" % tagspec['basic'].fqin)
                 tag=Tag(**tagspec)
                 tag.save(safe=True)
+                tag.reload()
                 #can obviously use tag if i created it
             except:
                 doabort('BAD_REQ', "Failed making tag %s" % tagspec['basic'].fqin)
@@ -379,6 +384,7 @@ class Postdb(Database):
                 #itemtag.save(safe=True)
                 taggingdoc=TaggingDocument(thething=itemtag)
                 taggingdoc.save(safe=True)
+                taggingdoc.reload()
                 print "LALALALALALALALA990"
                 itemtobetagged.update(safe_update=True, push__stags=itemtag)
             except:

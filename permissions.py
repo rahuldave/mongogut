@@ -100,8 +100,8 @@ def authorize_membable_member(authstart, db, currentuser, memberable, cobj):
 authorize_postable_member=authorize_membable_member
 #bug fix for useras being a memberable. would seem to be ok otherwise?
 def authorize_ownable_owner(authstart, db, currentuser, memberable, cobj):
-    print currentuser, memberable, cobj
-    print currentuser.basic.fqin, memberable.basic.fqin, cobj.basic.fqin
+    print ">>>",currentuser, memberable, cobj
+    print "<<<", currentuser.basic.fqin, memberable.basic.fqin, cobj.basic.fqin
     permit(currentuser!=None, "must be logged in")
     #what if useras is a group? see the elif. otherwise user musr be currentuser
     if classtype(memberable)==User:
