@@ -95,11 +95,11 @@ def augmentitspec(specdict, spectype="item"):
         basicdict['description']=specdict.get('description','')
         #BUG:item is different. should it be so?
         if spectype=="item":
-            specdict['itemtype']=specdict.get('itemtype','adsgut/item')
+            specdict=musthavekeys(specdict,['itemtype'])
             itemtypens=specdict['itemtype'].split('/')[0]
             basicdict['fqin']=itemtypens+"/"+specdict['name']
         else:
-            specdict['tagtype']=specdict.get('tagtype','ads/tag')
+            specdict=musthavekeys(specdict,['tagtype'])
             specdict['owner']=basicdict['creator']
             #tag, note, library, group and app are reserved and treated as special forms
             basicdict['fqin']=specdict['creator']+"/"+specdict['tagtype']+':'+specdict['name']

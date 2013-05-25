@@ -26,8 +26,8 @@ class Database():
     #this one is completely UNPROTECTED
     def getUserForNick(self, currentuser, nick):
         "gets user for nick"
-        print "ingetuser", [e.nick for e in User.objects]
-        print "nick", nick
+        #print "ingetuser", [e.nick for e in User.objects]
+        #print "nick", nick
         try:
             user=User.objects(nick=nick).get()
         except:
@@ -552,6 +552,7 @@ def initialize_testing(db_session):
     currentuser=adsgutuser
     rahuldave=whosdb.addUser(currentuser, dict(nick='rahuldave', adsid="rahuldave"))
     rahuldave, mlg=whosdb.addGroup(rahuldave, rahuldave, dict(name='ml', description="Machine Learning Group"))
+    rahuldave, mll=whosdb.addLibrary(rahuldave, rahuldave, dict(name='mll', description="Machine Learning Library"))
     rahuldave, adspubapp=whosdb.addUserToPostable(currentuser, 'ads/app:publications', 'rahuldave')
     #rahuldave.applicationsin.append(adspubsapp)
     adsuser=whosdb.getUserForNick(currentuser, "ads")
@@ -565,6 +566,8 @@ def initialize_testing(db_session):
 
     jayluker, mlg = whosdb.acceptInviteToPostable(jayluker, 'rahuldave/group:ml', jayluker.basic.fqin)
     jayluker, spg=whosdb.addGroup(jayluker, jayluker, dict(name='sp', description="Solr Programming Group"))
+    jayluker, spl=whosdb.addLibrary(jayluker, jayluker, dict(name='spl', description="Solr Programming Library"))
+    rahuldave, spg=whosdb.addUserToPostable(jayluker, 'jayluker/group:sp', 'rahuldave')
     import random
     for i in range(20):
         r=random.choice([1,2])

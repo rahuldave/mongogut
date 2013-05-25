@@ -15,14 +15,18 @@ from blinker import signal
 
 #BUG:replace obj by the sender
 def receiver(f):
-    def realreceiver(sender, data):
+    print "SETTING UP SIGNAL"
+    def realreceiver(sender, **data):
+        print "In real reciever", data,f
         otherargs={}
-        if e not in ['obj', 'currentuser', 'useras']:
-            otherargs[e]=data[e]
+        for e in data.keys():
+            if e not in ['obj', 'currentuser', 'useras']:
+                otherargs[e]=data[e]
         obj=data['obj']
         currentuser=data['currentuser']
         useras=data['useras']
-        val=f(obj, currentuser, useras, **otherargs)
+        print "OTHERARGS", otherargs
+        val=f(currentuser, useras, **otherargs)
         return val
     return realreceiver
 
@@ -42,12 +46,16 @@ class Postdb():
         self.isMemberOfPostable=self.whosdb.isMemberOfPostable
         self.isMemberOfMembable=self.whosdb.isMemberOfMembable
         self.signals={}
+        #CHECK taking out  receiver(self.recv_postTaggingIntoItemtypesApp) 
+        # and receiver(self.recv_postTaggingIntoPersonal), from tagged items as will happen by appr.
+        #postables. General BUG tho that we can post taggings multiple times. Add check
+
         SIGNALS={
             "saved-item":[receiver(self.recv_postItemIntoPersonal), receiver(self.recv_postItemIntoItemtypesApp)],
             "added-to-group":[receiver(self.recv_postItemIntoPersonal), receiver(self.recv_spreadOwnedTaggingIntoPostable)],
-            "tagged-item":[receiver(self.recv_postTaggingIntoPersonal), 
-                        receiver(self.recv_spreadTaggingToAppropriatePostables),
-                        receiver(self.recv_postTaggingIntoItemtypesApp)
+            "save-to-personal-group-if-not":[receiver(self.recv_postItemIntoPersonal)],
+            "tagged-item":[
+                        receiver(self.recv_spreadTaggingToAppropriatePostables)
                     ],
             "tagmode-changed":[receiver(self.recv_spreadTaggingToAppropriatePostables)],
             "added-to-app":[receiver(self.recv_spreadOwnedTaggingIntoPostable)],
@@ -55,8 +63,11 @@ class Postdb():
         }
         for ele in SIGNALS:
             self.signals[ele]=signal(ele)
+            print ele, len(SIGNALS[ele])
             for r in SIGNALS[ele]:
-                self.signals[ele].connect(r, sender=self)
+                self.signals[ele].connect(r, sender=self, weak=False)
+            #print "[[]]", self.signals[ele], self.signals[ele].receivers
+        print "ssiiggnnaallss", self.signals['saved-item'].receivers
 
     def _getItemType(self, currentuser, fullyQualifiedItemType):
         try:
@@ -167,16 +178,16 @@ class Postdb():
         typename=getNSTypeNameFromInstance(postable)
         item=self._getItem(currentuser, itemfqin)
         #Does the False have something to do with this being ok if it fails?BUG
-        permit(self.isMemberOfPostable(useras, postable),
+        permit(self.isMemberOfPostable(currentuser, useras, postable),
             "Only member of %s %s can post into it" % (typename, postable.basic.fqin))
         postablefqpns=[ele.postfqin for ele in item.pinpostables]
         if fqpn in postablefqpns:
             return item
         try:#BUG:what if its already there? Now fixed?
-            newposting=Post(postfqin=grp.basic.fqin, posttype=getNSTypeName(fqpn), 
+            newposting=Post(postfqin=postable.basic.fqin, posttype=getNSTypeName(fqpn), 
                 postedby=useras.basic.fqin, thingtopostfqin=itemfqin, 
                 thingtoposttype=item.itemtype)
-            postingdoc=PostingDocument(thing=newposting)
+            postingdoc=PostingDocument(thething=newposting)
             postingdoc.save(safe=True)
             postingdoc.reload()
             #Not sure instance updates work but we shall try.
@@ -189,28 +200,31 @@ class Postdb():
         personalfqgn=useras.nick+"/group:default"
         #not sure below is needed. Being defensive CHECK
         if postable.basic.fqin!=personalfqgn:
+            print "RUNNING FOR", typename, postable.basic.fqin
             self.signals['added-to-'+typename].send(self, obj=self, currentuser=currentuser, useras=useras, itemfqin=itemfqin, fqpn=fqpn)
-        return item
+        item.reload()
+        return item, postingdoc
 
     def postItemIntoGroup(self, currentuser, useras, fqgn, itemfqin):
-        item=postItemIntoPostable(self, currentuser, useras, fqpn, itemfqin)
+        item=self.postItemIntoPostable(currentuser, useras, fqgn, itemfqin)
         return item
 
     def recv_postItemIntoPersonal(self, currentuser, useras, **kwargs):
         kwargs=musthavekeys(kwargs,['itemfqin'])
+        print "POST ITEM INTO PERSONAL", kwargs
         itemfqin=kwargs['itemfqin']
         personalfqgn=useras.nick+"/group:default"
         item=self._getItem(currentuser, itemfqin)
         if personalfqgn not in [ptt.postfqin for ptt in item.pinpostables]:
             print "NOT IN PERSONAL GRP"
-            self.postItemIntoPostable(currentuser, useras, personalfqgn, itemfqin)
+            self.postItemIntoGroup(currentuser, useras, personalfqgn, itemfqin)
 
     def postItemIntoApp(self, currentuser, useras, fqan, itemfqin):
-        item=postItemIntoPostable(self, currentuser, useras, fqan, itemfqin)
+        item=self.postItemIntoPostable(currentuser, useras, fqan, itemfqin)
         return item
 
     def postItemIntoLibrary(self, currentuser, useras, fqln, itemfqin):
-        item=postItemIntoPostable(self, currentuser, useras, fqln, itemfqin)
+        item=self.postItemIntoPostable(currentuser, useras, fqln, itemfqin)
         return item
 
     def removeItemFromPostable(self, currentuser, useras, fqpn, itemfqin):
@@ -235,6 +249,7 @@ class Postdb():
 
     def recv_postItemIntoItemtypesApp(self, currentuser, useras, **kwargs):
         kwargs=musthavekeys(kwargs,['itemfqin'])
+        print "POST ITEM INTO ITEMTYPES APP", kwargs
         itemfqin=kwargs['itemfqin']
         item=self._getItem(currentuser, itemfqin)
         fqan=self._getItemType(currentuser, item.itemtype).postable
@@ -244,8 +259,10 @@ class Postdb():
         #permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
         authorize(False, self, currentuser, useras)#sysadmin or any logged in user where but cu and ua must be same
         personalfqgn=useras.nick+"/group:default"
+        itemspec['creator']=useras.basic.fqin
         itemspec=augmentitspec(itemspec)
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
+        print "ITEMSPEC", itemspec, itemspec['basic'].to_json()
         try:
             print "was the item found?"
             newitem=self._getItem(currentuser, itemspec['basic'].fqin)
@@ -265,6 +282,7 @@ class Postdb():
                 # print sys.exc_info()
                 doabort('BAD_REQ', "Failed adding item %s" % itemspec['basic'].fqin)
 
+        print "RECEIBERS", self.signals['saved-item'], self.signals['saved-item'].receivers
         self.signals['saved-item'].send(self, obj=self, currentuser=currentuser, useras=useras, itemfqin=newitem.basic.fqin)
         #not needed due to above:self.postItemIntoGroup(currentuser, useras, personalfqgn, newitem.basic.fqin)
         print '**********************'
@@ -315,22 +333,19 @@ class Postdb():
         return False
 
     #can pattern below be refactored out?
+    #BUG: currently only works for user creating tag. But i think this should be the way it is
+    #only users can create tags. Groups etc can own them. perhaps a CREATABLE interface?
     def canCreateThisTag(self, currentuser, useras, tagtype):
         "return true is this user can use this tag from access to tagtype, namespace, etc"
-        tagype=self._getTagType(currentuser, tagtype)
-        ttowner=tagtype.owner
-        ttownertype=gettype(ttowner)
-        if ttownertype==User:
-            if useras.basic.fqin==ttowner:
-                return True
-        elif ttownertype in POSTABLES:
-            postable=self.getPostable(currentuser,ttowner)
-            if self.isMemberOfPostable(currentuser, useras, postable):
+        tagtype=self._getTagType(currentuser, tagtype)
+        postable=self.whosdb.getPostable(currentuser, tagtype.postable)  
+        if self.isMemberOfPostable(currentuser, useras, postable):
                 return True
         return False
 
     #this is done for making a standalone tag, without tagging anything with it
     def makeTag(self, currentuser, useras, tagspec, tagmode=False):
+        tagspec['creator']=useras.basic.fqin
         tagspec=augmentitspec(tagspec, spectype='tag')
         authorize(False, self, currentuser, useras)
 
@@ -338,8 +353,7 @@ class Postdb():
             print "was tha tag found"
             #this gets the tag regardless of if you are allowed to.
             tag=self._getTag(currentuser, tagspec['basic'].fqin)
-            if not self.canUseThisTag(currentuser, useras, tag):
-                doabort('NOT_AUT', "Not authorized for tag %s" % tagspec['basic'].fqin)      
+                  
         except:
             #it wasnt, make it
             try:
@@ -353,7 +367,9 @@ class Postdb():
                 #can obviously use tag if i created it
             except:
                 doabort('BAD_REQ', "Failed making tag %s" % tagspec['basic'].fqin)
-      
+        print "TAG FOUND OR MADE", tag.basic.fqin
+        if not self.canUseThisTag(currentuser, useras, tag):
+            doabort('NOT_AUT', "Not authorized for tag %s" % tagspec['basic'].fqin)
         return tag
 
     #BUG: not creating a delete tag until we know what it means
@@ -402,10 +418,14 @@ class Postdb():
             except:
                 doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s" % (itemtobetagged.basic.fqin, tag.basic.fqin))
             #print "adding to %s" % personalfqgn
+            self.signals['save-to-personal-group-if-not'].send(self, obj=self, currentuser=currentuser, useras=useras, 
+                itemfqin=itemtobetagged.basic.fqin)
+            #now since in personal group, appropriate postables will pick it up
             self.signals['tagged-item'].send(self, obj=self, currentuser=currentuser, useras=useras, 
                 taggingdoc=taggingdoc, tagmode=tagmode, itemfqin=itemtobetagged.basic.fqin)
         #if itemtag found just return it, else create, add to group, return
-        return taggingdoc
+        itemtobetagged.reload()
+        return itemtobetagged, taggingdoc
 
     def untagItem(self, currentuser, useras, fullyQualifiedTagName, fullyQualifiedItemName):
         #Do not remove item, do not remove tag, do not remove tagging
@@ -453,7 +473,8 @@ class Postdb():
     #As it is now it will automatically post YOUR tags to apps, libraries, groups you are a member of
     #if tagmode allows it
     def recv_spreadTaggingToAppropriatePostables(self, currentuser, useras, **kwargs):
-        kwargs=musthavekeys(kwargs,['tagmode', 'itemfqin', 'tagdoc'])
+        kwargs=musthavekeys(kwargs,['tagmode', 'itemfqin', 'taggingdoc'])
+        print "0000kwargs", kwargs
         itemfqin=kwargs['itemfqin']
         taggingdoc=kwargs['taggingdoc']
         tagmode=kwargs['tagmode']
@@ -462,31 +483,35 @@ class Postdb():
         if not tagmode:
             postablesin=[]
             for ptt in item.pinpostables:
-                if self.whosdb.isMemberOfPostable(currentuser, useras, ptt):
-                    postablesin.append(ptt)
+                pttfqin=ptt.postfqin
+                #BUG: many database hits. perhaps cached? if not do it or query better.
+                postable=self.whosdb.getPostable(currentuser, pttfqin)
+                if self.whosdb.isMemberOfPostable(currentuser, useras, postable):
+                    postablesin.append(postable)
             for postable in postablesin:
-                self.postTaggingIntoPostable(currentuser, useras, postables.basic.fqin, taggingdoc)
+                self.postTaggingIntoPostable(currentuser, useras, postable.basic.fqin, taggingdoc)
 
     #this one reacts to the posted-to-postable kind of signal. It takes the taggings on the item that I made and
     def recv_spreadOwnedTaggingIntoPostable(self, currentuser, useras, **kwargs):
         kwargs=musthavekeys(kwargs,['itemfqin', 'fqpn'])
         itemfqin=kwargs['itemfqin']
-        fqpn=kwargs['itemfqpn']
-        itemtobetagged=self._getItem(currentuser, itemfqin)
+        fqpn=kwargs['fqpn']
+        item=self._getItem(currentuser, itemfqin)
         personalfqgn=useras.nick+"/group:default"
         taggingstopost=[]
         #Now note this will NOT do libraries. BUG: have we changed model to group is member of libraries? i think so
+        print "ITEM.STAGS", item.stags
         for tagging in item.stags:
-            if stagging.postedby==useras.basic.fqin:#you did this tagging
+            if tagging.postedby==useras.basic.fqin:#you did this tagging
                 taggingstopost.append(tagging)
         for tagging in taggingstopost:
             #BUG:not sure this will work, searching on a full embedded doc, at the least it would be horribly slow
             #so we shall map instead on some thething properties
-            taggingdoc=TaggingDocument.objects(thething__postfqin=tagging__postfqin, 
-                    thething__thingtopostfqin=tagging_thingtopostfqin, 
-                    thething__postedby=tagging_postedby)
+            taggingdoc=TaggingDocument.objects(thething__postfqin=tagging.postfqin, 
+                    thething__thingtopostfqin=tagging.thingtopostfqin, 
+                    thething__postedby=tagging.postedby).get()
             #if tagmode allows us to post it, then we post it. This could be made faster later
-            if not _getTagType(tagging.tagtype).tagmode:
+            if not self._getTagType(currentuser, tagging.tagtype).tagmode:
                 self.postTaggingIntoPostable(currentuser, useras, fqpn, taggingdoc)
 
     #BUG only do if postable does not exist
@@ -495,19 +520,26 @@ class Postdb():
         postable=self.whosdb.getPostable(currentuser, fqpn)
         authorize_postable_owner(False, self, currentuser, useras, postable)
 
-        permit(self.whosdb.isMemberOfPostable(useras, postable),
+        permit(self.whosdb.isMemberOfPostable(currentuser, useras, postable),
             "Only member of postable %s can post into it" % postable.basic.fqin)
-        permit(useras.nick==itemtag.postedby,
-            "Only creator of tag can post into group %s" % postable.basic.fqin)
+        #Now that we are allowing posting via canuse thistag
+        # permit(useras.nick==itemtag.postedby,
+        #     "Only creator of tag can post into group %s" % postable.basic.fqin)
         #item=self._getItem(currentuser, itemtag.thingtopostfqin)
+        tag=self._getTag(currentuser, itemtag.postfqin)
+        if not self.canUseThisTag(currentuser, useras, tag):
+            doabort('NOT_AUT', "Not authorized for tag %s" % tag.basic.fqin)
         postablefqpns =[ele.postfqin for ele in taggingdoc.pinpostables]
+        #CHECK: if you alreasy posted this we should be done. CHECK API
+        #BUG: why does this yet have no routing. this is the big question associated
+        #with posting notes public and stuff.
         if fqpn in postablefqpns:
             return taggingdoc
         try:
-            newposting=Post(postfqin=postable.basic.fqin, posttype=getNSTypeName(postable),
+            newposting=Post(postfqin=postable.basic.fqin, posttype=getNSTypeNameFromInstance(postable),
                 postedby=useras.nick, thingtopostfqin=itemtag.postfqin, thingtoposttype=itemtag.thingtoposttype)
             taggingdoc.update(safe_update=True, push__pinpostables=newposting)
-            tag=self._getTag(currentuser, itemtag.postfqin)
+            
             #BUG:postables will be pushed multiple times here. How to unique?
             tag.update(safe_update=True, push__members=postable.basic.fqin)
         except:
@@ -534,7 +566,7 @@ class Postdb():
 
 
     def postTaggingIntoGroup(self, currentuser, useras, fqgn, taggingdoc):
-        itemtag=postTaggingIntoPostable(self, currentuser, useras, fqgn, taggingdoc)
+        itemtag=self.postTaggingIntoPostable(currentuser, useras, fqgn, taggingdoc)
         return itemtag
 
     def recv_postTaggingIntoPersonal(self, currentuser, useras, **kwargs):
@@ -544,11 +576,11 @@ class Postdb():
         self.postTaggingIntoGroup(currentuser, useras, personalfqgn, taggingdoc)
 
     def postTaggingIntoApp(self, currentuser, useras, fqan, taggingdoc):
-        itemtag=postTaggingIntoPostable(self, currentuser, useras, fqan, taggingdoc)
+        itemtag=self.postTaggingIntoPostable(currentuser, useras, fqan, taggingdoc)
         return itemtag
 
     def postTaggingIntoLibrary(self, currentuser, useras, fqln, taggingdoc):
-        itemtag=postTaggingIntoPostable(self, currentuser, useras, fqln, taggingdoc)
+        itemtag=self.postTaggingIntoPostable(currentuser, useras, fqln, taggingdoc)
         return itemtag
 
     def removeTaggingFromGroup(self, currentuser, useras, fqgn, itemfqin, tagfqin):
@@ -901,66 +933,83 @@ def initialize_application(sess):
 
 
 def initialize_testing(db_session):
-    from whos import Whosdb
-    whosdb=Whosdb(db_session)
-    postdb=Postdb(db_session, whosdb)
-
     currentuser=None
-    adsuser=whosdb.getUserForNick(currentuser, "ads")
+    print '(((((((((((((((((0000000000000000000000)))))))))))))))))))))'
+    postdb=Postdb(db_session)
+    whosdb=postdb.whosdb
+    print "getting adsgutuser"
+    adsgutuser=whosdb.getUserForNick(currentuser, "adsgut")
+    print "getting adsuser"
+    adsuser=whosdb.getUserForNick(adsgutuser, "ads")
+
     currentuser=adsuser
 
     rahuldave=whosdb.getUserForNick(currentuser, "rahuldave")
     jayluker=whosdb.getUserForNick(currentuser, "jayluker")
-    currentuser=rahuldave
-    #postdb.saveItem(currentuser, rahuldave, dict(name="rahulbrary", itemtype="ads/library", creator=rahuldave.nick))
-    postdb.makeTag(currentuser,rahuldave, dict(tagtype="ads/library", creator=rahuldave.nick, name="rahulbrary"))
+
+
     import simplejson as sj
     papers=sj.loads(open("file.json").read())
-    currentuser=jayluker
+    users=[rahuldave, jayluker]
+    import random
+    thedict={}
     for k in papers.keys():
+        r=random.choice([0,1])
+        user=users[r]
         paper={}
         paper['name']=papers[k]['bibcode']
-        paper['creator']=jayluker.nick
-        paper['itemtype']='ads/pub'
+        #paper['creator']=user.basic.fqin
+        paper['itemtype']='ads/itemtype:pub'
         print "========", paper
-        postdb.saveItem(currentuser, jayluker, paper)
-        print "paper", paper
-        postdb.postItemIntoGroup(currentuser,jayluker, "rahuldave/group:ml", "ads/"+paper['basic'].name)
+        item=postdb.saveItem(user, user, paper)
+        print "------------------------------"
+        item, postingdoc = postdb.postItemIntoGroup(user,user, "rahuldave/group:ml", item.basic.fqin)
+        thedict[k]=item
 
+    TAGS=['sexy', 'ugly', 'important', 'boring']
+    for k in thedict.keys():
+        tstr=random.choice(TAGS)
+        r=random.choice([0,1])
+        user=users[r]
+        postdb.tagItem(user, user, thedict[k].basic.fqin, dict(tagtype="ads/tagtype:tag", name=tstr))
+    for k in thedict.keys():
+        r=random.choice([0,1])
+        user=users[r]
+        postdb.postItemIntoGroup(user, user, 'jayluker/group:sp', thedict[k].basic.fqin)
     #run this as rahuldave? Whats he point of useras then?
-    currentuser=rahuldave
-    postdb.saveItem(currentuser, rahuldave, dict(name="hello kitty", itemtype="ads/pub", creator=rahuldave.nick))
-    #postdb.commit()
-    postdb.saveItem(currentuser, rahuldave, dict(name="hello doggy", itemtype="ads/pub", creator=rahuldave.nick))
-    postdb.saveItem(currentuser, rahuldave, dict(name="hello barkley", itemtype="ads/pub", creator=rahuldave.nick))
-    postdb.saveItem(currentuser, rahuldave, dict(name="hello machka", itemtype="ads/pub", creator=rahuldave.nick))
-    print "here"
-    taggingdoc=postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/tag", creator=rahuldave.nick, name="stupid"))
-    postdb.tagItem(currentuser, rahuldave, "ads/hello barkley", dict(tagtype="ads/tag", creator=rahuldave.nick, name="stupid"))
-    print "W++++++++++++++++++"
-    postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/tag", creator=rahuldave.nick, name="dumb"))
-    postdb.tagItem(currentuser, rahuldave, "ads/hello doggy", dict(tagtype="ads/tag", creator=rahuldave.nick, name="dumb"))
+    # currentuser=rahuldave
+    # postdb.saveItem(currentuser, rahuldave, dict(name="hello kitty", itemtype="ads/pub", creator=rahuldave.nick))
+    # #postdb.commit()
+    # postdb.saveItem(currentuser, rahuldave, dict(name="hello doggy", itemtype="ads/pub", creator=rahuldave.nick))
+    # postdb.saveItem(currentuser, rahuldave, dict(name="hello barkley", itemtype="ads/pub", creator=rahuldave.nick))
+    # postdb.saveItem(currentuser, rahuldave, dict(name="hello machka", itemtype="ads/pub", creator=rahuldave.nick))
+    # print "here"
+    # taggingdoc=postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/tag", creator=rahuldave.nick, name="stupid"))
+    # postdb.tagItem(currentuser, rahuldave, "ads/hello barkley", dict(tagtype="ads/tag", creator=rahuldave.nick, name="stupid"))
+    # print "W++++++++++++++++++"
+    # postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/tag", creator=rahuldave.nick, name="dumb"))
+    # postdb.tagItem(currentuser, rahuldave, "ads/hello doggy", dict(tagtype="ads/tag", creator=rahuldave.nick, name="dumb"))
 
-    postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/note",
-        creator=rahuldave.nick, name="somethingunique1", description="this is a note for the kitty", singletonmode=True))
+    # postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/note",
+    #     creator=rahuldave.nick, name="somethingunique1", description="this is a note for the kitty", singletonmode=True))
 
-    postdb.tagItem(currentuser, rahuldave, "ads/hello doggy", dict(tagtype="ads/tag", creator=rahuldave.nick, name="dumbdog"))
-    postdb.tagItem(currentuser, rahuldave, "ads/hello doggy", dict(tagtype="ads/library", creator=rahuldave.nick, name="dumbdoglibrary"))
-    postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/note",
-        creator=rahuldave.nick, name="somethingunique2", description="this is a note for the doggy", singletonmode=True))
+    # postdb.tagItem(currentuser, rahuldave, "ads/hello doggy", dict(tagtype="ads/tag", creator=rahuldave.nick, name="dumbdog"))
+    # postdb.tagItem(currentuser, rahuldave, "ads/hello doggy", dict(tagtype="ads/library", creator=rahuldave.nick, name="dumbdoglibrary"))
+    # postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/note",
+    #     creator=rahuldave.nick, name="somethingunique2", description="this is a note for the doggy", singletonmode=True))
 
-    print "LALALALALA"
-    #Wen a tagging is posted to a group, the item should be autoposted into there too
-    #NOTE: actually this is taken care of by posting into group on tagging, and making sure tags are posted
-    #along with items into groups
-    postdb.postItemIntoGroup(currentuser,rahuldave, "rahuldave/group:ml", "ads/hello kitty")
-    postdb.postItemIntoGroup(currentuser,rahuldave, "adsgut/group:public", "ads/hello kitty")#public post
-    postdb.postItemIntoGroup(currentuser,rahuldave, "rahuldave/group:ml", "ads/hello doggy")
-    postdb.postItemIntoGroup(jayluker,jayluker, "rahuldave/group:ml", "ads/hello doggy")
-    #TODO: below NOT NEEDED GOT FROM DEFAULT: SHOULD IT ERROR OUT GRACEFULLY OR BE IDEMPOTENT?
-    postdb.postItemIntoApp(currentuser,rahuldave, "ads/app:publications", "ads/hello doggy")
-    # print "PTGS"
-    postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave/group:ml", taggingdoc)
+    # print "LALALALALA"
+    # #Wen a tagging is posted to a group, the item should be autoposted into there too
+    # #NOTE: actually this is taken care of by posting into group on tagging, and making sure tags are posted
+    # #along with items into groups
+    # postdb.postItemIntoGroup(currentuser,rahuldave, "rahuldave/group:ml", "ads/hello kitty")
+    # postdb.postItemIntoGroup(currentuser,rahuldave, "adsgut/group:public", "ads/hello kitty")#public post
+    # postdb.postItemIntoGroup(currentuser,rahuldave, "rahuldave/group:ml", "ads/hello doggy")
+    # postdb.postItemIntoGroup(jayluker,jayluker, "rahuldave/group:ml", "ads/hello doggy")
+    # #TODO: below NOT NEEDED GOT FROM DEFAULT: SHOULD IT ERROR OUT GRACEFULLY OR BE IDEMPOTENT?
+    # postdb.postItemIntoApp(currentuser,rahuldave, "ads/app:publications", "ads/hello doggy")
+    # # print "PTGS"
+    # postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave/group:ml", taggingdoc)
     # print "1"
     # postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave@gmail.com/group:ml", "ads@adslabs.org/hello kitty", "rahuldave@gmail.com/ads@adslabs.org/tag:dumb")
     # postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave@gmail.com/group:ml", "ads@adslabs.org/hello doggy", "rahuldave@gmail.com/ads@adslabs.org/tag:dumbdog")
@@ -1024,5 +1073,5 @@ def test_gets(db_session):
 if __name__=="__main__":
     db_session=connect("adsgut")
     initialize_application(db_session)
-    #initialize_testing(db_session)
+    initialize_testing(db_session)
     #test_gets(db_session)
