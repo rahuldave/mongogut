@@ -1,4 +1,5 @@
 from classes import *
+import uuid
 import sys
 import config
 from permissions import permit, authorize, authorize_systemuser, authorize_loggedin_or_systemuser
@@ -47,7 +48,7 @@ class Postdb():
         self.isMemberOfMembable=self.whosdb.isMemberOfMembable
         self.signals={}
         #CHECK taking out  receiver(self.recv_postTaggingIntoItemtypesApp) 
-        # and receiver(self.recv_postTaggingIntoPersonal), from tagged items as will happen by appr.
+        # , from tagged items as will happen by appr.
         #postables. General BUG tho that we can post taggings multiple times. Add check
 
         SIGNALS={
@@ -55,7 +56,7 @@ class Postdb():
             "added-to-group":[receiver(self.recv_postItemIntoPersonal), receiver(self.recv_spreadOwnedTaggingIntoPostable)],
             "save-to-personal-group-if-not":[receiver(self.recv_postItemIntoPersonal)],
             "tagged-item":[
-                        receiver(self.recv_spreadTaggingToAppropriatePostables)
+                        receiver(self.recv_spreadTaggingToAppropriatePostables), receiver(self.recv_postTaggingIntoPersonal)
                     ],
             "tagmode-changed":[receiver(self.recv_spreadTaggingToAppropriatePostables)],
             "added-to-app":[receiver(self.recv_spreadOwnedTaggingIntoPostable)],
@@ -344,9 +345,7 @@ class Postdb():
         return False
 
     #this is done for making a standalone tag, without tagging anything with it
-    def makeTag(self, currentuser, useras, tagspec, tagmode=False):
-        tagspec['creator']=useras.basic.fqin
-        tagspec=augmentitspec(tagspec, spectype='tag')
+    def makeTag(self, currentuser, useras, tagspec):
         authorize(False, self, currentuser, useras)
 
         try:
@@ -361,6 +360,7 @@ class Postdb():
                 #not needed for now tags dont have members tagspec['push__members']=useras.nick
                 if not self.canCreateThisTag(currentuser, useras, tagspec['tagtype']):
                     doabort('NOT_AUT', "Not authorized for tag %s" % tagspec['basic'].fqin)
+                
                 tag=Tag(**tagspec)
                 tag.save(safe=True)
                 tag.reload()
@@ -377,11 +377,27 @@ class Postdb():
     def deleteTag(self, currentuser, useras, fqtn):
         pass
 
-    def tagItem(self, currentuser, useras, fullyQualifiedItemName, tagspec, tagmode=False):
+    #tagspec here needs to have name and tagtype, this gives, given the useras, the fqtn and allows
+    #us to create a new tag or tag an item with an existing tag. If you want to use someone elses tag, 
+    #on the assumption u are allowed to (as code in makeTag..BUG..refactor), add a creator into the tagspec
+    def tagItem(self, currentuser, useras, fullyQualifiedItemName, tagspec):
+        tagspec=musthavekeys(tagspec, ['tagtype'])
+        tagtypeobj=self._getTagType(currentuser, tagspec['tagtype'])
+        if not tagspec.has_key('singletonmode'):
+            tagspec['singletonmode']=tagtypeobj.singletonmode
+        if not tagspec.has_key('creator'):
+            tagspec['creator']=useras.basic.fqin
+        if tagspec.has_key('content') and tagspec['singletonmode']:
+            tagspec['name']=str(uuid.uuid4())
+            tagspec['description']=tagspec['content']
+            del tagspec['content']
+        tagspec=augmentitspec(tagspec, spectype='tag')
         authorize(False, self, currentuser, useras)
         print "FQIN", fullyQualifiedItemName
         itemtobetagged=self._getItem(currentuser, fullyQualifiedItemName)
-        tag = self.makeTag(currentuser, useras, tagspec, tagmode)
+        
+        tag = self.makeTag(currentuser, useras, tagspec)
+        tagmode=tagtypeobj.tagmode
         #Now that we have a tag item, we need to create a tagging
         try:
             print "was the taggingdoc found?"
@@ -425,7 +441,7 @@ class Postdb():
                 taggingdoc=taggingdoc, tagmode=tagmode, itemfqin=itemtobetagged.basic.fqin)
         #if itemtag found just return it, else create, add to group, return
         itemtobetagged.reload()
-        return itemtobetagged, taggingdoc
+        return itemtobetagged, tag, taggingdoc
 
     def untagItem(self, currentuser, useras, fullyQualifiedTagName, fullyQualifiedItemName):
         #Do not remove item, do not remove tag, do not remove tagging
@@ -439,13 +455,21 @@ class Postdb():
         taggingdoc=TaggingDocument.objects(thething__thingtopostfqin=fqin, thething__postfqin=fqtn, thething__postedby=fqun).get()
         return taggingdoc
 
+    #expose this one outside. currently just a simple authorize currentuser to useras.
+    def getTaggingDoc(self, currentuser, useras, fqin, fqtn):
+        authorize(False, self, currentuser, useras)
+        taggingdoc=TaggingDocument.objects(thething__thingtopostfqin=fqin, thething__postfqin=fqtn, thething__postedby=useras.basic.fqin).get()
+        return taggingdoc
     #BUG: protection of this tagging? Use useras.basic.fqin for now
     #BUG: this does not work in the direction of making tagging private for now
     def changeTagmodeOfTagging(self, currentuser, useras, fqin, fqtn, tomode=False):
-        taggingdoc=self._getTaggingDoc(currentuser, fqin, fqtn, useras.basic.fqin)
-        taggingdoc.update(safe_update=True, thething__tagmode=tomode)
+        #below makes sure user owned that tagging doc
+        taggingdoc=self.getTaggingDoc(currentuser, useras, fqin, fqtn)
+        taggingdoc.update(safe_update=True, set__thething__tagmode=tomode)
+        taggingdoc.reload()
+        itemtobetagged=self._getItem(currentuser, fqin)
         self.signals['tagmode-changed'].send(self, obj=self, currentuser=currentuser, useras=useras, 
-                taggingdoc=taggingdoc, tagmode=tagmode, itemfqin=itemtobetagged.basic.fqin)
+                taggingdoc=taggingdoc, tagmode=tomode, itemfqin=itemtobetagged.basic.fqin)
         return taggingdoc
 
     def _getTaggingDocsForItemandUser(self, currentuser, fqin, fqun):
@@ -460,6 +484,7 @@ class Postdb():
         postingdocs=PostingDocument.objects(thething__thingtopostfqin=fqin, thething__postedby=fqun)
         return postingdocs
 
+    #CHECK: Appropriate postables takes care of this. not needed.
     def recv_postTaggingIntoItemtypesApp(self, currentuser, useras, **kwargs):
         kwargs=musthavekeys(kwargs,['itemfqin', 'taggingdoc', 'tagmode'])
         itemfqin=kwargs['itemfqin']
@@ -486,7 +511,7 @@ class Postdb():
                 pttfqin=ptt.postfqin
                 #BUG: many database hits. perhaps cached? if not do it or query better.
                 postable=self.whosdb.getPostable(currentuser, pttfqin)
-                if self.whosdb.isMemberOfPostable(currentuser, useras, postable):
+                if pttfqin!=personalfqgn and self.whosdb.isMemberOfPostable(currentuser, useras, postable):
                     postablesin.append(postable)
             for postable in postablesin:
                 self.postTaggingIntoPostable(currentuser, useras, postable.basic.fqin, taggingdoc)
@@ -518,15 +543,21 @@ class Postdb():
     def postTaggingIntoPostable(self, currentuser, useras, fqpn, taggingdoc):
         itemtag=taggingdoc.thething
         postable=self.whosdb.getPostable(currentuser, fqpn)
-        authorize_postable_owner(False, self, currentuser, useras, postable)
-
-        permit(self.whosdb.isMemberOfPostable(currentuser, useras, postable),
-            "Only member of postable %s can post into it" % postable.basic.fqin)
+        #why did we have this before?
+        #authorize_postable_owner(False, self, currentuser, useras, postable)
+        authorize_postable_member(False, self, currentuser, useras, postable)
+        # permit(self.whosdb.isMemberOfPostable(currentuser, useras, postable),
+        #     "Only member of postable %s can post into it" % postable.basic.fqin)
         #Now that we are allowing posting via canuse thistag
         # permit(useras.nick==itemtag.postedby,
         #     "Only creator of tag can post into group %s" % postable.basic.fqin)
-        #item=self._getItem(currentuser, itemtag.thingtopostfqin)
         tag=self._getTag(currentuser, itemtag.postfqin)
+        item=self._getItem(currentuser, itemtag.thingtopostfqin)
+        itemsfqpns =[ele.postfqin for ele in item.pinpostables]
+        if not fqpn in itemsfqpns:
+            doabort('NOT_AUT', "Cant post tag %s in postable %s if item %s is not there" % (tag.basic.fqin, fqpn, item.basic.fqin))
+        
+
         if not self.canUseThisTag(currentuser, useras, tag):
             doabort('NOT_AUT', "Not authorized for tag %s" % tag.basic.fqin)
         postablefqpns =[ele.postfqin for ele in taggingdoc.pinpostables]
@@ -537,17 +568,19 @@ class Postdb():
             return taggingdoc
         try:
             newposting=Post(postfqin=postable.basic.fqin, posttype=getNSTypeNameFromInstance(postable),
-                postedby=useras.nick, thingtopostfqin=itemtag.postfqin, thingtoposttype=itemtag.thingtoposttype)
+                postedby=useras.nick, thingtopostfqin=itemtag.postfqin, thingtoposttype=itemtag.tagtype)
             taggingdoc.update(safe_update=True, push__pinpostables=newposting)
             
             #BUG:postables will be pushed multiple times here. How to unique?
             tag.update(safe_update=True, push__members=postable.basic.fqin)
+            tag.reload()
+            taggingdoc.reload()
         except:
             import sys
             print sys.exc_info()
             doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in postable %s" % (itemtag.thingtopostfqin, itemtag.postfqin, postable.basic.fqin))
 
-        return taggingdoc
+        return item, tag, taggingdoc
 
     #BUG: currently not sure what the logic for everyone should be on this, or if it should even be supported
     #as other users have now seen stuff in the group. What happens to tagging. Leave alone for now.
@@ -555,7 +588,7 @@ class Postdb():
 
         grp=self.whosdb.getGPostable(currentuser, fqpn)
 
-        authorize_postable_owner(False, self, currentuser, useras, grp)
+        authorize_postable_member(False, self, currentuser, useras, grp)
         #BUG: no other auths. But the model for this must be figured out.
         #The itemtag must exist at first
         # itemtag=self._getTagging(currentuser, tag, item)
@@ -573,7 +606,8 @@ class Postdb():
         kwargs=musthavekeys(kwargs,['taggingdoc'])
         taggingdoc=kwargs['taggingdoc']
         personalfqgn=useras.nick+"/group:default"
-        self.postTaggingIntoGroup(currentuser, useras, personalfqgn, taggingdoc)
+        if personalfqgn not in [ptt.postfqin for ptt in taggingdoc.pinpostables]:
+            self.postTaggingIntoGroup(currentuser, useras, personalfqgn, taggingdoc)
 
     def postTaggingIntoApp(self, currentuser, useras, fqan, taggingdoc):
         itemtag=self.postTaggingIntoPostable(currentuser, useras, fqan, taggingdoc)
@@ -972,10 +1006,40 @@ def initialize_testing(db_session):
         r=random.choice([0,1])
         user=users[r]
         postdb.tagItem(user, user, thedict[k].basic.fqin, dict(tagtype="ads/tagtype:tag", name=tstr))
+
     for k in thedict.keys():
         r=random.choice([0,1])
         user=users[r]
         postdb.postItemIntoGroup(user, user, 'jayluker/group:sp', thedict[k].basic.fqin)
+
+    NOTES=["this paper is smart", "this paper is useless", "these authors are clueless"]
+    notes={}
+    for k in thedict.keys():
+        nstr=random.choice(NOTES)
+        r=random.choice([0,1])
+        user=users[r]
+        i,t,td=postdb.tagItem(user, user, thedict[k].basic.fqin, dict(tagtype="ads/tagtype:note", content=nstr))
+        notes[t.basic.name]=(user, i,t,td)
+        print t.basic.name
+    mykey=notes.keys()[0]
+    print "USING", mykey
+    niw=notes[mykey]
+    print niw[0].basic.fqin, niw[1].basic.fqin, niw[2].basic.fqin, niw[3].thething.tagmode
+    #BUG: if we expose this outside we leak. we do need a web sercide, etc to get tagging doc consistent with
+    #access.
+
+    #2 different ways of doing things. First just adds to public group. Second adds to all appropriate groups
+    tdoutside=postdb.getTaggingDoc(niw[0], niw[0], niw[1].basic.fqin, niw[2].basic.fqin)
+    postdb.postItemIntoGroup(niw[0], niw[0], "adsgut/group:public", niw[1].basic.fqin)
+    postdb.postTaggingIntoGroup(niw[0], niw[0], "adsgut/group:public", tdoutside)
+    postdb.changeTagmodeOfTagging(niw[0], niw[0], niw[1].basic.fqin, niw[2].basic.fqin)
+
+    LIBRARIES=["rahuldave/library:mll", "jayluker/library:spl"]
+    for k in thedict.keys():
+        r=random.choice([0,1])
+        user=users[r]
+        library=LIBRARIES[r]
+        postdb.postItemIntoLibrary(user, user, library, thedict[k].basic.fqin)
     #run this as rahuldave? Whats he point of useras then?
     # currentuser=rahuldave
     # postdb.saveItem(currentuser, rahuldave, dict(name="hello kitty", itemtype="ads/pub", creator=rahuldave.nick))
@@ -1075,3 +1139,5 @@ if __name__=="__main__":
     initialize_application(db_session)
     initialize_testing(db_session)
     #test_gets(db_session)
+    #libs_in_grps
+    #tagtypetag_takeovers

@@ -102,7 +102,8 @@ def augmentitspec(specdict, spectype="item"):
             specdict=musthavekeys(specdict,['tagtype'])
             specdict['owner']=basicdict['creator']
             #tag, note, library, group and app are reserved and treated as special forms
-            basicdict['fqin']=specdict['creator']+"/"+specdict['tagtype']+':'+specdict['name']
+            crnick=getNSVal(specdict['creator'])
+            basicdict['fqin']=crnick+"/"+specdict['tagtype']+':'+specdict['name']
 
         if not specdict.has_key('uri'):
             basicdict['uri']=specdict['name']

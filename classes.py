@@ -41,7 +41,7 @@ class Tag(Document):
     classname="tag"    
     basic = EmbeddedDocumentField(Basic)
     tagtype = StringField(required=True)
-    singletonmode = BooleanField(required=True, default=False)
+    singletonmode = BooleanField(required=True)#default is false but must come from tagtype
     #The owner of a tag can be a user, group, or app
     #This is different from creator as ownership can be transferred. You
     #see this in groups and apps too. Its like a duck.
