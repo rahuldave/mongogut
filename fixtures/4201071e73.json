@@ -1,0 +1,1768 @@
+{
+   "count" : "75",
+   "libraries" : [
+      {
+         "entries" : [
+            {
+               "bibcode" : "1996ApJ...471..480L"
+            },
+            {
+               "bibcode" : "1995ApJ...451..889A"
+            },
+            {
+               "bibcode" : "1994ApJ...428..769L"
+            },
+            {
+               "bibcode" : "1991MNRAS.252P..39R"
+            },
+            {
+               "bibcode" : "1980Ap&SS..72..509M"
+            }
+         ],
+         "name" : "1987A-SiO"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1999ApJ...510..944G"
+            },
+            {
+               "bibcode" : "1997Ap&SS.251..375D"
+            },
+            {
+               "bibcode" : "1992ApJ...396..679L",
+               "note" : "By taking NLTE and optical depth into account, find much superior fit to Spyromilio1988. CO mass is 1E-3 Msun."
+            },
+            {
+               "bibcode" : "1990ApJ...358..262L"
+            },
+            {
+               "bibcode" : "1990ApJ...349..675D"
+            },
+            {
+               "bibcode" : "1990A&A...235..472E"
+            },
+            {
+               "bibcode" : "1989ApJ...342..406P"
+            },
+            {
+               "bibcode" : "1988Natur.334..327S"
+            },
+            {
+               "bibcode" : "1987CP....114..273L"
+            },
+            {
+               "bibcode" : "1985JPhB...18..547M"
+            },
+            {
+               "bibcode" : "1984ApJ...282..491D"
+            },
+            {
+               "bibcode" : "1982JChPh..76.4972D"
+            },
+            {
+               "bibcode" : "1981JPhB...14.2719J"
+            }
+         ],
+         "lastmod" : "12-Jul-2012",
+         "name" : "1987A-CO"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2005MNRAS.357.1077H"
+            },
+            {
+               "bibcode" : "2001MNRAS.325..726T"
+            },
+            {
+               "bibcode" : "2001ApJ...548..296W"
+            },
+            {
+               "bibcode" : "1999Ap&SS.268...77H"
+            },
+            {
+               "bibcode" : "1995A&AS..113..561C"
+            },
+            {
+               "bibcode" : "1995A&AS..112..143H"
+            },
+            {
+               "bibcode" : "1993ApJ...402..441L"
+            },
+            {
+               "bibcode" : "1993Ap&SS.200..145W"
+            },
+            {
+               "bibcode" : "1973lsfs.book.....W"
+            }
+         ],
+         "lastmod" : "22-Aug-2011",
+         "name" : "SN - dust"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1995ApJ...454..472L"
+            },
+            {
+               "bibcode" : "1992ApJ...387..309L"
+            }
+         ],
+         "name" : "1987A - oxygen"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2006ApJ...650..212B"
+            },
+            {
+               "bibcode" : "2002MNRAS.332..296F"
+            },
+            {
+               "bibcode" : "1995AJ....109..729B"
+            },
+            {
+               "bibcode" : "1994ApJ...427..874C"
+            },
+            {
+               "bibcode" : "1993MNRAS.261..535M"
+            },
+            {
+               "bibcode" : "1993MNRAS.261..522R"
+            },
+            {
+               "bibcode" : "1993ApJS...88..477W"
+            },
+            {
+               "bibcode" : "1993A&A...273..451B"
+            },
+            {
+               "bibcode" : "1992MNRAS.255..671S"
+            },
+            {
+               "bibcode" : "1989MNRAS.238..193M"
+            },
+            {
+               "bibcode" : "1989A&AS...80..379B"
+            }
+         ],
+         "lastmod" : "27-Mar-2012",
+         "name" : "1987A - IR"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2012ApJ...757...69U",
+               "note" : "Makes quasi-Analytical estimates of which massive star cores that explode and which do not (forming black holes directly). Finds that this is very sensitive to details of progenitor structure, with 'islands of explosions' at certain masses. In particular, ~20-25 Msun stars are the hardest to explode."
+            },
+            {
+               "bibcode" : "2012ApJ...755..160E"
+            },
+            {
+               "bibcode" : "2011ApJ...741...78M"
+            },
+            {
+               "bibcode" : "2010ApJ...723..353J"
+            },
+            {
+               "bibcode" : "2010ApJ...717L..83M"
+            },
+            {
+               "bibcode" : "2010ApJ...714.1371H"
+            },
+            {
+               "bibcode" : "2009IAUS..254..355N"
+            },
+            {
+               "bibcode" : "2009ApJ...695..208W"
+            },
+            {
+               "bibcode" : "2008ApJ...673.1014U",
+               "note" : "Evolves 25-100 Msun stars (without mass loss) and explodes with various E to investigate 56Ni production. Mass cut computed by 1D hydromodel. Predicts 56Ni masses between 0.3-3 msun for the 25-100 Msun range, for E = 1-100 B. the 56Ni/Mej ratio is always less than 0.2."
+            },
+            {
+               "bibcode" : "2007PhR...442..269W"
+            },
+            {
+               "bibcode" : "2006NuPhA.777..424N"
+            },
+            {
+               "bibcode" : "2006A&A...450..345K"
+            },
+            {
+               "bibcode" : "2005NatPh...1..147W"
+            },
+            {
+               "bibcode" : "2005ApJ...635..487H",
+               "note" : "Explores mixing arising from a unipolar explosion asymmetry. Mainly investigates variation with viewing angle."
+            },
+            {
+               "bibcode" : "2004A&A...425..649H"
+            },
+            {
+               "bibcode" : "2003ApJ...594..390H",
+               "note" : "3D SPH simulation of 15 Msun RSG, with and without asymmetry of shock. Presents velocity distribution for Ni, O, He, H for symmetric case, only for 56Ni in asymmetric case. 56Ni to high velocities in asymmetric cases. Note uses only 2 million particles which probably does not resolve the instabilities enough (Ellinger 2012)"
+            },
+            {
+               "bibcode" : "2003ApJ...592..404L"
+            },
+            {
+               "bibcode" : "2003A&A...408..621K"
+            },
+            {
+               "bibcode" : "2002RvMP...74.1015W"
+            },
+            {
+               "bibcode" : "2002ApJ...576..323R"
+            },
+            {
+               "bibcode" : "2000ARA&A..38..143M"
+            },
+            {
+               "bibcode" : "2000A&A...361..101M"
+            },
+            {
+               "bibcode" : "1998npa..conf...27T"
+            },
+            {
+               "bibcode" : "1998ApJ...492L..45N",
+               "note" : "Finds that explosion asymmetries of 1.7, 2.2, and 2.6:1 produce 2,3 and 5 *1E-4 Msun of 44Ti for 0.07 Msun of 56Ni. Good paper, short and clear."
+            },
+            {
+               "bibcode" : "1997NuPhA.616...79N"
+            },
+            {
+               "bibcode" : "1997ApJ...485..765G"
+            },
+            {
+               "bibcode" : "1997ApJ...477..865I"
+            },
+            {
+               "bibcode" : "1996ApJ...460..408T"
+            },
+            {
+               "bibcode" : "1995PhR...256..173N",
+               "note" : "Shows RT mixing in IIb SNe, 3.3 and 4 Msun cores (13 and 15 Msun progenitors.) First mixes, second doesn't."
+            },
+            {
+               "bibcode" : "1995ApJS..101..181W"
+            },
+            {
+               "bibcode" : "1994ApJ...425..814H"
+            },
+            {
+               "bibcode" : "1994A&AS..104..341H",
+               "note" : "2D simulations of RT instabilities in 6, 4 and 3.3 Msun He core (MZAMS = 20, 15, 13). Eexp=1 B. Uses both sinusoidal and random perturbations. Finds that ones needs at least a resolution of ~(500-1000)^2 to resolve the RT fingers. Perturbations must be >~ 5% to produce any significant mixing. Weak dependency on the model. Finds stronger mixing for smaller He cores."
+            },
+            {
+               "bibcode" : "1992ApJ...387..294H"
+            },
+            {
+               "bibcode" : "1991ApJ...370L..81H"
+            },
+            {
+               "bibcode" : "1991ApJ...368L..27H",
+               "note" : "Shows that lower mass He cores mix more strongly, better explaining Ib light-curve. The 3.3 Msun He core (12 Msun progenitor) becomes completely mixed in a core between 2000 and 7000 km/s. Work is updated in 1994 paper."
+            },
+            {
+               "bibcode" : "1991ApJ...367..619F"
+            },
+            {
+               "bibcode" : "1990ApJ...360..242S"
+            },
+            {
+               "bibcode" : "1990ApJ...349..222T"
+            },
+            {
+               "bibcode" : "1989A&A...210L...5H"
+            },
+            {
+               "bibcode" : "1988A&A...196..141S"
+            },
+            {
+               "bibcode" : "1986ARA&A..24..205W"
+            },
+            {
+               "bibcode" : "1984ApJ...277..791N"
+            },
+            {
+               "bibcode" : "1973ApJS...26..231W"
+            }
+         ],
+         "lastmod" : "24-Apr-2013",
+         "name" : "SN - explosion models"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2010MNRAS.404....2G"
+            },
+            {
+               "bibcode" : "2009ApJ...703.2205K"
+            },
+            {
+               "bibcode" : "2009ApJ...693L..39R"
+            },
+            {
+               "bibcode" : "2009ARA&A..47...63S"
+            },
+            {
+               "bibcode" : "2006MNRAS.368.1169P"
+            },
+            {
+               "bibcode" : "2006ApJ...651L.117K"
+            },
+            {
+               "bibcode" : "2005ApJ...628L.123K"
+            },
+            {
+               "bibcode" : "2002ApJ...572..932P"
+            },
+            {
+               "bibcode" : "2001ApJ...562..480C"
+            },
+            {
+               "bibcode" : "2001A&A...376..188S"
+            },
+            {
+               "bibcode" : "2000AJ....119.2968G"
+            },
+            {
+               "bibcode" : "1987CP....114..273L"
+            },
+            {
+               "bibcode" : "1984ApJ...282..491D"
+            }
+         ],
+         "lastmod" : "08-Mar-2012",
+         "name" : "SN - CO"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2007A&A...462..781B"
+            },
+            {
+               "bibcode" : "2005CaJPh..83.1071J"
+            },
+            {
+               "bibcode" : "2004JPhB...37.2979P"
+            },
+            {
+               "bibcode" : "2002JGRA..107.1324S"
+            },
+            {
+               "bibcode" : "2001JPhB...34.1299Z"
+            },
+            {
+               "bibcode" : "1999ApJS..120..131N"
+            },
+            {
+               "bibcode" : "1999AnGeo..17..919P"
+            },
+            {
+               "bibcode" : "1997JPhB...30.4599T"
+            },
+            {
+               "bibcode" : "1995ApJS...96..325B"
+            },
+            {
+               "bibcode" : "1992P&SS...40.1705E"
+            },
+            {
+               "bibcode" : "1992JPhB...25.2639T"
+            },
+            {
+               "bibcode" : "1990JPCRD..19..277L"
+            },
+            {
+               "bibcode" : "1989PhRvA..39.4531T"
+            },
+            {
+               "bibcode" : "1977JGR....82.5081J"
+            },
+            {
+               "bibcode" : "1972JPhB....5.1506L"
+            },
+            {
+               "bibcode" : "1969PhRv..178..218H"
+            }
+         ],
+         "lastmod" : "23-Apr-2012",
+         "name" : "Atomic data - OI"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1997JPhB...30..277D"
+            },
+            {
+               "bibcode" : "1995ApJS..101..423N"
+            },
+            {
+               "bibcode" : "1987JPhB...20.2553J"
+            },
+            {
+               "bibcode" : "1977PhRvA..15...35P"
+            }
+         ],
+         "lastmod" : "24-Apr-2012",
+         "name" : "Atomic Data - CI"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2004ApJ...615.1063Z"
+            },
+            {
+               "bibcode" : "2001ASPC..247....3S"
+            },
+            {
+               "bibcode" : "1999ApJ...516L.107K"
+            },
+            {
+               "bibcode" : "1998ApJ...502.1006S"
+            },
+            {
+               "bibcode" : "1996ApJS..106..205K"
+            },
+            {
+               "bibcode" : "1996ApJ...473.1114K"
+            },
+            {
+               "bibcode" : "1994ApJ...428..267S"
+            },
+            {
+               "bibcode" : "1988MNRAS.235.1245A"
+            },
+            {
+               "bibcode" : "1986A&A...161..169P"
+            },
+            {
+               "bibcode" : "1985NIMPB...9..655D"
+            },
+            {
+               "bibcode" : "1985A&AS...60..425A"
+            },
+            {
+               "bibcode" : "1983PhRvA..28.2137S"
+            },
+            {
+               "bibcode" : "1980ApJS...43....1P"
+            },
+            {
+               "bibcode" : "1980ApJ...241..838B"
+            },
+            {
+               "bibcode" : "1979A&A....71..366T"
+            },
+            {
+               "bibcode" : "1975ApJ...199..642S"
+            },
+            {
+               "bibcode" : "1974JPhB....7.1692M"
+            },
+            {
+               "bibcode" : "1973JPhB....6..114T"
+            },
+            {
+               "bibcode" : "1972JChPh..57.3087R"
+            },
+            {
+               "bibcode" : "1972JChPh..56.4654R"
+            },
+            {
+               "bibcode" : "1971JChPh..55.3785R"
+            },
+            {
+               "bibcode" : "1971ApJ...166...59F"
+            },
+            {
+               "bibcode" : "1956ApJ...124..390C"
+            }
+         ],
+         "lastmod" : "24-Apr-2012",
+         "name" : "Atomic data - Charge transfer"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2004ApJ...611..394B"
+            },
+            {
+               "bibcode" : "2001ApJ...554..615B"
+            },
+            {
+               "bibcode" : "1993Ap&SS.200..145W"
+            },
+            {
+               "bibcode" : "1991A&A...249..474K"
+            },
+            {
+               "bibcode" : "1989ApJ...344..325K"
+            },
+            {
+               "bibcode" : "1981Ap&SS..79...77K"
+            }
+         ],
+         "lastmod" : "08-May-2013",
+         "name" : "1987A - dust"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1995ApJ...455..335C"
+            }
+         ],
+         "name" : "1987A-H2"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2010MNRAS.408...87M"
+            },
+            {
+               "bibcode" : "2010ApJ...725..940Y",
+               "note" : "Studies binary evolution with two updates in the physics : rotation (including Spruit-Taylor magnetic dynamo) and reduced WR mass loss rate. The paper is a bit odd as it presents results (final He, H mass, radii etc) for each He-core mass, but surely these things depend on the assumptions of the companion. Disorganized and not too convincing paper."
+            },
+            {
+               "bibcode" : "2007ApJ...670..592M"
+            },
+            {
+               "bibcode" : "2002PASJ...54..905G"
+            },
+            {
+               "bibcode" : "2001AJ....121.1648M",
+               "note" : "Analysis of photospheric phase light curves and spectra (mainly spectra). No particular conclusions."
+            },
+            {
+               "bibcode" : "1998A&A...337..207S",
+               "note" : "Estimates an O mass of 0.1-0.2 Msun. Temperature obtainable from ratio of 6300 to 7775 line. Ni mass quite low."
+            },
+            {
+               "bibcode" : "1991ApJ...368L..27H",
+               "note" : "2D RT simulations for 3, 4 and 6 Msun He cores. The light cores get very strongly mixed and clumped (56 Ni, metals, and He quite smoothly mixed up to ~6000 km/s), whereas the high-mass core experiences essentially no mixing."
+            },
+            {
+               "bibcode" : "1990ApJ...361L..23S",
+               "note" : "Model 3 observed Ib light-curves, favoring small He cores (3-4 Msun) with significant mixing. Shows theoretically that stronger mixing is expected in smaller He cores. Favors 12-18 Msun progenitors (binary stripped) for Ib SNe."
+            },
+            {
+               "bibcode" : "1989ApJ...345L..43F",
+               "note" : "2-10% fluctuations in the O I 6300, 6364 line, due to clumping. No quantitative theoretical analysis."
+            },
+            {
+               "bibcode" : "1989AJ.....98..577S",
+               "note" : "Some good late-time spectra available for this SN. Useless nebular analysis (just assume a temperature)."
+            },
+            {
+               "bibcode" : "1988ApJ...333..754E",
+               "note" : "Make Ib light curves with KEPLER, of 4, 6 and 8 He cores, assuming no mixing to occur. To produce short enough diffusion phase, the ejecta mass must then be small, <~5 Msun, corresponding to a 25 Msun ZAMS upper limit. Shows that the first LC bump occurs during recombination in the He layer (a recombination front eats its way through the He layer just as through H in Type IIPs, but here the resulting luminosity is not constant). At the recombination front, the opacity drops from 0.1 to ~0.003. During the secondary peak, the core material (C, O..) is mostly singly or doubly ionized, but not more. The material stays ionized partially due to 56Ni heating. The bolometric LC of 1983N (assumed prototypical here) as a FWHM of 25 days, which can only be fit with the 4 Msun (unmixed) He core, 6 and 8 being too broad."
+            }
+         ],
+         "lastmod" : "26-Nov-2012",
+         "name" : "SN - Ib/c"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1996ApJS..103..467V",
+               "note" : "Total radiative rec rate for Na I for a broad range of temperatures."
+            },
+            {
+               "bibcode" : "1994PhRvA..49.3620T"
+            },
+            {
+               "bibcode" : "1971JQSRT..11....7P"
+            }
+         ],
+         "lastmod" : "02-Nov-2012",
+         "name" : "Atomic data - NaI"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1996ApJ...466..561M"
+            }
+         ],
+         "name" : "X-ray/Gamma ray irradiated gas"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1991A&A...245..490B"
+            },
+            {
+               "bibcode" : "1990AJ.....99.1146H"
+            },
+            {
+               "bibcode" : "1990AJ.....99..650S"
+            },
+            {
+               "bibcode" : "1989A&AS...80..379B"
+            },
+            {
+               "bibcode" : "1988ApJ...330..218W"
+            },
+            {
+               "bibcode" : "1988AJ.....96.1864S"
+            },
+            {
+               "bibcode" : "1988AJ.....95...63H"
+            }
+         ],
+         "lastmod" : "03-Jan-2012",
+         "name" : "1987A - lightcurve"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2006A&A...460..397V"
+            },
+            {
+               "bibcode" : "2001ASPC..242...97Z"
+            },
+            {
+               "bibcode" : "1998ApJ...499L.139S"
+            },
+            {
+               "bibcode" : "1988Ap.....29..449C"
+            },
+            {
+               "bibcode" : "1980SvAL....6...91C"
+            },
+            {
+               "bibcode" : "1978ApJ...224..841S"
+            },
+            {
+               "bibcode" : "1972ApJ...174..439A"
+            }
+         ],
+         "lastmod" : "03-Jan-2012",
+         "name" : "Ly alpha"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2001A&A...374..629L"
+            }
+         ],
+         "name" : "1987A-Ti44"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2011IAUS..270..107K"
+            },
+            {
+               "bibcode" : "2009ApJ...693.1379H"
+            },
+            {
+               "bibcode" : "2007ApJ...666..976K"
+            },
+            {
+               "bibcode" : "2004ApJ...614..807L"
+            },
+            {
+               "bibcode" : "2003ApJ...599.1196K"
+            },
+            {
+               "bibcode" : "1994ApJ...428..654H"
+            }
+         ],
+         "lastmod" : "08-May-2013",
+         "name" : "Star formation"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2011ApJ...729...61B",
+               "note" : "Simplest possible radiation hydrodynamics model (LTE EOS, gray radiation transport approximated by flux+limited diffusion, floor opacity). Well written. Finds strong influence of the 56Ni mixing on the whole light-curve. Models 1999em from a double-polytropic model, finding decent fits for 12.5 and 17.5 Msun ejecta, but less so for 10.5. Problem is, too many parameters in the initial polytropes and their chemical stratification + the 56 Ni mixing, in combination with a very simple model for only two observables (bolometric luminosity and photospheric velocity), both of which are not trivial to estimate from the observations."
+            },
+            {
+               "bibcode" : "2010ApJ...723L..89U"
+            },
+            {
+               "bibcode" : "2010ApJ...717L..52B"
+            },
+            {
+               "bibcode" : "2009ApJ...703.2205K",
+               "note" : "IIP lightcurve models from evolutionary progenitors. However, only useful for case of no 56Ni production (Bersten et al 2011)"
+            },
+            {
+               "bibcode" : "2004Natur.427..129M"
+            },
+            {
+               "bibcode" : "1994A&A...285..147B",
+               "note" : "Rather weak [O I] doublet. Same O I density (from 6300/6364 ratio) as 1987A."
+            },
+            {
+               "bibcode" : "1975ApJ...197..415K"
+            }
+         ],
+         "lastmod" : "20-Aug-2012",
+         "name" : "SN - TypeIIPs"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2008A&A...486..985S"
+            },
+            {
+               "bibcode" : "1988ApJ...330.1008M",
+               "note" : "A summary of some atomic data for Mg I in 1988."
+            },
+            {
+               "bibcode" : "1987A&A...179..346M",
+               "note" : "Photoionization cross sections for the first 3 states in Mg I. Resonances in the photoionization cross section occurs for energies where a doubly excited state in Mg I can be formed (with E > E_ionisation), which then decays to Mg II + e-. The final state (Mg II + e-) must have S, L and parity obeying the selection rules Delta S = 0, Delta P = 0, +-1, parity changes. It is unclear how these 'requirements' on the free electron plays in when applying the Milne relations. Note also that contributions by ionization to excited states in Mg II start to play in at a few eV above threshold. This will complicated using the Milne relations for T <~ 20,000 K."
+            },
+            {
+               "bibcode" : "1978ApJ...219..250G",
+               "note" : "Computes total radiative recombination rate for Mg I, obtaining factor ~1.5-2 higher values than Aldrovandi & Pequignot 1973, and this difference is due to neglect of some contributions by them. Still, photoionization cross sections from excited states are computed with hydrogen formulae, with corrections fro the non-hydrogenic nature."
+            }
+         ],
+         "lastmod" : "18-Oct-2012",
+         "name" : "Atomic Data - MgI"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1993MNRAS.263..530S",
+               "note" : "Shows that. at least at late times, Fe II 7155 profile is almost identical to H-alpha, showing that it comes from primordial Fe in the H zone."
+            },
+            {
+               "bibcode" : "1993ApJ...419..824L"
+            },
+            {
+               "bibcode" : "1990MNRAS.242..669S",
+               "note" : "Havent read yet"
+            },
+            {
+               "bibcode" : "1988ApJ...330L..39E"
+            }
+         ],
+         "lastmod" : "27-Aug-2012",
+         "name" : "1987A - Iron"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1991ApJ...377..639W"
+            },
+            {
+               "bibcode" : "1977ApJ...214..161K"
+            }
+         ],
+         "lastmod" : "03-Jan-2012",
+         "name" : "Expansion opacity"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1996ApJ...456..811H"
+            },
+            {
+               "bibcode" : "1992ApJ...400..127R"
+            }
+         ],
+         "lastmod" : "11-Sep-2011",
+         "name" : "Nebular spectra models"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2003ASPC..288..405A"
+            },
+            {
+               "bibcode" : "2000A&A...363..705M"
+            },
+            {
+               "bibcode" : "1998A&A...336..301O"
+            },
+            {
+               "bibcode" : "1996ApJ...459..307H"
+            },
+            {
+               "bibcode" : "1980ApJ...237L..81C"
+            },
+            {
+               "bibcode" : "1969JQSRT...9.1579H"
+            }
+         ],
+         "lastmod" : "31-Dec-2011",
+         "name" : "Monte Carlo"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1998MNRAS.297.1073H"
+            },
+            {
+               "bibcode" : "1995ApJ...441..821L",
+               "note" : "Contains fit to the He I twophoton emissivity"
+            },
+            {
+               "bibcode" : "1989MNRAS.238...57A"
+            },
+            {
+               "bibcode" : "1973JPhB....6L.113C"
+            },
+            {
+               "bibcode" : "1971CPL.....8..148S"
+            },
+            {
+               "bibcode" : "1970JPhB....3.1308B"
+            }
+         ],
+         "lastmod" : "23-Apr-2012",
+         "name" : "Atomic data - HeI"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2011A&A...526A.156M"
+            },
+            {
+               "bibcode" : "1990A&A...231..134N"
+            }
+         ],
+         "lastmod" : "17-Aug-2011",
+         "name" : "Mass loss"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1989ApJ...341..401B"
+            },
+            {
+               "bibcode" : "1989ApJ...340..414F"
+            }
+         ],
+         "lastmod" : "13-Apr-2011",
+         "name" : "Gamma ray deposition"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1989ARA&A..27..629A"
+            }
+         ],
+         "lastmod" : "13-Apr-2011",
+         "name" : "1987A-Reviews"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2011AJ....142...97F"
+            },
+            {
+               "bibcode" : "2011A&A...535L...8G"
+            },
+            {
+               "bibcode" : "2011A&A...533A..47S"
+            },
+            {
+               "bibcode" : "2011A&A...526A..66M"
+            },
+            {
+               "bibcode" : "2009ApJ...702..567V"
+            },
+            {
+               "bibcode" : "2009ApJ...699L..31S"
+            },
+            {
+               "bibcode" : "2008MNRAS.391.1273H"
+            },
+            {
+               "bibcode" : "2008ApJ...674L..33G"
+            },
+            {
+               "bibcode" : "2007IAUS..242...81S"
+            },
+            {
+               "bibcode" : "2006A&A...455..521K"
+            },
+            {
+               "bibcode" : "2005ApJ...628L.151D"
+            },
+            {
+               "bibcode" : "2005A&A...431..183A"
+            },
+            {
+               "bibcode" : "2004ApJ...604L.105F"
+            },
+            {
+               "bibcode" : "2003ApJ...598.1061H"
+            },
+            {
+               "bibcode" : "2002ASPC..267..435V"
+            },
+            {
+               "bibcode" : "2001PASJ...53..821A"
+            },
+            {
+               "bibcode" : "1998A&A...336L...5M"
+            },
+            {
+               "bibcode" : "1995ApJ...438..776G"
+            },
+            {
+               "bibcode" : "1992PASJ...44..421A"
+            },
+            {
+               "bibcode" : "1985ApJ...290..433A"
+            },
+            {
+               "bibcode" : "1984ApJ...282L..27C"
+            }
+         ],
+         "lastmod" : "25-Apr-2012",
+         "name" : "Masers"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2011IAUS..280..449V"
+            },
+            {
+               "bibcode" : "2009Ap.....52...24I"
+            },
+            {
+               "bibcode" : "2009AIPC.1171....3H",
+               "note" : "Review.Auer Mihalas 1969 was a seminal paper, for the first time allowing to compute NLTE atmospheres, although initial application could only be done for very simple/small models. Even today, even the most powerful computers need clever acceleration/approximation techniques to solve anything but the smallest problems. The COMPLETE solution to the physical state of any nebula is to solve for mean intensities J, ionization and excitation, and temperature.Thanks to the Variable Eddington Factor technique, one may use J instead of I, removing Nmu equations from the set. Since the equation set is block-tridiagonl, the solution times scales as N_iter * N_d *(Nnu + Nlev + Nc)^3. This becomes prohibitively large for most realistic problems. Solutions involve 1) Somehow reduce the size of the problem by some ALI method 2) Avoid recomputing Jacobian too often 3) Use approximate Newton-Raphson (his reference here is to Hillier1998)."
+            },
+            {
+               "bibcode" : "2001ApJ...554..615B",
+               "note" : "Computed temperature by enforcing radiative equilibrium with indestructable Monte Carlo packets. Similar to Lucy1999."
+            },
+            {
+               "bibcode" : "1999JCoAM.109...41H",
+               "note" : "Describes PHOENIX."
+            },
+            {
+               "bibcode" : "1998ApJ...496..407H"
+            },
+            {
+               "bibcode" : "1996MNRAS.278..763B"
+            },
+            {
+               "bibcode" : "1996ApJ...467..292P"
+            },
+            {
+               "bibcode" : "1996A&A...312..525P"
+            },
+            {
+               "bibcode" : "1995ApJ...443...89H"
+            },
+            {
+               "bibcode" : "1995ApJ...441L..33N"
+            },
+            {
+               "bibcode" : "1993ApJ...412..731E",
+               "note" : "Develops an ALI method for moving media (needs to consider nearest neighbors in space AND frequency). However unclear how powerful this method is. Quite complicated (extreme notational complexity in some chapters), with different approximations needed for different problems, and no further papers on it. They alternate solutions to the transfer equation (using normal Lambda), SSE, and thermal equilibrium. The only difference to normal Lambda iteration is that the Jacobian in the SSE equation system contains some (approximate) derivatives of J with respect to the local and neighboring level populations. In the non-Sobolev treatment, dJ_{ij}/dn_i terms are important (they essentually take derivative of the line source function). In the Sobolev limit, they compute dJ^b_{ij} / dn_i, but unclear how (here, the line source function is irrelevant). Key to this paper is that one can write J_k = Lambda[S_k] + sum_{k'} Gamma_{k,k'}[J_k'], which I havent understood yet."
+            },
+            {
+               "bibcode" : "1992ApJ...387..248H"
+            },
+            {
+               "bibcode" : "1990ApJ...350..216N"
+            },
+            {
+               "bibcode" : "1990A&A...239..227S"
+            },
+            {
+               "bibcode" : "1990A&A...231..116H",
+               "note" : "Says that we can do the Newton-Raphson in the complete linearization procedure approximately by using diagonal, tridiagonal or pentadiagonal Jacobians. But convergence requires loads of other tricks. Unclear method."
+            },
+            {
+               "bibcode" : "1989ApJ...347..771E",
+               "note" : "Solves the relativistic, time-independent comoving frame angle-integrated transfer equation for the photospheric layers (using Eddington factors, according to them first time they are used for moving media), together with NLTE SSE equations. Rough estimate for temperature though. All elements except HI and HeI treated in LTE, all their lines in coherent scattering."
+            },
+            {
+               "bibcode" : "1989ApJ...339..558A",
+               "note" : "First introduction of super-levels."
+            },
+            {
+               "bibcode" : "1987Ap.....26...53C"
+            },
+            {
+               "bibcode" : "1986JQSRT..35..431O",
+               "note" : "Very pedagogical paper. Shows that, for plane-parallel system, using only the diagonal of the Lambda operator (radiation field depends only on LOCAL source function), iteration gives quick convergence. NO linear equation systems have to be solved (frequency integral for bar(J) is taken as J at current frequency, actually tha Lambda operator is defined in terms of bar(J) instead of J_nu). The problem they are limited to is when the source function can be written as thermal + scattering term, and the scattering term depends only on the integral of the radiation field over angle and frequency (S = (1-eps)Lambda[S] + eps B). T and eps are assumed known. This is a two-level problem, or an equivalent two-level problem for multi-level atoms. \"Lambda is never assembled as a matrix operator when computing direct solutions (one does rays presumably).\" Normal (slow) Lambda iteration is S^{n+1} = (1-eps) S^n + eps B. The power of approximate Lambda operators (Lambda*) is they are IMPLICIT, and therefore mitigates the main problem of normal Lambda operators : the slow propagation of information through the grid. Note that it is NOT the fact that computation of Lambda*-1 is quicker then Lambda-1 that matters so much, but more the fact that we solve for S implicitly now. States that the main drawback of Scharmers method is that it cannot be generalized to multidimensions. Includes a nice discussion of Ng acceleration."
+            },
+            {
+               "bibcode" : "1986A&A...163..151S"
+            },
+            {
+               "bibcode" : "1986A&A...161..177W",
+               "note" : "First actual application of an ALI method to a real model atmosphere."
+            },
+            {
+               "bibcode" : "1986A&A...160..141H",
+               "note" : "Two-level atom with complete redistribution, spherical expandin medium. T fixed. Similar to Cannon1973 in that it solves the two-level problem iteratively, using an approximate diagonal operator. The source function is linearized with respect to J. This paper solves exactly the same problem as Mihalas1975. T and epsilon are not solved for,so there is really no solution of either radiative equilibrium or statisical equilibrum."
+            },
+            {
+               "bibcode" : "1985JCoPh..59...56S",
+               "note" : "Generalized Sharmer's 1981 method two multi-level, plane-paralell case (fixed temperature)."
+            },
+            {
+               "bibcode" : "1985ApJ...294..619B",
+               "note" : "First attempt to model photospheric SN spectra. Schuster-Swarzschild model assuming LTE at T = T_photo. All line scatter?"
+            },
+            {
+               "bibcode" : "1985ApJ...293..258H"
+            },
+            {
+               "bibcode" : "1985A&A...148..364H",
+               "note" : "First application of ALI method to expanding medium."
+            },
+            {
+               "bibcode" : "1981ApJ...249..720S",
+               "note" : "Devises an ALi method where the matrix to be inverted to solve for J in plane-parallel, two-level problem with fixed temperature, is tridiagonal and thus quick to invert. Builds on general idea proposed by Cannon1973 : make approximate solutions for J and iterate instead of one exact solution."
+            },
+            {
+               "bibcode" : "1981ApJ...244..780B"
+            },
+            {
+               "bibcode" : "1976ApJ...210..419M",
+               "note" : "Extension of Mihalas1975 to the case of partial redistribution."
+            },
+            {
+               "bibcode" : "1976ApJ...206..515M"
+            },
+            {
+               "bibcode" : "1976ApJ...205..165A",
+               "note" : "Generalization of the Rybicki1971 method to solve the equation of complete linerazations with multi-level statistical equilibrium equations so that t ~ NF instead of ~NF^3. Static case."
+            },
+            {
+               "bibcode" : "1975ApJ...202..465M",
+               "note" : "Extension of Noerdlinger1974 (EXPANDING atmosphere) : from plane-parallel to spherically symmetric. Also solves the eq. system by Rybickis1971 method (depth coupling), instead of regular Feautrier method (freq and angle coupling). Note that two-level line formation in an expanding medium is often approximated by the Sobolev solution otherwise. An investigation of the accuracy of the Sobole approximation is made at the end."
+            },
+            {
+               "bibcode" : "1974MNRAS.166...57K",
+               "note" : "First transfer equation treatment of non-planar, EXPANDING atmosphere. Works in star's frame. Im stuck on Eq 2.6 here, I dont understand where the angle-dependence of kappa goes."
+            },
+            {
+               "bibcode" : "1974ApJ...193..651N",
+               "note" : "Describes solution of transfer eq. in comoving frame of EXPANDING atmosphere. Plane-parallell and two-level atom (--> S can be analytically written in terms of J)."
+            },
+            {
+               "bibcode" : "1973ApJ...185..621C",
+               "note" : "When the source function is explicit (two-level atom form), one may use small values of N_freq and N_angle (1-3 instead of 10-100) to obtain small matrix inversion times ((N_f N_a)^3 one is solving for I here, not J), and instead make a few iterations to compute the error terms (which get smaller and smaller). This papers deals only with using small values for Nf. We can call it an approximate Lambda operator if we define the operator to produce bar(J) rather than J. An important and quite general numerical method, applicable to both static and moving media."
+            },
+            {
+               "bibcode" : "1973ApJ...180..469A"
+            },
+            {
+               "bibcode" : "1972ApJ...178..175A",
+               "note" : "Simple and beautiful paper, shows how coherent scattering in expanding media gives red wings to line profiles"
+            },
+            {
+               "bibcode" : "1972ApJ...174..439A"
+            },
+            {
+               "bibcode" : "1971JQSRT..11..589R",
+               "note" : "Derives an efficient way to solve the Featrier equations (static nebula) in the case of an equivalent two-level atom source function, so that solution time scales as ~NF rather than ~NF^3."
+            },
+            {
+               "bibcode" : "1970MNRAS.149..111C"
+            },
+            {
+               "bibcode" : "1970MNRAS.149...65A",
+               "note" : "Elegant paper, shows that one can go from single-stream approximations to full angle-dependence wihtout any significant effort by using iteration with Eddington factors"
+            },
+            {
+               "bibcode" : "1970ApJ...161..485C"
+            },
+            {
+               "bibcode" : "1969ApJ...158..641A",
+               "note" : "Compl. lin. of SSE, RTE and TE (static nebula). Only HI, 16 levels. Angles, depth points?"
+            },
+            {
+               "bibcode" : "1969Ap&SS...4..182P",
+               "note" : "A MC approach to SE problem, quteded by Lucy as failed"
+            },
+            {
+               "bibcode" : "1967ApJ...150L..53A"
+            },
+            {
+               "bibcode" : "1964CR....258.3189F",
+               "note" : "A french book where Featurier shows how one can half the number of angle-points by using sum and difference if I --> factor 2^3 = 8 less computation time for solving NLTE problem."
+            },
+            {
+               "bibcode" : "1962MNRAS.125...21H"
+            },
+            {
+               "bibcode" : "1962ApJ...135..195O"
+            },
+            {
+               "bibcode" : "1957SvA.....1..678S"
+            },
+            {
+               "bibcode" : "1936ZA.....11..359M",
+               "note" : "First discussion of radiative transfer in an expanding atmosphere. Schuster model."
+            }
+         ],
+         "lastmod" : "13-Apr-2012",
+         "name" : "Radiative transfer"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1992PhRvA..45.1556S"
+            },
+            {
+               "bibcode" : "1983IAUS..103..143M",
+               "note" : "Compilation. No data not included in Jerkstrand2011"
+            },
+            {
+               "bibcode" : "1978JPhB...11.4271B"
+            },
+            {
+               "bibcode" : "1971RvMP...43..297I"
+            },
+            {
+               "bibcode" : "1971JQSRT..11....7P"
+            },
+            {
+               "bibcode" : "1962ApJ...136..906V"
+            }
+         ],
+         "lastmod" : "24-Apr-2012",
+         "name" : "Atomic data - colisions"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1993ApJ...405..614C"
+            }
+         ],
+         "lastmod" : "11-Sep-2011",
+         "name" : "SN - positrons"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2010EAS....43..115P"
+            }
+         ],
+         "lastmod" : "08-May-2013",
+         "name" : "Statistical equilibrium"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1972ARA&A..10..375D"
+            },
+            {
+               "bibcode" : "1939ApJ....89..526S"
+            }
+         ],
+         "lastmod" : "06-Jul-2012",
+         "name" : "Nebular astrophysics"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2000JPhB...33.1255A"
+            },
+            {
+               "bibcode" : "1994ADNDT..57....9C"
+            },
+            {
+               "bibcode" : "1988ApJS...66..125M"
+            },
+            {
+               "bibcode" : "1988ApJ...327..477H"
+            },
+            {
+               "bibcode" : "1987MNRAS.224..801H"
+            },
+            {
+               "bibcode" : "1984A&A...138..495N"
+            },
+            {
+               "bibcode" : "1972ApJ...174..227J"
+            },
+            {
+               "bibcode" : "1971MNRAS.153..471B"
+            },
+            {
+               "bibcode" : "1964MNRAS.127..177S"
+            },
+            {
+               "bibcode" : "1964MNRAS.127..165P"
+            },
+            {
+               "bibcode" : "1964MNRAS.127..145P"
+            },
+            {
+               "bibcode" : "1959MNRAS.119...81S"
+            }
+         ],
+         "lastmod" : "22-Oct-2012",
+         "name" : "Atomic data - HI"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1995ApJ...451..889A"
+            },
+            {
+               "bibcode" : "1982ARA&A..20..163S"
+            }
+         ],
+         "lastmod" : "08-May-2013",
+         "name" : "H2"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2007SSRv..130..105G"
+            },
+            {
+               "bibcode" : "2003ApJ...591.1220L"
+            }
+         ],
+         "lastmod" : "24-Apr-2012",
+         "name" : "Solr system abundances"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2009IAUS..254..355N"
+            },
+            {
+               "bibcode" : "1992ApJ...386..181X"
+            }
+         ],
+         "lastmod" : "08-May-2013",
+         "name" : "1987A - hydrogen"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2012ApJ...757..178G"
+            },
+            {
+               "bibcode" : "1994ApJ...430..300E"
+            },
+            {
+               "bibcode" : "1993A&A...273..106B",
+               "note" : "STELLA : Comoving frame Hydrodynamics + multi-group RT w moments. Finds M_H ~ 1-2 Msun in IILs"
+            },
+            {
+               "bibcode" : "1983Ap&SS..89...89L",
+               "note" : "Hydrodynamics + radiative diffusion approx. Matter in LTE. Derives relations between L, t, v and M, R, E. Opacity due to..?"
+            },
+            {
+               "bibcode" : "1977ApJS...33..515F"
+            },
+            {
+               "bibcode" : "1976ApJ...207..872C",
+               "note" : "Hydrodynamics + radiative diffusion approx. Matter in LTE. Radiation dominated energy density. Opacity due to...? Shows that standard R=200-2000 Rsun stars produce good IIP lightscurves."
+            },
+            {
+               "bibcode" : "1971Ap&SS..10...28G",
+               "note" : "Hydrodynamics + radiative diffusion approx. Matter in LTE. Radiation dominated energy density. Opacity due to es, f-f, pi, H-."
+            }
+         ],
+         "lastmod" : "24-Apr-2013",
+         "name" : "SN light curves"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2013arXiv1303.2805C"
+            },
+            {
+               "bibcode" : "2012MNRAS.419.2054W"
+            },
+            {
+               "bibcode" : "2012ApJ...749..177N"
+            },
+            {
+               "bibcode" : "2012A&A...537A...2M"
+            },
+            {
+               "bibcode" : "2005A&A...438..273V"
+            }
+         ],
+         "lastmod" : "29-Mar-2013",
+         "name" : "Red supergiants"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2000ApJ...530..757P"
+            },
+            {
+               "bibcode" : "2000A&A...359..876C",
+               "note" : "Present bolometric light curves for 9 Ia SNe in erg/s."
+            }
+         ],
+         "lastmod" : "06-Aug-2012",
+         "name" : "SN - Ia"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2013pss2.book..325M"
+            }
+         ],
+         "lastmod" : "24-Feb-2012",
+         "name" : "Interferometry"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2013arXiv1304.5326K",
+               "note" : "Good summary of basics of pulsar wind nebulea..has a model for the gamma, xray and thermal light curves of a 10^13 G ms magnetar."
+            },
+            {
+               "bibcode" : "2013FrPhy.tmp....3H",
+               "note" : "An excellent (short but informative) review of the varous neutron star classes."
+            },
+            {
+               "bibcode" : "2012ApJ...749..111L"
+            },
+            {
+               "bibcode" : "2002ApJ...571L.143T"
+            }
+         ],
+         "lastmod" : "23-Apr-2013",
+         "name" : "Neutron stars"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1990ApJ...355..255S",
+               "note" : "Uses an updated version of the the Abott-Lucy 1985 code."
+            }
+         ],
+         "lastmod" : "20-Mar-2012",
+         "name" : "1987A - photospheric spectra"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1995ApJS..101..423N"
+            },
+            {
+               "bibcode" : "1992ApJS...80..425B"
+            }
+         ],
+         "lastmod" : "24-Apr-2012",
+         "name" : "Atomic data - CII"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2000ApJS..126..537N"
+            },
+            {
+               "bibcode" : "1995ApJS..101..423N"
+            },
+            {
+               "bibcode" : "1995A&AS..111..347G"
+            },
+            {
+               "bibcode" : "1994A&AS..108....1B"
+            },
+            {
+               "bibcode" : "1992ApJS...80..425B"
+            },
+            {
+               "bibcode" : "1969PhRv..178..218H"
+            }
+         ],
+         "lastmod" : "08-Mar-2013",
+         "name" : "Atomic data - doubly ionized or more"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1995ApJS..101..423N"
+            },
+            {
+               "bibcode" : "1969PhRv..178..218H"
+            }
+         ],
+         "lastmod" : "24-Apr-2012",
+         "name" : "Atomic data - NII"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1969PhRv..178..218H"
+            }
+         ],
+         "lastmod" : "23-Apr-2012",
+         "name" : "Atomic data - OII"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2003ASPC..287..357K"
+            }
+         ],
+         "lastmod" : "24-Apr-2012",
+         "name" : "HII regions"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2000ApJS..126..537N"
+            }
+         ],
+         "lastmod" : "24-Apr-2012",
+         "name" : "Atomic data - SiI"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2006JPhB...39..493K"
+            },
+            {
+               "bibcode" : "2001ADNDT..77...87S"
+            }
+         ],
+         "lastmod" : "24-Apr-2012",
+         "name" : "Atomic data - CaI"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2007A&A...469.1203M"
+            }
+         ],
+         "lastmod" : "24-Apr-2012",
+         "name" : "Atomic data - CaII"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1997ApJ...479..497N"
+            },
+            {
+               "bibcode" : "1997A&AS..122..177P"
+            },
+            {
+               "bibcode" : "1997A&AS..122..167B",
+               "note" : "Claims that calculation of all photoionzation cross sections have been done, but there are few results shown in the paper and no online table? Also no hits on TOPBASE."
+            }
+         ],
+         "lastmod" : "08-Mar-2013",
+         "name" : "Atomic data - FeI"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2007A&A...475..765R",
+               "note" : "Implemented"
+            },
+            {
+               "bibcode" : "1997ApJ...479..497N"
+            },
+            {
+               "bibcode" : "1996A&AS..115..551B",
+               "note" : "Partially implemented (data is on TIPBASE only)"
+            },
+            {
+               "bibcode" : "1995A&A...293..967N"
+            },
+            {
+               "bibcode" : "1995A&A...293..953Z",
+               "note" : "Implemented (some transitions replaced by Ramsbottom 2007)"
+            }
+         ],
+         "lastmod" : "13-Mar-2013",
+         "name" : "Atomic data - FeII"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2003ApJS..149..205M"
+            },
+            {
+               "bibcode" : "1996ApJS..103..467V"
+            },
+            {
+               "bibcode" : "1996ApJ...465..487V"
+            },
+            {
+               "bibcode" : "1982ApJS...48...95S",
+               "note" : "Radiative and dielectronic rec. coefficients for C, N, O, Ne, Mg, Si, S, Ca, Fe, Ni."
+            },
+            {
+               "bibcode" : "1971JQSRT..11....7P"
+            }
+         ],
+         "lastmod" : "20-Nov-2012",
+         "name" : "Atomic data - general"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1995ApJS..101..423N"
+            }
+         ],
+         "lastmod" : "24-Apr-2012",
+         "name" : "Atomic data - SiII"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1995ApJS..101..423N"
+            }
+         ],
+         "lastmod" : "24-Apr-2012",
+         "name" : "Atomic data - SIII"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2011MNRAS.413.2140T"
+            },
+            {
+               "bibcode" : "2008Sci...320.1195K"
+            },
+            {
+               "bibcode" : "2008MNRAS.389..955P"
+            },
+            {
+               "bibcode" : "2004Natur.427..129M",
+               "note" : "Identifies a BSG companion star at SN1993J site, with log L = 5.0\\pm 0.3. 1993J progenitor was RSG with log L = 5.1 pm 0.3."
+            },
+            {
+               "bibcode" : "2000AJ....120.1499M",
+               "note" : "Consists of two parts : analysis of the fine-structure of nebular-phase emission lines from ejecta, and late-time CSI. Finds O and Mg to be clumped, but Ca II 7300 smooth. Derives f = 0.06 with the Chugai method, but I think they use wrong clump velocity."
+            },
+            {
+               "bibcode" : "1994MNRAS.266L..61S",
+               "note" : "Shows some line profiles of 1993J in the nebular phase, but these do not agree with other spectra I have seen (they have very strange offsets here). Makes a Chugai-type analysis of the O clumps from the OI 6300 profile, but no quantitative results."
+            },
+            {
+               "bibcode" : "1994ApJ...429..300W",
+               "note" : "Describes a binary model that can explain 1993J : a 13-16 Msun primary with a ~10 Msun companion at a few AU. Finds 0.2 Msun to be the limiting envelope mass below which the star shrinks and mass transfer by Roche lobe overflow stops. Best part is modeling of the light curve, both with a pure electron scattering (gray) radiation hydrodynamics code assuming LTE, and with the multi-group radiation transport (non-hydro) code EDDINGTON (used in LTE here). Applied a moderate amount of artificial mixing (including 56Ni). Bolometric light curves are essentially identical for the first LC bump (shock breakout, meaning that non-gray radiation transport effects are not important for this phase), but somewhat different for the second (56Ni-driven) bump. The SED produced by EDDINGTON assuming LTE agrees only moderately with observations, NLTE effects being important quite soon. This is an important conclusion : one cannot model photospheric phase spectra and photometry of SNe with an LTE code. Points out that because clumping is not modeled, one should not rule out models just because they differ slightly from observations, but do the modeling in a 'rough' way, ruling out extremes."
+            },
+            {
+               "bibcode" : "1994ApJ...420..341S",
+               "note" : "Obtains good fits to the 1993J LC with strongly mixed 3-4 Msun He cores (12-15 Msun progenitor). EStimates 56Ni mass to 0.08 Msun, within factor 2. Provides homologous density profiles for explosion of 4 Msun he core, with H env of 0.5 and 0.9 Msun."
+            },
+            {
+               "bibcode" : "1994AJ....108.2220F"
+            },
+            {
+               "bibcode" : "1993ApJ...414L..21T",
+               "note" : "Determines strong polarization in 1993J, presumably due to electron scattering. About 2:1 axes ratio suggested."
+            }
+         ],
+         "lastmod" : "02-Nov-2012",
+         "name" : "SN - IIb"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2003A&A...411L.223G"
+            },
+            {
+               "bibcode" : "2001ESASP.459..497G"
+            }
+         ],
+         "lastmod" : "31-May-2012",
+         "name" : "INTEGRAL"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2012Sci...337..444S"
+            },
+            {
+               "bibcode" : "2012A&A...544L..11Y"
+            },
+            {
+               "bibcode" : "2011A&A...530A.116B",
+               "note" : "Computed a grid of stellar evolution models up to He ignition (so only main sequence). Uses the code by Heger Langer and Woosley 2000. Includes rotation, magnetic fields, mass loss. Uses an overshooting of 0.34Hp. Uses Spruit-Taylor dynamo to transport angular momentum, but not chemical elements (still controversial)."
+            },
+            {
+               "bibcode" : "2000ApJ...544.1016H",
+               "note" : "Analyzes the grid of rotating stars computed in HLW2002, in particular solar metallicity 8-25 Msun stars and how surface abundances of C,N,O,Na,Al and others depend on rotation. But seems that the rotational mixing efficient is CALIBRATED to fit the observations, so in that sense they do not SHOW that rotation can explain surface chemistry. Given the calibration, presents the envelope content of C,N,O, He after RSG dredge up, as function of rotation velocity."
+            },
+            {
+               "bibcode" : "1997MNRAS.284..265H",
+               "note" : "Presents measured v sin i for a sample of O and B supergiants, as well as for MS O stars, in the galaxy. Find v ~ 120 km/s for MS stars, but a wide distribution. Similar distribution curves to the later FLAMES survey."
+            },
+            {
+               "bibcode" : "1995SSRv...74..343L",
+               "note" : "Calculates C and O yields for models with rather inefficient semi convection, alpha=0.04. Finds much smaller (factor 2-3)  CO cores than models with alpha=0.1 (e.g. Woosley Heger 2007)"
+            },
+            {
+               "bibcode" : "1993ASPC...40..310A",
+               "note" : "Discusses the CNO cycle and the Ne,Na,Mg,Al cycles accompanying it."
+            }
+         ],
+         "lastmod" : "16-Aug-2012",
+         "name" : "Massive star evolution"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2011ApJ...734..102K"
+            }
+         ],
+         "lastmod" : "27-Sep-2012",
+         "name" : "SN - pair instability"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1991MNRAS.253P..25S",
+               "note" : "Determines a number density of 5E10(t/100)^-3 for O I based on 6300/6364 ration. Very similar density to 1987A."
+            }
+         ],
+         "lastmod" : "22-Aug-2012",
+         "name" : "SN - oxygen"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2013A&A...550A.107S",
+               "note" : "Analyzes 360 O-stars in the Tarantula nebular in the LMC. Finds that 35% are binaries, estimates the intrinsic fraction to 51% (i.e 2/3 of the STARS).  Estimates that 53% of the stars (i.e. ~75% of those in a binary)  will experience mass transfer during their life : 27% will be stripped, 18% will merge, and 8% will accrete/be spun up. Finds a distribution of periods log10(P/d)^-0.45, and distribution of masses (M_small/M_large)^-1 (with lower limit at 0.1). Of the mergers, about 75% will be post-MS mergers, and 25% MS mergers (very short periods). The final estimate chance for a post-MS merger for an O star is then 13% : 1 chance in 8."
+            },
+            {
+               "bibcode" : "1992ApJ...391..246P",
+               "note" : "Shows that the final luminosity and radius (and temperature) of a RSG is essentially independent of the final H envelope mass, down to at least 0.5 Msun. Shows that in Case C, for typical binary parameters, mass loss is initially dynamic and instable (which I think means also ejection from system), and only becomes stable Roche lobe transfer when 2-4 Msun of the H envelope remain. In Case C, a companion of similar mass can only remove about half the H envelope."
+            }
+         ],
+         "lastmod" : "19-Oct-2012",
+         "name" : "SN - binary evolution"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2012ApJ...744...10K",
+               "note" : "Medium-quality review of LBVs, focus on estimating mass-loss rates and wind velocities."
+            },
+            {
+               "bibcode" : "1994PASP..106.1025H",
+               "note" : "Excellent review of LBVs. Suggests two types of LBVs, the classical ones that are M >~ 40 Msun stars that towards the end of their evolution reaches a high L/M ration and become unstable, probably spending ~25000 years i this phase before having lost most H and become WR stars (must be even more unstable?). The second class is lower-luminosity LBVs, possible representing post RSG evolution of 20-40 Msun stars. Describes a plausible candidate for the instability as arising from a temperature-dependent opacity, raising it above the electron scattering limit"
+            }
+         ],
+         "lastmod" : "08-Oct-2012",
+         "name" : "LBVs"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2012arXiv1210.0530W",
+               "note" : "Advice for writing and maintaining code. Scientists spend on average 30% of their time developing software, but over 90% are only self-taught. (1.1) A program should not require the reader to hold more than a few facts in memory at once. Break the code down into functions and modules of various complexity to achieve this. (1.4) Every step in software development should take no more than an hour's implementation. After this time our attention span drops and we make mistakes. Also, interruptions causes us to lose the workflow. (2.1) Use computers for any REPETITIVE tasks and (2.2) for saving complex commands. (2.3) Use BUILD tools to automate workflows.  (3.1) Use the computer to track workflow automatically (as a notebook)  (5.2) Anything created manually (source code, paper drafts) should be put under version control  (6.1) Every piece of data must have one and only one representation on the system..dont have several copies lying around in several directories or on several computers. (6.2) On large scale, reuse existing (and tested) code rather than writing your own, especially for core operations such as matrix inversions. (7.1) Use defensive programming : write checks in input variables etc. (7.2) Use a testing library for all your units.  (7.4) Have access to and use a symbolic debugger to be able to trace code flow.  (8.1) Use a profiler to identify bottlenecks in the code.  (8.2) Use as high-level language as possible, it goes faster and produces fewer errors.  (9.1) Organise the code well and you rarely have to explain what each line does. Instead, explain purpose and logic of things. (9.3) Put documentation IN the software, not as a separate document  (10.1) Use code reviews : let other people inspect code just as when they inspect your paper drafts.  (10.2) Use an issue tracking tool to keep track of the development process."
+            }
+         ],
+         "lastmod" : "06-Nov-2012",
+         "name" : "Programming"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1998A&AS..129..147Q"
+            }
+         ],
+         "lastmod" : "02-Dec-2012",
+         "name" : "Atomic data - CoII"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2011ApJ...738....5C"
+            },
+            {
+               "bibcode" : "2010A&A...513A..55C"
+            },
+            {
+               "bibcode" : "1996A&AS..115..551B",
+               "note" : "Collision strengths, however superceded by Cassidy papers later on"
+            }
+         ],
+         "lastmod" : "08-Mar-2013",
+         "name" : "Atomic data - NiII"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2001A&A...365..268B",
+               "note" : "Collision strengths from ground multiplet to all higher terms. No data for transitions between non-GS terms (also in online tables)."
+            }
+         ],
+         "lastmod" : "03-Dec-2012",
+         "name" : "Atomic data - NiIII"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1996A&AS..119..523Z",
+               "note" : "On-line tables for more transitions than presented in the 1995 paper."
+            },
+            {
+               "bibcode" : "1995JPhB...28.3403Z",
+               "note" : "Effective collision strengths for all transitions between the 17 lowest states in Fe III."
+            }
+         ],
+         "lastmod" : "03-Dec-2012",
+         "name" : "Atomic data - FeIII"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1965ApJ...142.1101C"
+            },
+            {
+               "bibcode" : "1949BAN....11....1Z"
+            }
+         ],
+         "lastmod" : "06-Mar-2013",
+         "name" : "Radiative transfer - escape probabilities"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1994A&AS..108....1B"
+            }
+         ],
+         "lastmod" : "08-Mar-2013",
+         "name" : "Atomic data - F II"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1991A&A...243..223L",
+               "note" : "Shows that Mg I 2852 can pump the Na I 2853 transition, which leads to fluorescence in 6160 A, 1.14 um, and 2.12 um emission, among others. Useful basic physics of line overlap in expanding flows."
+            }
+         ],
+         "lastmod" : "12-Mar-2013",
+         "name" : "Radiative transfer - Bowen type fluorescence"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "1998ApJ...500.1049Y",
+               "note" : "Makes simple chemistry models, show that H3+ may form (which has lines at 3.41 and 3.53 mu) if molecular cooling by CO and H2 of H clumps occur"
+            }
+         ],
+         "lastmod" : "29-Mar-2013",
+         "name" : "1987A-H3+"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2013arXiv1302.1721P"
+            }
+         ],
+         "lastmod" : "23-Apr-2013",
+         "name" : "Data analysis methods"
+      }
+   ],
+   "owner" : "Alberto Accomazzi",
+   "pubid" : "4b07eb957d",
+   "uid" : "4201071e73"
+}

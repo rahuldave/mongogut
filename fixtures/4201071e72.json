@@ -1,0 +1,2043 @@
+{
+   "count" : "20",
+   "libraries" : [
+      {
+         "desc" : "ADS-related papers",
+         "entries" : [
+            {
+               "bibcode" : "2009JInfo...3....1H",
+               "note" : "Data mostly used in the 2008 Senior Review"
+            },
+            {
+               "bibcode" : "2008PASP..120..229M",
+               "note" : "Makes heavy use of ADS bibliometrics"
+            },
+            {
+               "bibcode" : "2007LePub..20...16H"
+            },
+            {
+               "bibcode" : "2007DPS....39.2708H",
+               "note" : "customization"
+            },
+            {
+               "bibcode" : "2007ASPC..377..106H",
+               "note" : "another myADS paper"
+            },
+            {
+               "bibcode" : "2007AAS...211.4732A",
+               "note" : "image processing, data compression"
+            },
+            {
+               "bibcode" : "2007AAS...211.4731G",
+               "note" : "Accounts for data growth due mainly to CrossRef records"
+            },
+            {
+               "bibcode" : "2007AAS...211.4730K",
+               "note" : "networks, demo"
+            },
+            {
+               "bibcode" : "2006oaks.book...45K"
+            },
+            {
+               "bibcode" : "2006SoPh..239..549M"
+            },
+            {
+               "bibcode" : "2006JEPub...9....2H"
+            },
+            {
+               "bibcode" : "2006AAS...20917302H"
+            },
+            {
+               "bibcode" : "2005JASIS..56..111K"
+            },
+            {
+               "bibcode" : "2005JASIS..56...36K"
+            },
+            {
+               "bibcode" : "2005IPM....41.1395K"
+            },
+            {
+               "bibcode" : "2005BAAS...37..555M"
+            },
+            {
+               "bibcode" : "2000A&AS..143..111G"
+            },
+            {
+               "bibcode" : "2000A&AS..143...85A"
+            },
+            {
+               "bibcode" : "2000A&AS..143...61E"
+            },
+            {
+               "bibcode" : "2000A&AS..143...41K"
+            },
+            {
+               "bibcode" : "1993ASPC...52..132K"
+            }
+         ],
+         "lastmod" : "29-Aug-2012",
+         "name" : "ADS"
+      },
+      {
+         "desc" : "Papers on bibliometrics, social networks",
+         "entries" : [
+            {
+               "bibcode" : "2010arXiv1007.4602Z"
+            },
+            {
+               "bibcode" : "2010SPIE.7740E..22N"
+            },
+            {
+               "bibcode" : "2009arXiv0904.1439C"
+            },
+            {
+               "bibcode" : "2008arXiv0810.5428B"
+            },
+            {
+               "bibcode" : "2008JASIS..59..136B"
+            },
+            {
+               "bibcode" : "2007JASIS..58.2047M"
+            },
+            {
+               "bibcode" : "2006cs........8004S"
+            },
+            {
+               "bibcode" : "2006cs........7070K"
+            },
+            {
+               "bibcode" : "2006cs........1030B"
+            },
+            {
+               "bibcode" : "2006ResEv..15..127M"
+            },
+            {
+               "bibcode" : "2005IPM....41.1419B"
+            },
+            {
+               "bibcode" : "2004cs........1029E"
+            }
+         ],
+         "name" : "bibliometrics"
+      },
+      {
+         "desc" : "Dataset Identifiers",
+         "entries" : [
+            {
+               "bibcode" : "2007ASPC..376..467A"
+            },
+            {
+               "bibcode" : "2004ASPC..314..605R"
+            },
+            {
+               "bibcode" : "2004ASPC..314..181A"
+            },
+            {
+               "bibcode" : "2004AAS...20511305E"
+            },
+            {
+               "bibcode" : "2004AAS...204.7502E"
+            }
+         ],
+         "name" : "datasetIDs"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2009ASPC..411..384H"
+            },
+            {
+               "bibcode" : "2009ASPC..410..160O"
+            },
+            {
+               "bibcode" : "2001JGR...10628371R"
+            }
+         ],
+         "name" : "agu demo"
+      },
+      {
+         "desc" : "web technology papers",
+         "entries" : [
+            {
+               "bibcode" : "2008arXiv0801.2618D"
+            }
+         ],
+         "name" : "web"
+      },
+      {
+         "desc" : "overview and technical papers for SIMBAD",
+         "entries" : [
+            {
+               "bibcode" : "2007ASPC..377..197W"
+            },
+            {
+               "bibcode" : "2007ASPC..376..527W"
+            },
+            {
+               "bibcode" : "2007ASPC..376..145G"
+            },
+            {
+               "bibcode" : "2006ASPC..351..662W"
+            },
+            {
+               "bibcode" : "2005ASPC..347..413W"
+            }
+         ],
+         "name" : "SIMBAD"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2008PASP..120..224D"
+            },
+            {
+               "bibcode" : "2007RPPh...70..883W"
+            },
+            {
+               "bibcode" : "2007LePub..20...16H"
+            },
+            {
+               "bibcode" : "2007BASI...35..717E"
+            },
+            {
+               "bibcode" : "2006JEPub...9....2H"
+            },
+            {
+               "bibcode" : "2006A&G....47f..17P"
+            },
+            {
+               "bibcode" : "2005JASIS..56..111K"
+            },
+            {
+               "bibcode" : "2005JASIS..56...36K"
+            },
+            {
+               "bibcode" : "2005IPM....41.1395K"
+            },
+            {
+               "bibcode" : "2004A&G....45c...7E"
+            },
+            {
+               "bibcode" : "2002Ap&SS.282..299E"
+            },
+            {
+               "bibcode" : "2000A&AS..143..111G"
+            },
+            {
+               "bibcode" : "2000A&AS..143...85A"
+            },
+            {
+               "bibcode" : "2000A&AS..143...61E"
+            },
+            {
+               "bibcode" : "2000A&AS..143...41K"
+            },
+            {
+               "bibcode" : "1999Dlib....5.....K"
+            },
+            {
+               "bibcode" : "1997PASP..109.1278S"
+            },
+            {
+               "bibcode" : "1997Ap&SS.247..189E"
+            },
+            {
+               "bibcode" : "1996VA.....40..393K"
+            },
+            {
+               "bibcode" : "1995VA.....39..235A"
+            },
+            {
+               "bibcode" : "1995VA.....39..217E"
+            },
+            {
+               "bibcode" : "1995VA.....39...63A"
+            },
+            {
+               "bibcode" : "1995PASP..107..776K"
+            },
+            {
+               "bibcode" : "1994ExA.....5..205E"
+            }
+         ],
+         "name" : "ADS Refereed Papers"
+      },
+      {
+         "desc" : "last modified: jan 2009",
+         "entries" : [
+            {
+               "bibcode" : "2008PASP..120..801D"
+            },
+            {
+               "bibcode" : "2007fpca.conf..141K"
+            },
+            {
+               "bibcode" : "2007fpca.conf...47B"
+            },
+            {
+               "bibcode" : "2007arXiv0709.0896K"
+            },
+            {
+               "bibcode" : "2007LPI....38.1240E"
+            },
+            {
+               "bibcode" : "2007HiA....14..605E"
+            },
+            {
+               "bibcode" : "2007DPS....39.2708H"
+            },
+            {
+               "bibcode" : "2007ASPC..377..188M"
+            },
+            {
+               "bibcode" : "2007ASPC..377..106H"
+            },
+            {
+               "bibcode" : "2007ASPC..377..102T"
+            },
+            {
+               "bibcode" : "2007ASPC..377...97G"
+            },
+            {
+               "bibcode" : "2007ASPC..377...93E"
+            },
+            {
+               "bibcode" : "2007ASPC..377...86G"
+            },
+            {
+               "bibcode" : "2007ASPC..377...69A"
+            },
+            {
+               "bibcode" : "2007ASPC..377...62D"
+            },
+            {
+               "bibcode" : "2007ASPC..377...36E"
+            },
+            {
+               "bibcode" : "2007ASPC..377...23K"
+            },
+            {
+               "bibcode" : "2007ASPC..376..467A"
+            },
+            {
+               "bibcode" : "2007APS..MARU20009K"
+            },
+            {
+               "bibcode" : "2007APS..MAR.K1201E"
+            },
+            {
+               "bibcode" : "2007AAS...211.4732A"
+            },
+            {
+               "bibcode" : "2007AAS...211.4731G"
+            },
+            {
+               "bibcode" : "2007AAS...211.4730K"
+            },
+            {
+               "bibcode" : "2006oaks.book...45K"
+            },
+            {
+               "bibcode" : "2006ihy..workE..89E"
+            },
+            {
+               "bibcode" : "2006LPI....37.1691E"
+            },
+            {
+               "bibcode" : "2006DPS....38.4605E"
+            },
+            {
+               "bibcode" : "2006ASSL..343..307H"
+            },
+            {
+               "bibcode" : "2006ASSL..335..169A"
+            },
+            {
+               "bibcode" : "2006ASPC..351..715A"
+            },
+            {
+               "bibcode" : "2006ASPC..351..653K"
+            },
+            {
+               "bibcode" : "2006AAS...20921809K"
+            },
+            {
+               "bibcode" : "2006AAS...20921808E"
+            },
+            {
+               "bibcode" : "2006AAS...20917302H"
+            },
+            {
+               "bibcode" : "2005Msngr.119...50D"
+            },
+            {
+               "bibcode" : "2005LPI....36.1207E"
+            },
+            {
+               "bibcode" : "2005ICRC....9..307M"
+            },
+            {
+               "bibcode" : "2005DPS....37.1302E"
+            },
+            {
+               "bibcode" : "2005BAAS...37..555M"
+            },
+            {
+               "bibcode" : "2005APS..APRR11009E"
+            },
+            {
+               "bibcode" : "2005AGUFMIN33A1162E"
+            },
+            {
+               "bibcode" : "2005AAS...207.3405K"
+            },
+            {
+               "bibcode" : "2005AAS...207.3404E"
+            },
+            {
+               "bibcode" : "2004tivo.conf..294M"
+            },
+            {
+               "bibcode" : "2004tivo.conf..267E"
+            },
+            {
+               "bibcode" : "2004dbss.book..355E"
+            },
+            {
+               "bibcode" : "2004ccdm.conf..521D"
+            },
+            {
+               "bibcode" : "2004PhT....57e..18E"
+            },
+            {
+               "bibcode" : "2004LPI....35.1602T"
+            },
+            {
+               "bibcode" : "2004LPI....35.1267E"
+            },
+            {
+               "bibcode" : "2004DPS....36.1314E"
+            },
+            {
+               "bibcode" : "2004ASPC..314..181A"
+            },
+            {
+               "bibcode" : "2004AGUFMED13D0746E"
+            },
+            {
+               "bibcode" : "2003lisa.conf..266W"
+            },
+            {
+               "bibcode" : "2003lisa.conf..249L"
+            },
+            {
+               "bibcode" : "2003lisa.conf..223K"
+            },
+            {
+               "bibcode" : "2003lisa.conf..173E"
+            },
+            {
+               "bibcode" : "2003lisa.conf..145E"
+            },
+            {
+               "bibcode" : "2003LPI....34.1949E"
+            },
+            {
+               "bibcode" : "2003IAUSS...4E...7E"
+            },
+            {
+               "bibcode" : "2003EAEJA....12295E"
+            },
+            {
+               "bibcode" : "2003DPS....35.3302E"
+            },
+            {
+               "bibcode" : "2003AfrSk...8....7E"
+            },
+            {
+               "bibcode" : "2003ASSL..285..157E"
+            },
+            {
+               "bibcode" : "2003ASPC..295..309A"
+            },
+            {
+               "bibcode" : "2003APS..MARX31001E"
+            },
+            {
+               "bibcode" : "2003AGUFMED32C1207E"
+            },
+            {
+               "bibcode" : "2003AAS...203.2006H"
+            },
+            {
+               "bibcode" : "2003AAS...203.2005K"
+            },
+            {
+               "bibcode" : "2003AAS...203.2004E"
+            },
+            {
+               "bibcode" : "2002rict.confE..17E"
+            },
+            {
+               "bibcode" : "2002bss..confE...6E"
+            },
+            {
+               "bibcode" : "2002SPIE.4847..238K"
+            },
+            {
+               "bibcode" : "2002SPIE.4846...81E"
+            },
+            {
+               "bibcode" : "2002S&T...104a..14E"
+            },
+            {
+               "bibcode" : "2002LPI....33.1298E"
+            },
+            {
+               "bibcode" : "2002DPS....34.3210E"
+            },
+            {
+               "bibcode" : "2002ASPC..281..471R"
+            },
+            {
+               "bibcode" : "2002ASPC..281..441E"
+            },
+            {
+               "bibcode" : "2002APS..APRI11007E"
+            },
+            {
+               "bibcode" : "2002AGUSMED22C..07E"
+            },
+            {
+               "bibcode" : "2002AGUFMED61B0024E"
+            },
+            {
+               "bibcode" : "2002AAS...201.7602T"
+            },
+            {
+               "bibcode" : "2002AAS...201.0904K"
+            },
+            {
+               "bibcode" : "2002AAS...201.0903E"
+            },
+            {
+               "bibcode" : "2002AAS...200.5807E"
+            },
+            {
+               "bibcode" : "2001SPIE.4477..186K"
+            },
+            {
+               "bibcode" : "2001LPI....32.1139E"
+            },
+            {
+               "bibcode" : "2001DPS....33.1316E"
+            },
+            {
+               "bibcode" : "2001ASPC..238..321D"
+            },
+            {
+               "bibcode" : "2001AAS...199.1002R"
+            },
+            {
+               "bibcode" : "2001AAS...199.1001E"
+            },
+            {
+               "bibcode" : "2001AAS...199.0108E"
+            },
+            {
+               "bibcode" : "2001AAS...198.0307E"
+            },
+            {
+               "bibcode" : "2000DPS....32.2702E"
+            },
+            {
+               "bibcode" : "2000ASPC..216..255E"
+            },
+            {
+               "bibcode" : "2000AAS...19712008E"
+            },
+            {
+               "bibcode" : "2000AAS...196.5301E"
+            },
+            {
+               "bibcode" : "1999ASPC..172..291A"
+            },
+            {
+               "bibcode" : "1999ASPC..172..287L"
+            },
+            {
+               "bibcode" : "1999AAS...19510005E"
+            },
+            {
+               "bibcode" : "1999AAS...195.8209D"
+            },
+            {
+               "bibcode" : "1999AAS...19410305D"
+            },
+            {
+               "bibcode" : "1999AAS...194.4407K"
+            },
+            {
+               "bibcode" : "1999AAS...194.1004E"
+            },
+            {
+               "bibcode" : "1998LPI....29.1514E"
+            },
+            {
+               "bibcode" : "1998HiA....11..516E"
+            },
+            {
+               "bibcode" : "1998BAAS...30.1080E"
+            },
+            {
+               "bibcode" : "1998ASPC..153..293K"
+            },
+            {
+               "bibcode" : "1998ASPC..153..277E"
+            },
+            {
+               "bibcode" : "1998ASPC..153..127H"
+            },
+            {
+               "bibcode" : "1998ASPC..153..118E"
+            },
+            {
+               "bibcode" : "1998ASPC..145..478K"
+            },
+            {
+               "bibcode" : "1998ASPC..145..395A"
+            },
+            {
+               "bibcode" : "1998ASPC..145..378E"
+            },
+            {
+               "bibcode" : "1998AAS...19312004E"
+            },
+            {
+               "bibcode" : "1998AAS...193.1311K"
+            },
+            {
+               "bibcode" : "1998AAS...192.3801E"
+            },
+            {
+               "bibcode" : "1997LPI....28..325E"
+            },
+            {
+               "bibcode" : "1997DPS....29.2705K"
+            },
+            {
+               "bibcode" : "1997DPS....29.2704E"
+            },
+            {
+               "bibcode" : "1997ASSL..212D..23K"
+            },
+            {
+               "bibcode" : "1997ASPC..125..361S"
+            },
+            {
+               "bibcode" : "1997ASPC..125..357A"
+            },
+            {
+               "bibcode" : "1997AGAb...13..149E"
+            },
+            {
+               "bibcode" : "1997AGAb...13..135E"
+            },
+            {
+               "bibcode" : "1997AAS...191.3502E"
+            },
+            {
+               "bibcode" : "1997AAS...191.1701K"
+            },
+            {
+               "bibcode" : "1997AAS...190.1403E"
+            },
+            {
+               "bibcode" : "1996dkcw.proc..123K"
+            },
+            {
+               "bibcode" : "1996S&T....92...81E"
+            },
+            {
+               "bibcode" : "1996ASPC..101..569E"
+            },
+            {
+               "bibcode" : "1996ASPC..101..558A"
+            },
+            {
+               "bibcode" : "1996AAS...189.0608S"
+            },
+            {
+               "bibcode" : "1996AAS...189.0607K"
+            },
+            {
+               "bibcode" : "1996AAS...189.0603B"
+            },
+            {
+               "bibcode" : "1996AAS...189.0601E"
+            },
+            {
+               "bibcode" : "1996AAS...188.8508E"
+            },
+            {
+               "bibcode" : "1995SISN...34...24E"
+            },
+            {
+               "bibcode" : "1995IntR....5...25N"
+            },
+            {
+               "bibcode" : "1995DPS....27.3609E"
+            },
+            {
+               "bibcode" : "1995ASSL..203..175M"
+            },
+            {
+               "bibcode" : "1995ASPC...77...36A"
+            },
+            {
+               "bibcode" : "1995ASPC...77...32G"
+            },
+            {
+               "bibcode" : "1995ASPC...77...28E"
+            },
+            {
+               "bibcode" : "1995AAS...187.3801B"
+            },
+            {
+               "bibcode" : "1995AAS...186.0203E"
+            },
+            {
+               "bibcode" : "1995AAS...186.0202K"
+            },
+            {
+               "bibcode" : "1994SISN...34...31E"
+            },
+            {
+               "bibcode" : "1994SISN...31...16E"
+            },
+            {
+               "bibcode" : "1994IAUS..161..331K"
+            },
+            {
+               "bibcode" : "1994ASPC...61...18E"
+            },
+            {
+               "bibcode" : "1994AIPC..283..419G"
+            },
+            {
+               "bibcode" : "1994AAS...185.4104E"
+            },
+            {
+               "bibcode" : "1994AAS...185.4102A"
+            },
+            {
+               "bibcode" : "1994AAS...184.3801K"
+            },
+            {
+               "bibcode" : "1994AAS...184.2802G"
+            },
+            {
+               "bibcode" : "1994AAS...184.2801E"
+            },
+            {
+               "bibcode" : "1993dgs..work...45E"
+            },
+            {
+               "bibcode" : "1993SISN...29...20E"
+            },
+            {
+               "bibcode" : "1993SISN...27...15E"
+            },
+            {
+               "bibcode" : "1993JAVSO..22..136E"
+            },
+            {
+               "bibcode" : "1993BAAS...25.1241E"
+            },
+            {
+               "bibcode" : "1993ASSL..182...21K"
+            },
+            {
+               "bibcode" : "1993ASPC...52..132K"
+            },
+            {
+               "bibcode" : "1993AAS...18311803B"
+            },
+            {
+               "bibcode" : "1993AAS...182.7109E"
+            },
+            {
+               "bibcode" : "1993AAS...182.0306K"
+            },
+            {
+               "bibcode" : "1992ESOC...43..387M"
+            },
+            {
+               "bibcode" : "1992ESOC...43...85K"
+            },
+            {
+               "bibcode" : "1992ASPC...25...35G"
+            },
+            {
+               "bibcode" : "1990PaReL..11..507K"
+            },
+            {
+               "bibcode" : "1989daa..conf..121O"
+            },
+            {
+               "bibcode" : "1989LNP...329...91K"
+            },
+            {
+               "bibcode" : "1988ESOC...28..489S"
+            },
+            {
+               "bibcode" : "1988ESOC...28..459R"
+            },
+            {
+               "bibcode" : "1988ESOC...28..113K"
+            },
+            {
+               "bibcode" : "1987adsw.conf.....S"
+            }
+         ],
+         "lastmod" : "27-Aug-2010",
+         "name" : "ADS Non-Refereed Papers"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2000A&AS..143....9W"
+            },
+            {
+               "bibcode" : "1997PASP..109.1278S"
+            },
+            {
+               "bibcode" : "1995VA.....39..195E"
+            },
+            {
+               "bibcode" : "1995VA.....39..187L"
+            },
+            {
+               "bibcode" : "1995VA.....39..179L"
+            },
+            {
+               "bibcode" : "1995VA.....39..155S"
+            },
+            {
+               "bibcode" : "1995VA.....39...63A"
+            }
+         ],
+         "name" : "SIMBAD Refereed Papers"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2007ASPC..376..527W"
+            },
+            {
+               "bibcode" : "2007ASPC..376..145G"
+            },
+            {
+               "bibcode" : "2006ASPC..351..703O"
+            },
+            {
+               "bibcode" : "2006ASPC..351..662W"
+            },
+            {
+               "bibcode" : "2006AAS...209.7807G"
+            },
+            {
+               "bibcode" : "2005ASPC..347..413W"
+            },
+            {
+               "bibcode" : "2005AAS...207.3403G"
+            },
+            {
+               "bibcode" : "2004tivo.conf..140A"
+            },
+            {
+               "bibcode" : "2004sf2a.conf..581V"
+            },
+            {
+               "bibcode" : "2004AAS...20515319G"
+            },
+            {
+               "bibcode" : "2003lisa.conf..269D"
+            },
+            {
+               "bibcode" : "2003lisa.conf..266W"
+            },
+            {
+               "bibcode" : "2003lisa.conf..257O"
+            },
+            {
+               "bibcode" : "2003lisa.conf..243L"
+            },
+            {
+               "bibcode" : "2003lisa.conf...59G"
+            },
+            {
+               "bibcode" : "2003ESASP.511...13G"
+            },
+            {
+               "bibcode" : "2003AAS...203.2003G"
+            },
+            {
+               "bibcode" : "2003A&A...412...45P"
+            },
+            {
+               "bibcode" : "2002rict.confE..17E"
+            },
+            {
+               "bibcode" : "2002LEDA.........0P"
+            },
+            {
+               "bibcode" : "2002ASPC..281..466W"
+            },
+            {
+               "bibcode" : "2002ASPC..281..441E"
+            },
+            {
+               "bibcode" : "2002ASPC..281..434A"
+            },
+            {
+               "bibcode" : "2002ASPC..281...68M"
+            },
+            {
+               "bibcode" : "2002ASPC..281...25F"
+            },
+            {
+               "bibcode" : "2002AAS...201.0804G"
+            },
+            {
+               "bibcode" : "2002AAS...201.0803E"
+            },
+            {
+               "bibcode" : "2001misk.conf..674G"
+            },
+            {
+               "bibcode" : "2001SPIE.4477..142G"
+            },
+            {
+               "bibcode" : "2001ASPC..238...74B"
+            },
+            {
+               "bibcode" : "2001ASPC..238...56G"
+            },
+            {
+               "bibcode" : "2001AAS...199.1003G"
+            },
+            {
+               "bibcode" : "2000BaltA...9..557W"
+            },
+            {
+               "bibcode" : "2000ASPC..216..247W"
+            },
+            {
+               "bibcode" : "2000AAS...19711615G"
+            },
+            {
+               "bibcode" : "2000A&AS..143....9W"
+            },
+            {
+               "bibcode" : "1999ASPC..172..229B"
+            },
+            {
+               "bibcode" : "1999AAS...195.8101G"
+            },
+            {
+               "bibcode" : "1998HiA....11..520G"
+            },
+            {
+               "bibcode" : "1998ASPC..153...61L"
+            },
+            {
+               "bibcode" : "1998ASPC..145..470G"
+            },
+            {
+               "bibcode" : "1998AAS...193.1309G"
+            },
+            {
+               "bibcode" : "1997daa..conf..385B"
+            },
+            {
+               "bibcode" : "1997IAUJD..12E...6G"
+            },
+            {
+               "bibcode" : "1997ESASP.402...81E"
+            },
+            {
+               "bibcode" : "1997BaltA...6..192G"
+            },
+            {
+               "bibcode" : "1996AAS...189.0609L"
+            },
+            {
+               "bibcode" : "1996AAS...189.0602W"
+            },
+            {
+               "bibcode" : "1996AAS...189.0601E"
+            },
+            {
+               "bibcode" : "1996AAS...188.8508E"
+            },
+            {
+               "bibcode" : "1995BICDS..47...19H"
+            },
+            {
+               "bibcode" : "1995BICDS..46...25E"
+            },
+            {
+               "bibcode" : "1995ASSL..203..259S"
+            },
+            {
+               "bibcode" : "1995ASSL..203..163E"
+            },
+            {
+               "bibcode" : "1995AAS...187.9102G"
+            },
+            {
+               "bibcode" : "1995AAS...186.0204S"
+            },
+            {
+               "bibcode" : "1994IAUS..161..353B"
+            },
+            {
+               "bibcode" : "1994ESOC...50..187O"
+            },
+            {
+               "bibcode" : "1994BICDS..45...67E"
+            },
+            {
+               "bibcode" : "1994BICDS..44...61E"
+            },
+            {
+               "bibcode" : "1994ASPC...61..215B"
+            },
+            {
+               "bibcode" : "1994ASPC...61...22G"
+            },
+            {
+               "bibcode" : "1994ASPC...61...18E"
+            },
+            {
+               "bibcode" : "1994AAS...184.2802G"
+            },
+            {
+               "bibcode" : "1993BICDS..43...65E"
+            },
+            {
+               "bibcode" : "1993BICDS..43...57L"
+            },
+            {
+               "bibcode" : "1993BICDS..42...69E"
+            },
+            {
+               "bibcode" : "1993BICDS..42...61P"
+            },
+            {
+               "bibcode" : "1993ASPC...52...45L"
+            },
+            {
+               "bibcode" : "1992ESOC...43..509W"
+            },
+            {
+               "bibcode" : "1992ESOC...43..405O"
+            },
+            {
+               "bibcode" : "1992ESOC...43..355L"
+            },
+            {
+               "bibcode" : "1992EIUEN..41...28E"
+            },
+            {
+               "bibcode" : "1992BICDS..42...69E"
+            },
+            {
+               "bibcode" : "1992BICDS..42...61P"
+            },
+            {
+               "bibcode" : "1992BICDS..41...61E"
+            },
+            {
+               "bibcode" : "1992BICDS..40..147E"
+            },
+            {
+               "bibcode" : "1992BICDS..40...95R"
+            },
+            {
+               "bibcode" : "1991BAAS...23..832C"
+            },
+            {
+               "bibcode" : "1991ASSL..171...79E"
+            },
+            {
+               "bibcode" : "1990JAF....37Q..24B"
+            },
+            {
+               "bibcode" : "1989lisa.conf..150D"
+            },
+            {
+               "bibcode" : "1989lisa.conf..146D"
+            },
+            {
+               "bibcode" : "1989ESASP1111B.233E"
+            },
+            {
+               "bibcode" : "1989BICDS..37..143D"
+            },
+            {
+               "bibcode" : "1988ashc.rept..419E"
+            },
+            {
+               "bibcode" : "1988Natur.335..108C"
+            },
+            {
+               "bibcode" : "1988ESOC...28..429O"
+            },
+            {
+               "bibcode" : "1988ESOC...28..323E"
+            },
+            {
+               "bibcode" : "1988ESOC...28..319E"
+            },
+            {
+               "bibcode" : "1988ESOC...28..309E"
+            },
+            {
+               "bibcode" : "1988ESOC...28..305D"
+            },
+            {
+               "bibcode" : "1988BICDS..35..223."
+            },
+            {
+               "bibcode" : "1988BICDS..34..253."
+            },
+            {
+               "bibcode" : "1987Msngr..48...22H"
+            },
+            {
+               "bibcode" : "1987BICDS..33..179."
+            },
+            {
+               "bibcode" : "1987BICDS..32..125."
+            },
+            {
+               "bibcode" : "1987BICDS..32...69W"
+            },
+            {
+               "bibcode" : "1987BICDS..32...27D"
+            },
+            {
+               "bibcode" : "1987BICDS..32...23W"
+            },
+            {
+               "bibcode" : "1987BICDS..32....3E"
+            },
+            {
+               "bibcode" : "1986BICDS..31..231."
+            },
+            {
+               "bibcode" : "1986BICDS..30..205."
+            },
+            {
+               "bibcode" : "1986BICDS..30...25E"
+            },
+            {
+               "bibcode" : "1986BAAS...18..897H"
+            },
+            {
+               "bibcode" : "1985MmSAI..56..377C"
+            },
+            {
+               "bibcode" : "1985ESASP.234...49W"
+            },
+            {
+               "bibcode" : "1985BICDS..29..109."
+            },
+            {
+               "bibcode" : "1985BAFOE..32....7E"
+            },
+            {
+               "bibcode" : "1984adas.conf...79W"
+            },
+            {
+               "bibcode" : "1984BICDS..27..203O"
+            },
+            {
+               "bibcode" : "1984BICDS..27...15E"
+            },
+            {
+               "bibcode" : "1984BICDS..26...75O"
+            },
+            {
+               "bibcode" : "1984BICDS..26...71W"
+            },
+            {
+               "bibcode" : "1983BICDS..25...55O"
+            },
+            {
+               "bibcode" : "1983BICDS..24..125D"
+            },
+            {
+               "bibcode" : "1983BICDS..24..109E"
+            },
+            {
+               "bibcode" : "1981BICDS..20...81W"
+            }
+         ],
+         "name" : "SIMBAD Non-refereed Papers"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2009arXiv0910.2405R",
+               "note" : "not read yet"
+            },
+            {
+               "bibcode" : "2009arXiv0906.0675H"
+            },
+            {
+               "bibcode" : "2009arXiv0904.0682G"
+            },
+            {
+               "bibcode" : "2008arXiv0801.2618D"
+            },
+            {
+               "bibcode" : "2003physics...9027K"
+            }
+         ],
+         "name" : "architecture"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2007ASPC..376..363R"
+            }
+         ],
+         "name" : "management"
+      },
+      {
+         "desc" : "check encoding",
+         "entries" : [
+            {
+               "bibcode" : "2009ApJ...701.1336L"
+            },
+            {
+               "bibcode" : "2008arXiv0809.4015R"
+            },
+            {
+               "bibcode" : "2008PhRvD..77h3004B"
+            },
+            {
+               "bibcode" : "2008Natur.452..638T"
+            },
+            {
+               "bibcode" : "2008MNRAS.390..645C"
+            },
+            {
+               "bibcode" : "2008JCAP...08..006M"
+            },
+            {
+               "bibcode" : "2008ApPhL..92i2108G"
+            },
+            {
+               "bibcode" : "2008ApJ...680..312K"
+            },
+            {
+               "bibcode" : "2008AJ....135.1837R"
+            },
+            {
+               "bibcode" : "2008AJ....135..564B"
+            },
+            {
+               "bibcode" : "2007arXiv0709.2452G"
+            },
+            {
+               "bibcode" : "2007arXiv0706.3642G"
+            },
+            {
+               "bibcode" : "2007MNRAS.382.1901S"
+            },
+            {
+               "bibcode" : "2007MNRAS.382.1864N"
+            },
+            {
+               "bibcode" : "2007MNRAS.376.1577D"
+            },
+            {
+               "bibcode" : "2007ApPhL..91n2909D"
+            },
+            {
+               "bibcode" : "2007ApJ...671.1708B"
+            },
+            {
+               "bibcode" : "2007ApJ...669..905B"
+            },
+            {
+               "bibcode" : "2007ApJ...668..643L"
+            },
+            {
+               "bibcode" : "2007ApJ...663..717M"
+            },
+            {
+               "bibcode" : "2007ApJ...663..150M"
+            },
+            {
+               "bibcode" : "2007ApJ...660..311B"
+            },
+            {
+               "bibcode" : "2007ApJ...660..239K"
+            },
+            {
+               "bibcode" : "2007ApJ...657..183R"
+            },
+            {
+               "bibcode" : "2007AJ....134..527W"
+            },
+            {
+               "bibcode" : "2007AJ....133..882K"
+            },
+            {
+               "bibcode" : "2007A&A...469..363B"
+            },
+            {
+               "bibcode" : "2006PhRvB..73x5306P"
+            },
+            {
+               "bibcode" : "2006PhRvB..73t5331G"
+            },
+            {
+               "bibcode" : "2006PhRvB..73t5310G"
+            },
+            {
+               "bibcode" : "2006MNRAS.370..427B"
+            },
+            {
+               "bibcode" : "2006ApPhL..89w2105G"
+            },
+            {
+               "bibcode" : "2006ApPhL..89g2103M"
+            },
+            {
+               "bibcode" : "2006ApJ...653.1194B"
+            },
+            {
+               "bibcode" : "2006ApJ...647..303B"
+            },
+            {
+               "bibcode" : "2006ApJ...640L..35B"
+            },
+            {
+               "bibcode" : "2006AJ....132.2243G"
+            },
+            {
+               "bibcode" : "2006AJ....132.1275R"
+            },
+            {
+               "bibcode" : "2006AJ....132..197W"
+            },
+            {
+               "bibcode" : "2006AJ....131.2004K"
+            },
+            {
+               "bibcode" : "2006A&A...456...23B"
+            },
+            {
+               "bibcode" : "2005PhRvB..72v4301Q"
+            },
+            {
+               "bibcode" : "2005PhRvB..72c5205K"
+            },
+            {
+               "bibcode" : "2005PhRvB..71l5304C"
+            },
+            {
+               "bibcode" : "2005PhRvA..72a0301P"
+            },
+            {
+               "bibcode" : "2005PhRvA..71c2311G"
+            },
+            {
+               "bibcode" : "2005PASP..117.1411F"
+            },
+            {
+               "bibcode" : "2005PASP..117..227K"
+            },
+            {
+               "bibcode" : "2005JAtS...62..125W"
+            },
+            {
+               "bibcode" : "2005ApJ...630..759M"
+            },
+            {
+               "bibcode" : "2005ApJ...628L..97D"
+            },
+            {
+               "bibcode" : "2005ApJ...624..463G"
+            },
+            {
+               "bibcode" : "2005ApJ...622L..33B"
+            },
+            {
+               "bibcode" : "2005ApJ...622..187M"
+            },
+            {
+               "bibcode" : "2005AJ....130.1482R"
+            },
+            {
+               "bibcode" : "2004PhRvL..93g0501C"
+            },
+            {
+               "bibcode" : "2004PhRvB..70w3311S"
+            },
+            {
+               "bibcode" : "2004PhRvB..70h5414Q"
+            },
+            {
+               "bibcode" : "2004PhRvA..70e2315S"
+            },
+            {
+               "bibcode" : "2004JGRD..10911102T"
+            },
+            {
+               "bibcode" : "2004JCli...17.2901Z"
+            },
+            {
+               "bibcode" : "2004JCli...17..986R"
+            },
+            {
+               "bibcode" : "2004ApJ...607..202M"
+            },
+            {
+               "bibcode" : "2004AJ....128.1078R"
+            },
+            {
+               "bibcode" : "2004AJ....127.2002K"
+            },
+            {
+               "bibcode" : "2003NucFu..43.1693S"
+            },
+            {
+               "bibcode" : "2003NIMPA.503..187G"
+            },
+            {
+               "bibcode" : "2003ApPhL..82.2706G"
+            },
+            {
+               "bibcode" : "2003ApJ...582..668B"
+            },
+            {
+               "bibcode" : "2003AJ....126.2152R"
+            },
+            {
+               "bibcode" : "2002PhRvB..66d5208K"
+            },
+            {
+               "bibcode" : "2002MNRAS.335..216M"
+            },
+            {
+               "bibcode" : "2002AJ....124.3135K"
+            },
+            {
+               "bibcode" : "2002AJ....124.1266R"
+            },
+            {
+               "bibcode" : "2002AJ....123.2976R"
+            },
+            {
+               "bibcode" : "2001PhRvB..64o5320P"
+            },
+            {
+               "bibcode" : "2001NIMPA.457..151D"
+            },
+            {
+               "bibcode" : "2001JGR...106.1511Z"
+            },
+            {
+               "bibcode" : "2001JCli...14.1823Z"
+            },
+            {
+               "bibcode" : "2001ApPhL..79..368G"
+            },
+            {
+               "bibcode" : "2001ApJ...561L..41R"
+            },
+            {
+               "bibcode" : "2001ApJ...559..606C"
+            },
+            {
+               "bibcode" : "2001ApJ...554L.129M"
+            },
+            {
+               "bibcode" : "2001AJ....122..714B"
+            },
+            {
+               "bibcode" : "2000SSRv...91..287M"
+            },
+            {
+               "bibcode" : "2000SSRv...91..271M"
+            },
+            {
+               "bibcode" : "2000SSRv...91..243M"
+            },
+            {
+               "bibcode" : "2000PEPI..119...75M"
+            },
+            {
+               "bibcode" : "2000PEPI..119...25T"
+            },
+            {
+               "bibcode" : "2000ApJ...534..114M"
+            },
+            {
+               "bibcode" : "2000ApJ...530..660B"
+            },
+            {
+               "bibcode" : "2000AJ....120.2338R"
+            },
+            {
+               "bibcode" : "2000AJ....120..523R"
+            },
+            {
+               "bibcode" : "2000AJ....119...32G"
+            },
+            {
+               "bibcode" : "1999PhRvL..82.3492G"
+            },
+            {
+               "bibcode" : "1999PhRvL..82.1632C"
+            },
+            {
+               "bibcode" : "1999PhRvB..60.7149G"
+            },
+            {
+               "bibcode" : "1999PASP..111..438F"
+            },
+            {
+               "bibcode" : "1999GeoRL..26.1699D"
+            },
+            {
+               "bibcode" : "1999ApJS..121..287H"
+            },
+            {
+               "bibcode" : "1999ApJ...518...69M"
+            },
+            {
+               "bibcode" : "1999ApJ...517L..23G"
+            },
+            {
+               "bibcode" : "1998GeoJI.135...48G"
+            },
+            {
+               "bibcode" : "1998ApJ...503..617M"
+            },
+            {
+               "bibcode" : "1998AJ....116....1D"
+            },
+            {
+               "bibcode" : "1998AJ....115.2359K"
+            },
+            {
+               "bibcode" : "1997GeoRL..24..675G"
+            },
+            {
+               "bibcode" : "1997ApJ...481..633D"
+            },
+            {
+               "bibcode" : "1997AJ....114.2205G"
+            },
+            {
+               "bibcode" : "1997AJ....113..483R"
+            },
+            {
+               "bibcode" : "1996GeoRL..23.1175T"
+            },
+            {
+               "bibcode" : "1996ApJ...470..724M"
+            },
+            {
+               "bibcode" : "1996AJ....112..871B"
+            },
+            {
+               "bibcode" : "1995yCat.7084....0G"
+            },
+            {
+               "bibcode" : "1995Sci...267.1002L"
+            },
+            {
+               "bibcode" : "1995ApJS...99..391H"
+            },
+            {
+               "bibcode" : "1995ApJS...97..275F"
+            },
+            {
+               "bibcode" : "1995ApJS...97..259F"
+            },
+            {
+               "bibcode" : "1995ApJ...455L.103B"
+            },
+            {
+               "bibcode" : "1995ApJ...447....8M"
+            },
+            {
+               "bibcode" : "1995AJ....110..477M"
+            },
+            {
+               "bibcode" : "1994PhRvL..72.2311Q"
+            },
+            {
+               "bibcode" : "1994MNRAS.269..589W"
+            },
+            {
+               "bibcode" : "1994GeoRL..21..533C"
+            },
+            {
+               "bibcode" : "1994ApJ...437L...1D"
+            },
+            {
+               "bibcode" : "1994ApJ...431..569P"
+            },
+            {
+               "bibcode" : "1994ApJ...428...43M"
+            },
+            {
+               "bibcode" : "1994ApJ...424L...1D"
+            },
+            {
+               "bibcode" : "1994ApJ...421....1R"
+            },
+            {
+               "bibcode" : "1994ApJ...420..525V"
+            },
+            {
+               "bibcode" : "1994AJ....108..745V"
+            },
+            {
+               "bibcode" : "1994AJ....108..437M"
+            },
+            {
+               "bibcode" : "1994AJ....107.1623R"
+            },
+            {
+               "bibcode" : "1994AJ....107..868D"
+            },
+            {
+               "bibcode" : "1994AJ....107..427D"
+            },
+            {
+               "bibcode" : "1993ApJ...419L...9E"
+            },
+            {
+               "bibcode" : "1993ApJ...413..492M"
+            },
+            {
+               "bibcode" : "1993AJ....106.1301Z"
+            },
+            {
+               "bibcode" : "1993AJ....106.1273Z"
+            },
+            {
+               "bibcode" : "1993A&AS..100...47G"
+            },
+            {
+               "bibcode" : "1992BICDS..41...31H"
+            },
+            {
+               "bibcode" : "1992ApJ...391L...5V"
+            },
+            {
+               "bibcode" : "1992ApJ...384..404P"
+            },
+            {
+               "bibcode" : "1992ApJ...384..396R"
+            },
+            {
+               "bibcode" : "1992AIPC..254..486A"
+            },
+            {
+               "bibcode" : "1991ApJ...382...44V"
+            },
+            {
+               "bibcode" : "1991ApJ...369..273D"
+            },
+            {
+               "bibcode" : "1990PhRvL..65..159B"
+            },
+            {
+               "bibcode" : "1990ApJS...74....1Z"
+            },
+            {
+               "bibcode" : "1990ApJS...72..433H"
+            },
+            {
+               "bibcode" : "1990ApJ...365...66H"
+            },
+            {
+               "bibcode" : "1990ApJ...353...51R"
+            },
+            {
+               "bibcode" : "1990ApJ...352L..25W"
+            },
+            {
+               "bibcode" : "1989Sci...246..897G"
+            },
+            {
+               "bibcode" : "1989ApJS...69..809M"
+            },
+            {
+               "bibcode" : "1989ApJ...344...57R"
+            },
+            {
+               "bibcode" : "1989ApJ...343....1D"
+            },
+            {
+               "bibcode" : "1989AJ.....98..755R"
+            },
+            {
+               "bibcode" : "1988ApJ...332...44D"
+            },
+            {
+               "bibcode" : "1988ApJ...326..101H"
+            },
+            {
+               "bibcode" : "1988AJ.....96.1775O"
+            },
+            {
+               "bibcode" : "1988AJ.....95..999C"
+            },
+            {
+               "bibcode" : "1988AJ.....95..985D"
+            },
+            {
+               "bibcode" : "1988AJ.....95..267P"
+            },
+            {
+               "bibcode" : "1988A&A...199...85G"
+            },
+            {
+               "bibcode" : "1987PhRvB..35.4232D"
+            },
+            {
+               "bibcode" : "1987MNRAS.226..543E"
+            },
+            {
+               "bibcode" : "1987JAtS...44..859R"
+            },
+            {
+               "bibcode" : "1987ApJS...64..581D"
+            },
+            {
+               "bibcode" : "1987ApJ...322....1S"
+            },
+            {
+               "bibcode" : "1987ApJ...314....3E"
+            },
+            {
+               "bibcode" : "1986ApJ...310..507G"
+            },
+            {
+               "bibcode" : "1986ApJ...308..530F"
+            },
+            {
+               "bibcode" : "1986ApJ...304..585D"
+            },
+            {
+               "bibcode" : "1986ApJ...302L...1D"
+            },
+            {
+               "bibcode" : "1986AJ.....92.1238P"
+            },
+            {
+               "bibcode" : "1986AJ.....91.1267P"
+            },
+            {
+               "bibcode" : "1985ApJ...298....8H"
+            },
+            {
+               "bibcode" : "1985ApJ...289..535B"
+            },
+            {
+               "bibcode" : "1985A&A...143..188M"
+            },
+            {
+               "bibcode" : "1984ApJ...287L..55G"
+            },
+            {
+               "bibcode" : "1984ApJ...287..487H"
+            },
+            {
+               "bibcode" : "1984ApJ...286..442S"
+            },
+            {
+               "bibcode" : "1984ApJ...283...33B"
+            },
+            {
+               "bibcode" : "1984ApJ...281...95P"
+            },
+            {
+               "bibcode" : "1983PhLA...98...12A"
+            },
+            {
+               "bibcode" : "1983JGR....88.1018G"
+            },
+            {
+               "bibcode" : "1983JAtS...40.1334G"
+            },
+            {
+               "bibcode" : "1983ApJS...52...61G"
+            },
+            {
+               "bibcode" : "1983ApJ...274..491B"
+            },
+            {
+               "bibcode" : "1983ApJ...274..125H"
+            },
+            {
+               "bibcode" : "1983ApJ...268...47B"
+            },
+            {
+               "bibcode" : "1983ApJ...267...31E"
+            },
+            {
+               "bibcode" : "1983ApJ...264..356B"
+            },
+            {
+               "bibcode" : "1982PASP...94..421G"
+            },
+            {
+               "bibcode" : "1982ApJ...257..423H"
+            },
+            {
+               "bibcode" : "1982ApJ...257...23B"
+            },
+            {
+               "bibcode" : "1978ApJ...222...23D"
+            },
+            {
+               "bibcode" : "1978ApJ...221....1D"
+            },
+            {
+               "bibcode" : "1976ApJ...208...13D"
+            },
+            {
+               "bibcode" : "1974JLTP...14..565J"
+            },
+            {
+               "bibcode" : "1974ApJ...194..587T"
+            },
+            {
+               "bibcode" : "1973ApJ...184..329G"
+            },
+            {
+               "bibcode" : "1967Sci...157..310G"
+            },
+            {
+               "bibcode" : "1966PhRv..148..522G"
+            },
+            {
+               "bibcode" : "1965PhRv..137.1034G"
+            },
+            {
+               "bibcode" : "1960JChPh..33..676G"
+            },
+            {
+               "bibcode" : "1958PhRv..110...73G"
+            },
+            {
+               "bibcode" : "1956JChPh..24.1236G"
+            },
+            {
+               "bibcode" : "1953PhRv...91..568V"
+            }
+         ],
+         "lastmod" : "26-Aug-2010",
+         "name" : "test &Omega; research"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2009arXiv0905.3378R"
+            },
+            {
+               "bibcode" : "2009arXiv0905.1594R"
+            },
+            {
+               "bibcode" : "2009arXiv0904.0027R"
+            },
+            {
+               "bibcode" : "2009arXiv0903.0200R"
+            },
+            {
+               "bibcode" : "2009arXiv0901.3929R"
+            },
+            {
+               "bibcode" : "2009arXiv0901.3384H"
+            },
+            {
+               "bibcode" : "2009AN....330..755B"
+            },
+            {
+               "bibcode" : "2008arXiv0810.1481R"
+            },
+            {
+               "bibcode" : "2008arXiv0807.3908R"
+            },
+            {
+               "bibcode" : "2008arXiv0807.2466R"
+            },
+            {
+               "bibcode" : "2008arXiv0807.0023R"
+            },
+            {
+               "bibcode" : "2008arXiv0806.2274R"
+            },
+            {
+               "bibcode" : "2008arXiv0804.3791B"
+            },
+            {
+               "bibcode" : "2008arXiv0804.0277R"
+            },
+            {
+               "bibcode" : "2008arXiv0803.4355R"
+            },
+            {
+               "bibcode" : "2008arXiv0802.3492R"
+            },
+            {
+               "bibcode" : "2008arXiv0801.2345R"
+            },
+            {
+               "bibcode" : "2007arXiv0709.1167R"
+            },
+            {
+               "bibcode" : "2007arXiv0708.1150R"
+            },
+            {
+               "bibcode" : "2007arXiv0706.0022R"
+            },
+            {
+               "bibcode" : "2007arXiv0704.3395R"
+            },
+            {
+               "bibcode" : "2006cs........9034R"
+            },
+            {
+               "bibcode" : "2006cs........5112R"
+            },
+            {
+               "bibcode" : "2006cs........5110R"
+            },
+            {
+               "bibcode" : "2006cs........2002R"
+            },
+            {
+               "bibcode" : "2006cs........1121R"
+            },
+            {
+               "bibcode" : "2006cs........1030B"
+            },
+            {
+               "bibcode" : "2005cs........6024R"
+            },
+            {
+               "bibcode" : "2005cs........4084R"
+            },
+            {
+               "bibcode" : "2005cs........1004R"
+            },
+            {
+               "bibcode" : "2004cs.......12047R"
+            }
+         ],
+         "lastmod" : "27-Aug-2010",
+         "name" : "semantics"
+      },
+      {
+         "desc" : "Information Retrieval",
+         "entries" : [
+            {
+               "bibcode" : "2008arXiv0811.0719P"
+            },
+            {
+               "bibcode" : "2008arXiv0811.0603L",
+               "note" : "boh?"
+            }
+         ],
+         "lastmod" : "26-Aug-2010",
+         "name" : "IR"
+      },
+      {
+         "desc" : "Virtual Observatory resources",
+         "entries" : [
+            {
+               "bibcode" : "2010arXiv1006.2168F"
+            },
+            {
+               "bibcode" : "2009arXiv0906.1535T"
+            },
+            {
+               "bibcode" : "2008arXiv0801.2618D"
+            }
+         ],
+         "name" : "VO"
+      },
+      {
+         "desc" : "OAI Object Reuse and Exchange",
+         "entries" : [
+            {
+               "bibcode" : "2009arXiv0906.2549P"
+            },
+            {
+               "bibcode" : "2009arXiv0906.2135V"
+            },
+            {
+               "bibcode" : "2009arXiv0901.4571M"
+            },
+            {
+               "bibcode" : "2008arXiv0811.0573L"
+            },
+            {
+               "bibcode" : "2008arXiv0804.2273L"
+            }
+         ],
+         "name" : "ORE"
+      },
+      {
+         "entries" : [
+            {
+               "bibcode" : "2010SPIE.7734E.107M"
+            }
+         ],
+         "name" : "data linking"
+      },
+      {
+         "desc" : "My own papers",
+         "entries" : [
+            {
+               "bibcode" : "2009ASPC..411..384H"
+            },
+            {
+               "bibcode" : "2009ASPC..410..160O"
+            }
+         ],
+         "name" : "Private Collection"
+      },
+      {
+         "desc" : "My own papers",
+         "entries" : [
+            {
+               "bibcode" : "2009ASPC..411..384H"
+            },
+            {
+               "bibcode" : "2009ASPC..410..160O"
+            }
+         ],
+         "lastmod" : "26-Aug-2010",
+         "name" : "Private Collection"
+      }
+   ],
+   "owner" : "Alberto Accomazzi",
+   "pubid" : "4469d7b0ae",
+   "uid" : "4201071e72"
+}
