@@ -72,6 +72,7 @@ def elematchmaker(ed, clauseargs):
         else:
             mq[ele[0]]=ele[2]
     f[ed]["$elemMatch"]=mq
+    print "f",f
     return f
 #BUG need signal handlers for added to app, added to lib. Especially for lib, do we post tags to lib.
 #what does that even mean? We will do it but i am not sure what it means. I mean we will get tags
@@ -708,7 +709,7 @@ class Postdb():
                     kwdict[d['field']+'__'+d['op']]=d['value']
                 f=elematchmaker(precursor, kwdict)
                 qterms.append(Q(__raw__=f))
-                print "in zees"
+                print "in zees", Q
         print "qterms are", qterms
         
 
@@ -828,29 +829,29 @@ class Postdb():
 
     def getItemsForQuery(self, currentuser, useras, query, context=None, sort=None, pagtuple=None):
         #tagquery is currently assumed to be a list of stags=[{'tagtype', 'tagname'}]
-        #or postables=[{"posttype","postfqin"}]
+        #or postables=[postfqin]
         #we assume that
-        SHOWNFIELDS=['itemtype', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri']
         tagquery=query.get("stags",[])
         postablequery=query.get("postables",[])
         criteria=[]
         for v in tagquery:
-            criteria.append([
-                {'field':'stags__tagname', 'op':'eq', 'value':v['tagname']},
-                {'field':'stags__tagtype', 'op':'eq', 'value':v['tagtype']}
-            ])
+            criteria.append({'stags':[
+                {'field':'tagname', 'op':'eq', 'value':v['tagname']},
+                {'field':'tagtype', 'op':'eq', 'value':v['tagtype']}
+            ]})
         for v in postablequery:
-            criteria.append([
-                {'field':'pinpostables__postfqin', 'op':'eq', 'value':v['postfqin']}
-            ])
-        result=self.getItemsForItemspec(currentuser, useras, criteria, context, sort, SHOWNFIELDS, pagtuple)
+            criteria.append({'pinpostables':[
+                {'field':'postfqin', 'op':'eq', 'value':v}
+            ]})
+        print "???",criteria, context, sort, pagtuple
+        result=self.getItemsForItemspec(currentuser, useras, criteria, context, sort, pagtuple)
         return result
 
     #Note there is a context here too. This context can be used to get a users items in existing libs etc
     #it could also be used to do intersections, but user can be on one postable only.
     def getItemsForPostableQuery(self, currentuser, useras, postablequery, context=None, sort=None, pagtuple=None):
         query={'stags':[], 'postables':postablequery}
-        result=getItemsForQuery(self, currentuser, useras, query, context, sort, pagtuple)
+        result=self.getItemsForQuery(currentuser, useras, query, context, sort, pagtuple)
         return result
 
     #PTYPESTRING MUST BE GROUP ONLY TO GET APPROPRIATE POSTABLES FOR USER
@@ -1105,77 +1106,8 @@ def initialize_testing(db_session):
         library=LIBRARIES[r]
         postdb.postItemIntoLibrary(user, user, library, thedict[k].basic.fqin)
 
-def test_gets(db_session):
-    BIBCODE='2004A&A...418..625D'
-    currentuser=None
-    postdb=Postdb(db_session)
-    whosdb=postdb.whosdb
-
-    print "getting adsgutuser"
-    adsgutuser=whosdb.getUserForNick(currentuser, "adsgut")
-    print "getting adsuser"
-    adsuser=whosdb.getUserForNick(adsgutuser, "ads")
-    currentuser=adsuser
-
-    rahuldave=whosdb.getUserForNick(adsgutuser, "rahuldave")
-    jayluker=whosdb.getUserForNick(adsgutuser, "jayluker")
-    num, vals=postdb.getItemsForItemspec(rahuldave, rahuldave, 
-        [[{'field':'basic__name', 'op':'eq', 'value':BIBCODE}]])
-    print "1++++", num, [v.basic.fqin for v in vals], vals[0].to_json()
-    num, vals=postdb.getItemsForItemspec(rahuldave, rahuldave, 
-        [[{'field':'pinpostables__postfqin', 'op':'eq', 'value':'rahuldave/group:ml'}]])
-    print "2++++", num, [v.basic.fqin for v in vals]
-    num, vals=postdb.getItemsForItemspec(rahuldave, rahuldave, 
-        [{'pinpostables':[{'field':'postfqin', 'op':'eq', 'value':'rahuldave/group:ml'}]}])
-    print "2b++++", num, [v.basic.fqin for v in vals]
-    num, vals=postdb.getItemsForItemspec(rahuldave, rahuldave, 
-        [],
-        {'user':True, 'type':'group', 'value':'rahuldave/group:ml'})
-    print "3++++", num, [v.basic.fqin for v in vals]
-    num, vals=postdb.getItemsForItemspec(jayluker, jayluker, 
-        [],
-        {'user':True, 'type':'group', 'value':'rahuldave/group:ml'})
-    print "3b++++", num, [v.basic.fqin for v in vals]
-    num, vals=postdb.getItemsForItemspec(adsuser, adsuser, 
-        [],
-        {'user':False, 'type':'app', 'value':'ads/app:publications'})
-    print "APPPPPPP++++", num, [v.basic.fqin for v in vals]
-    #BUG: we are currently not able to AND something in criteria with the context. Its one or the other
-    #for this we also need a no context!=users default context mode.
-    num, vals=postdb.getItemsForItemspec(rahuldave, rahuldave, 
-        [], 
-        {'user':True, 'type':'library', 'value':'rahuldave/library:mll'})
-    print "4++++", num, [v.basic.fqin for v in vals]
-    num, vals=postdb.getItemsForItemspec(rahuldave, rahuldave, 
-        [[{'field':'basic__name', 'op':'ne', 'value':BIBCODE}]], 
-        {'user':False, 'type':'group', 'value':'rahuldave/group:ml'})
-    print "5++++", num, [v.basic.fqin for v in vals]
-    num, vals=postdb.getItemsForItemspec(rahuldave, rahuldave, 
-        [[{'field':'basic__name', 'op':'ne', 'value':BIBCODE}]], 
-        {'user':True, 'type':'group', 'value':'rahuldave/group:ml'})
-    print "6++++", num, [v.basic.fqin for v in vals]
-    num, vals=postdb.getItemsForItemspec(rahuldave, rahuldave,
-        [[{'field':'basic__name', 'op':'ne', 'value':BIBCODE}]],
-        {'user':False, 'type':'group', 'value':'rahuldave/group:ml'},
-        {'ascending':False, 'field':'basic__name'})
-    print "7++++", num, [v.basic.fqin for v in vals]
-    num, vals=postdb.getItemsForItemspec(rahuldave, rahuldave,
-        [[{'field':'basic__name', 'op':'ne', 'value':BIBCODE}]],
-        {'user':False, 'type':'group', 'value':'rahuldave/group:ml'},
-        {'ascending':False, 'field':'basic__name'},
-        (10, None))
-    print "8++++", num, [v.basic.fqin for v in vals]
-    num, vals=postdb.getItemsForItemspec(rahuldave, rahuldave,
-        [[{'field':'basic__name', 'op':'ne', 'value':BIBCODE}]],
-        {'user':False, 'type':'group', 'value':'rahuldave/group:ml'},
-        {'ascending':False, 'field':'basic__name'},
-        (5, 1))
-    print "9++++", num, len(vals), vals, vals[0].to_json()
 
 if __name__=="__main__":
     db_session=connect("adsgut")
     initialize_application(db_session)
     initialize_testing(db_session)
-    test_gets(db_session)
-    #libs_in_grps
-    #tagtypetag_takeovers
