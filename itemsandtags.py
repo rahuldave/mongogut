@@ -40,10 +40,18 @@ def receiver(f):
 #         }
 #     }}
 # )
+def elematchsimple(inqset, ed, **clauseargs):
+    propclause={}
+    for ele in clauseargs.keys():
+        propclause[ed+'__'+ele]=clauseargs[ele]
+    of=inqset.filter(**propclause)
+    print "PROPCALUSE", propclause
+    return of
 
 def elematch(inqset, ed, **clauseargs):
     f=elematchmaker(ed, clauseargs)
     of=inqset.filter(__raw__=f)
+    print "f",f, of.count()
     return of
 #ONLY one level og embedding in elematch
 def elematchmaker(ed, clauseargs):
@@ -485,7 +493,7 @@ class Postdb():
 
     #Note that the following provide a model for the uniqueness of posting and tagging docs.
     def _getTaggingDoc(self, currentuser, fqin, fqtn, fqun):
-        taggingdoc=elematch(TaggingDocument.objects, "thething", thingtopostfqin=fqin, postfqin=fqtn, postedby=fqun).get()
+        taggingdoc=elematchsimple(TaggingDocument.objects, "thething", thingtopostfqin=fqin, postfqin=fqtn, postedby=fqun).get()
         return taggingdoc
 
     #expose this one outside. currently just a simple authorize currentuser to useras.
@@ -506,15 +514,15 @@ class Postdb():
         return taggingdoc
 
     def _getTaggingDocsForItemandUser(self, currentuser, fqin, fqun):
-        taggingdocs=elematch(TaggingDocument.objects, "thething", thingtopostfqin=fqin, postedby=fqun)
+        taggingdocs=elematchsimple(TaggingDocument.objects, "thething", thingtopostfqin=fqin, postedby=fqun)
         return taggingdocs
 
     def _getPostingDoc(self, currentuser, fqin, fqpn, fqun):
-        postingdoc=elematch(PostingDocument.objects, "thething", thingtopostfqin=fqin, postfqin=fqpn, postedby=fqun).get()
+        postingdoc=elematchsimple(PostingDocument.objects, "thething", thingtopostfqin=fqin, postfqin=fqpn, postedby=fqun).get()
         return postingdoc
 
     def _getPostingDocsForItemandUser(self, currentuser, fqin, fqun):
-        postingdocs=elematch(PostingDocument.objects, "thething", thingtopostfqin=fqin, postedby=fqun)
+        postingdocs=elematchsimple(PostingDocument.objects, "thething", thingtopostfqin=fqin, postedby=fqun)
         return postingdocs
 
     #CHECK: Appropriate postables takes care of this. not needed.
@@ -565,7 +573,7 @@ class Postdb():
         for tagging in taggingstopost:
             #BUG:not sure this will work, searching on a full embedded doc, at the least it would be horribly slow
             #so we shall map instead on some thething properties
-            taggingdoc=elematch(TaggingDocument.objects, "thething", postfqin=tagging.postfqin, 
+            taggingdoc=elematchsimple(TaggingDocument.objects, "thething", postfqin=tagging.postfqin, 
                     thingtopostfqin=tagging.thingtopostfqin, 
                     postedby=tagging.postedby).get()
             #if tagmode allows us to post it, then we post it. This could be made faster later
