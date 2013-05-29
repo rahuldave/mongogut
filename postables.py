@@ -147,10 +147,11 @@ class Database():
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         allpostables=useras.postablesin
         if ptypestr:
-            postables=[e['fqpn'] for e in allpostables if e['ptype']==ptypstre]
+            postables=[e['fqpn'] for e in allpostables if e['ptype']==ptypestr]
         else:
             postables=allpostables
         return postables
+
 
     #unprotected
     #invitations only work for users for now.
@@ -175,6 +176,9 @@ class Database():
         members=postable.members
         return members
 
+    def membersOfPostableFromFqin(self, currentuser, memberable, fqpn):
+        postable=self.getPostable(currentuser, fqpn)
+        return self.membersOfPostable(currentuser, memberable, postable)
     ################################################################################
 
     #Add user to system, given a userspec from flask user object. commit needed
@@ -520,7 +524,7 @@ class Database():
     def getGroup(self, currentuser, fqgn):
         return self.getPostable(currentuser, fqgn)
 
-    def getApplication(self, currentuser, fqan):
+    def getApp(self, currentuser, fqan):
         return self.getPostable(currentuser, fqan)
 
     def getLibrary(self, currentuser, fqln):
