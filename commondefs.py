@@ -3,6 +3,7 @@ from errors import *
 OK=200
 LOGGEDIN_A_SUPERUSER_O_USERAS=False
 MEMBER_OF_POSTABLE=False
+Postables=["group", "app", "library"]
 POSTABLES=[Group, App, Library]#things that can be posted to, and you can be a member of
 #Postables are both membable and ownable
 MEMBERABLES=[Group, App, User]#things that can be members

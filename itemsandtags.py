@@ -724,6 +724,10 @@ class Postdb():
             qclause = reduce(lambda q1, q2: q1.__and__(q2), qterms)
             itemqset=klass.objects.filter(qclause)
         
+        #BUG: if criteria are of type pinpostables, we need to merge criteria and context, otherwise
+        #we land up doing an or. The simplest way to do this would be to use context to only filter
+        #by user: even user default group goes into criteria (with external wrapper), and 
+        #merge that onto pinpostable criteria, is any. might have to combing raw with $all.
         userthere=False
         if postablecontext:
             if postablecontext=='default':
@@ -732,18 +736,23 @@ class Postdb():
             print "POSTABLECONTEXT", postablecontext
             userthere=postablecontext['user']
             ctype=postablecontext['type']
-            ctarget=postablecontext['value']
+            ctarget=postablecontext['value']#a userfqin when needed
             postable=self.whosdb.getPostable(currentuser, ctarget)
-            #Bug cant have dups here in context That would require an anding with context?
+            #BUG cant have dups here in context That would require an anding with context?
+            #BUG: None of this is currently protected it seems. Add protection here
             if userthere:
                 print "USERTHERE", useras.basic.fqin, ctarget
-                itemqset=elematch(itemqset, "pinpostables", postfqin=ctarget, postedby=useras.basic.fqin)
+                if ctype=="user":
+                    itemqset=itemqset.filter(pinpostables__postedby=ctarget)
+                elif ctype in Postables:
+                    itemqset=elematch(itemqset, "pinpostables", postfqin=ctarget, postedby=useras.basic.fqin)
                 #itemqset=itemqset.filter(pinpostables__postfqin=ctarget, pinpostables__postedby=useras.basic.fqin)
                 print "count", itemqset.count()
             else:
                 print "USERNOTTHERE", ctarget
-                itemqset=itemqset.filter(pinpostables__postfqin=ctarget)
-
+                if ctype in Postables:
+                    itemqset=itemqset.filter(pinpostables__postfqin=ctarget)
+            #BUG: need to set up proper aborts here.
         if sort:
             prefix=""
             if not sort['ascending']:
@@ -826,33 +835,27 @@ class Postdb():
     #BUG: do we need a context. context only provides a background thing to operate on now.
     #The actual stuff is done in here.
 
-
+    #BUG: this is nor for fqins. Should we have something just for tagnames
     def getItemsForQuery(self, currentuser, useras, query, context=None, sort=None, pagtuple=None):
-        #tagquery is currently assumed to be a list of stags=[{'tagtype', 'tagname'}]
+        #tagquery is currently assumed to be a list of stags=[tagfqin]
         #or postables=[postfqin]
         #we assume that
         tagquery=query.get("stags",[])
         postablequery=query.get("postables",[])
         criteria=[]
-        for v in tagquery:
-            criteria.append({'stags':[
-                {'field':'tagname', 'op':'eq', 'value':v['tagname']},
-                {'field':'tagtype', 'op':'eq', 'value':v['tagtype']}
-            ]})
-        for v in postablequery:
-            criteria.append({'pinpostables':[
-                {'field':'postfqin', 'op':'eq', 'value':v}
-            ]})
+        if tagquery:
+            criteria.append(
+                    [{'field':'stags__postfqin', 'op':'all', 'value':tagquery}]
+            )
+        if postablequery:
+            criteria.append(
+                    [{'field':'pinpostables__postfqin', 'op':'all', 'value':postablequery}]
+            )
         print "???",criteria, context, sort, pagtuple
         result=self.getItemsForItemspec(currentuser, useras, criteria, context, sort, pagtuple)
         return result
 
-    #Note there is a context here too. This context can be used to get a users items in existing libs etc
-    #it could also be used to do intersections, but user can be on one postable only.
-    def getItemsForPostableQuery(self, currentuser, useras, postablequery, context=None, sort=None, pagtuple=None):
-        query={'stags':[], 'postables':postablequery}
-        result=self.getItemsForQuery(currentuser, useras, query, context, sort, pagtuple)
-        return result
+
 
     #PTYPESTRING MUST BE GROUP ONLY TO GET APPROPRIATE POSTABLES FOR USER
     #otherwise we will pull in apps and get other things from users who have no connections to this user
@@ -1065,6 +1068,11 @@ def initialize_testing(db_session):
         item, postingdoc = postdb.postItemIntoGroup(user,user, "rahuldave/group:ml", item.basic.fqin)
         thedict[k]=item
 
+    #BUG: we dont test here for someone else in the group to use my tag
+    #And perhaps we need to go back to being strict on it and reducing the confusion
+    #but then we would lose promiscuous autocompletion.
+    #also how does the promiscuous tags look on the left side of tagging.
+    #BUG: what leakage happens with publiv group? only tags? and not taggings?
     TAGS=['sexy', 'ugly', 'important', 'boring']
     for k in thedict.keys():
         tstr=random.choice(TAGS)

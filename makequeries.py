@@ -81,13 +81,17 @@ def test_item_query(db_session):
 
     rahuldave=whosdb.getUserForNick(adsgutuser, "rahuldave")
     jayluker=whosdb.getUserForNick(adsgutuser, "jayluker")
-    num, vals=postdb.getItemsForPostableQuery(rahuldave, rahuldave,
-       ["rahuldave/group:ml"] )
+    num, vals=postdb.getItemsForQuery(rahuldave, rahuldave,
+       {'postables':["rahuldave/library:mll"]} )
     print "1++++", num, [v.basic.fqin for v in vals]
     #BUG:below errors ouit
-    # num, vals=postdb.getItemsForQuery(rahuldave, rahuldave,
-    #    {'stags':[{'tagname':'sexy', 'tagtype':'ads/tagtype:tag'}],'postables':["rahuldave/group:ml"]} )
-    # print "2++++", num, [v.basic.fqin for v in vals]
+    num, vals=postdb.getItemsForQuery(rahuldave, rahuldave,
+       {'stags':['rahuldave/ads/tagtype:tag:boring'],'postables':["rahuldave/group:ml", "jayluker/group:sp"]} )
+    print "2++++", num, [v.basic.fqin for v in vals]
+    num, vals=postdb.getItemsForQuery(rahuldave, rahuldave,
+       {'postables':["rahuldave/group:ml"]} , 
+       {'user':True, 'type':'user', 'value':'adsgut/user:rahuldave'})
+    print "3++++", num, [v.basic.fqin for v in vals]
 
 if __name__=="__main__":
     db_session=connect("adsgut")
