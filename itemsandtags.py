@@ -822,12 +822,7 @@ class Postdb():
         result=self.getTagsForTagspec(currentuser, useras, criteria, context, sort)
         return result
 
-    def getItemsForItemspec(self, currentuser, useras, criteria, context=None, sort=None, pagtuple=None):
-        SHOWNFIELDS=['itemtype', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri']
-        klass=Item
-        print "CRITERIA", criteria
-        result=self._makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, pagtuple)
-        return result
+    
 
     #gets frpm groups, apps and libraries..ie items in them, not tags posted in them
 
@@ -838,7 +833,7 @@ class Postdb():
 
     #BUG: this is nor for fqins. Should we have something just for tagnames
     #incoming criteria should not be pinpostables or stags
-    def getItemsForQuery(self, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
+    def _getResultsForQuery(self, klass, shownfields, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
         #tagquery is currently assumed to be a list of stags=[tagfqin] or tagnames={tagtype, [names]}
         #or postables=[postfqin]
         #we assume that
@@ -882,11 +877,22 @@ class Postdb():
                     ]}
             )
         print "?OUTCRITERIA",criteria,  sort, pagtuple
-        result=self.getItemsForItemspec(currentuser, useras, criteria, None, sort, pagtuple)
+        result=self._makeQuery(klass, currentuser, useras, criteria, None, sort, shownfields, pagtuple)
         return result
 
 
+    def getItemsForItemspec(self, currentuser, useras, criteria, context=None, sort=None, pagtuple=None):
+        SHOWNFIELDS=['itemtype', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri']
+        klass=Item
+        print "CRITERIA", criteria
+        result=self._makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, pagtuple)
+        return result
 
+    def getItemsForQuery(self, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
+        SHOWNFIELDS=['itemtype', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri']
+        klass=Item
+        result=self._getResultsForQuery(klass, SHOWNFIELDS, currentuser, useras, query, usernick, criteria, sort, pagtuple)
+        return result
     #PTYPESTRING MUST BE GROUP ONLY TO GET APPROPRIATE POSTABLES FOR USER
     #otherwise we will pull in apps and get other things from users who have no connections to this user
 
