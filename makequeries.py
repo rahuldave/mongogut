@@ -35,7 +35,7 @@ def test_gets(db_session):
     num, vals=postdb.getItemsForItemspec(adsuser, adsuser, 
         [],
         {'user':False, 'type':'app', 'value':'ads/app:publications'})
-    print "APPPPPPP++++", num, [v.basic.fqin for v in vals]
+    #print "APPPPPPP++++", num, [v.basic.fqin for v in vals]
     #BUG: we are currently not able to AND something in criteria with the context. Its one or the other
     #for this we also need a no context!=users default context mode.
     num, vals=postdb.getItemsForItemspec(rahuldave, rahuldave, 
@@ -86,12 +86,19 @@ def test_item_query(db_session):
     print "1++++", num, [v.basic.fqin for v in vals]
     #BUG:below errors ouit
     num, vals=postdb.getItemsForQuery(rahuldave, rahuldave,
-       {'stags':['rahuldave/ads/tagtype:tag:boring'],'postables':["rahuldave/group:ml", "jayluker/group:sp"]} )
+       {'stags':['rahuldave/ads/tagtype:tag:boring'],
+        'postables':["rahuldave/group:ml", "jayluker/group:sp"]} 
+    )
     print "2++++", num, [v.basic.fqin for v in vals]
     num, vals=postdb.getItemsForQuery(rahuldave, rahuldave,
-       {'postables':["rahuldave/group:ml"]} , 
-       {'user':True, 'type':'user', 'value':'adsgut/user:rahuldave'})
+       {'postables':["rahuldave/group:ml"]} , 'rahuldave')
     print "3++++", num, [v.basic.fqin for v in vals]
+    #BUG currently wrong as we dont use elemMarch and raw
+    num, vals=postdb.getItemsForQuery(rahuldave, rahuldave,
+       {'postables':["rahuldave/group:ml"], 
+        'tagnames':{'tagtype':'ads/tagtype:tag', 'names':['boring']}}
+    )
+    print "4++++", num, [v.basic.fqin for v in vals]
 
 if __name__=="__main__":
     db_session=connect("adsgut")

@@ -68,7 +68,7 @@ def elematchmaker(ed, clauseargs):
         clauselist.append((field, op, clauseargs[k]))
     for ele in clauselist:
         if ele[1] != 'eq':
-            mq[ele[0]]={'$'+ele[1], ele[2]}
+            mq[ele[0]]={'$'+ele[1]: ele[2]}
         else:
             mq[ele[0]]=ele[2]
     f[ed]["$elemMatch"]=mq
@@ -729,6 +729,7 @@ class Postdb():
         #by user: even user default group goes into criteria (with external wrapper), and 
         #merge that onto pinpostable criteria, is any. might have to combing raw with $all.
         userthere=False
+        #CONTEXTS ONLY MAKE SENSE WHEN WE DONT USE pinpostables in the criteria.
         if postablecontext:
             if postablecontext=='default':
                 postablecontext={'user':True, 'type':'group', 'value':useras.nick+"/group:default"}
@@ -836,23 +837,52 @@ class Postdb():
     #The actual stuff is done in here.
 
     #BUG: this is nor for fqins. Should we have something just for tagnames
-    def getItemsForQuery(self, currentuser, useras, query, context=None, sort=None, pagtuple=None):
-        #tagquery is currently assumed to be a list of stags=[tagfqin]
+    #incoming criteria should not be pinpostables or stags
+    def getItemsForQuery(self, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
+        #tagquery is currently assumed to be a list of stags=[tagfqin] or tagnames={tagtype, [names]}
         #or postables=[postfqin]
         #we assume that
-        tagquery=query.get("stags",[])
+        tagquery=False
+        postablequery=False
+        if query.has_key('stags'):
+            tagquery=query.get("stags",[])
+            tagquerytype="postfqin"
+        elif query.has_key('tagnames'):
+            tagquery=query.get("tagnames",{})
+            tagquerytype="tagname"
+        
         postablequery=query.get("postables",[])
-        criteria=[]
-        if tagquery:
+        userfqin=usernick
+        print "INCRITERIA", criteria
+        if not criteria:
+            criteria=[]
+        if usernick:
+            userfqin='adsgut/user:'+usernick
+        if tagquery and tagquerytype=="postfqin":
             criteria.append(
                     [{'field':'stags__postfqin', 'op':'all', 'value':tagquery}]
             )
-        if postablequery:
+        if tagquery and tagquerytype=="tagname":
+            criteria.append(
+                    {'stags':[{'field':'tagname', 'op':'all', 'value':tagquery['names']},
+                                        {'field':'tagtype', 'op':'eq', 'value':tagquery['tagtype']}
+                    ]}
+            )
+        if postablequery and not userfqin:
+            print "NO USER", userfqin
             criteria.append(
                     [{'field':'pinpostables__postfqin', 'op':'all', 'value':postablequery}]
             )
-        print "???",criteria, context, sort, pagtuple
-        result=self.getItemsForItemspec(currentuser, useras, criteria, context, sort, pagtuple)
+
+        if postablequery and userfqin:
+            print "USER", userfqin
+            criteria.append(
+                    {'pinpostables':[{'field':'postfqin', 'op':'all', 'value':postablequery},
+                                        {'field':'postedby', 'op':'eq', 'value':userfqin}
+                    ]}
+            )
+        print "?OUTCRITERIA",criteria,  sort, pagtuple
+        result=self.getItemsForItemspec(currentuser, useras, criteria, None, sort, pagtuple)
         return result
 
 
