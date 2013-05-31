@@ -91,14 +91,48 @@ def test_item_query(db_session):
     )
     print "2++++", num, [v.basic.fqin for v in vals]
     num, vals=postdb.getItemsForQuery(rahuldave, rahuldave,
+       {'postables':["rahuldave/group:ml"]} )
+    print "3a++++", num, [v.basic.fqin for v in vals]
+    num, vals=postdb.getItemsForQuery(rahuldave, rahuldave,
        {'postables':["rahuldave/group:ml"]} , 'rahuldave')
-    print "3++++", num, [v.basic.fqin for v in vals]
+    print "3b++++", num, [v.basic.fqin for v in vals]
     #BUG currently wrong as we dont use elemMarch and raw
     num, vals=postdb.getItemsForQuery(rahuldave, rahuldave,
        {'postables':["rahuldave/group:ml"], 
         'tagnames':{'tagtype':'ads/tagtype:tag', 'names':['boring']}}
     )
     print "4++++", num, [v.basic.fqin for v in vals]
+    numwanted=num
+    wantedvals=vals
+    #'postables':["rahuldave/group:ml"], 
+    num, vals=postdb.getTaggingsForQuery(rahuldave, rahuldave,
+       {
+        'tagnames':{'tagtype':'ads/tagtype:tag', 'names':['boring']}}
+    )
+    print "5++++", num, [v.thething.postfqin for v in vals]
+    num, vals=postdb.getTagsForQuery(rahuldave, rahuldave,
+       {
+        'tagnames':{'tagtype':'ads/tagtype:tag', 'names':['boring']}}
+    )
+    print "6++++", num, vals
+    num, vals=postdb.getTaggingsForQuery(rahuldave, rahuldave,
+       {'postables':["rahuldave/library:mll"], 
+        'tagnames':{'tagtype':'ads/tagtype:tag', 'names':['boring']}}
+    )
+    print "7++++", num, [v.thething.postfqin for v in vals]
+    rdict=postdb.getTaggingsConsistentWithUserAndItems(rahuldave, rahuldave,
+        [v.basic.fqin for v in wantedvals]
+    )
+    print "8++++", [(k, rdict[k][0], [v.thething.postfqin for v in rdict[k][1]]) for k in rdict.keys()]
+    rdict=postdb.getPostingsConsistentWithUserAndItems(rahuldave, rahuldave,
+        [v.basic.fqin for v in wantedvals]
+    )
+    print "9++++", [(k, rdict[k][0], [v.thething.postfqin for v in rdict[k][1]]) for k in rdict.keys()]
+    num, vals=postdb.getTaggingsForQuery(rahuldave, rahuldave,
+       {'postables':["rahuldave/group:ml"], 
+        'tagnames':{'tagtype':'ads/tagtype:tag', 'names':['boring']}}, 'jayluker'
+    )
+    print "10++++", num, [v.thething.postfqin for v in vals], [v.thething.postedby for v in vals]
 
 if __name__=="__main__":
     db_session=connect("adsgut")

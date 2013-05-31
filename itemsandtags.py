@@ -610,7 +610,7 @@ class Postdb():
             return taggingdoc
         try:
             newposting=Post(postfqin=postable.basic.fqin, posttype=getNSTypeNameFromInstance(postable),
-                postedby=useras.nick, thingtopostfqin=itemtag.postfqin, thingtoposttype=itemtag.tagtype)
+                postedby=useras.basic.fqin, thingtopostfqin=itemtag.postfqin, thingtoposttype=itemtag.tagtype)
             taggingdoc.update(safe_update=True, push__pinpostables=newposting)
             
             #BUG:postables will be pushed multiple times here. How to unique?
@@ -823,6 +823,29 @@ class Postdb():
         return result
 
     
+    def _qproc(self, currentuser, useras, query, usernick):
+        tagquery=False
+        postablequery=False
+        tagquerytype=None
+        if query.has_key('stags'):
+            tagquery=query.get("stags",[])
+            tagquerytype="postfqin"
+        elif query.has_key('tagnames'):
+            tagquery=query.get("tagnames",{})
+            tagquerytype="tagname"
+        
+        postablequery=query.get("postables",[])
+        for ele in postablequery:
+            postable=self.whosdb.getPostable(currentuser, ele)
+            #you must be a member of the library or the group
+            authorize_postable_member(False, self, currentuser, useras, postable)
+            #if you ask for atuff in apps, you better be an owner
+            if getNSTypeName(ele)=="app":
+                authorize_postable_owner(False, self, currentuser, useras, postable)
+        userfqin=usernick
+        if usernick:
+            userfqin='adsgut/user:'+usernick
+        return tagquery, tagquerytype, postablequery, userfqin
 
     #gets frpm groups, apps and libraries..ie items in them, not tags posted in them
 
@@ -833,26 +856,16 @@ class Postdb():
 
     #BUG: this is nor for fqins. Should we have something just for tagnames
     #incoming criteria should not be pinpostables or stags
-    def _getResultsForQuery(self, klass, shownfields, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
+    def _getItemsForQuery(self, shownfields, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
         #tagquery is currently assumed to be a list of stags=[tagfqin] or tagnames={tagtype, [names]}
         #or postables=[postfqin]
-        #we assume that
-        tagquery=False
-        postablequery=False
-        if query.has_key('stags'):
-            tagquery=query.get("stags",[])
-            tagquerytype="postfqin"
-        elif query.has_key('tagnames'):
-            tagquery=query.get("tagnames",{})
-            tagquerytype="tagname"
-        
-        postablequery=query.get("postables",[])
-        userfqin=usernick
-        print "INCRITERIA", criteria
+        klass=Item
+        tagquery, tagquerytype, postablequery, userfqin = self._qproc(currentuser, useras, query, usernick)
+
         if not criteria:
             criteria=[]
-        if usernick:
-            userfqin='adsgut/user:'+usernick
+        #CHECK:should we separate out the n=1 case as eq not all?
+        #Do we need a any instead of all for tagging documents?
         if tagquery and tagquerytype=="postfqin":
             criteria.append(
                     [{'field':'stags__postfqin', 'op':'all', 'value':tagquery}]
@@ -880,6 +893,76 @@ class Postdb():
         result=self._makeQuery(klass, currentuser, useras, criteria, None, sort, shownfields, pagtuple)
         return result
 
+    def _getTaggingdocsForQuery(self, shownfields, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
+        #tagquery is currently assumed to be a list of stags=[tagfqin] or tagnames={tagtype, [names]}
+        #or postables=[postfqin]
+        klass=TaggingDocument
+
+        tagquery, tagquerytype, postablequery, userfqin = self._qproc(currentuser, useras, query, usernick)
+        if not criteria:
+            criteria=[]
+        #CHECK:should we separate out the n=1 case as eq not all?
+        #Do we need a any instead of all for tagging documents?
+        if tagquery and tagquerytype=="postfqin":
+            criteria.append(
+                    [{'field':'thething__postfqin', 'op':'in', 'value':tagquery}]
+            )
+        # if tagquery and tagquerytype=="tagname":
+        #     criteria.append(
+        #             {'thething':[{'field':'tagname', 'op':'in', 'value':tagquery['names']},
+        #                                 {'field':'tagtype', 'op':'eq', 'value':tagquery['tagtype']}
+        #             ]}
+        #     )
+        if tagquery and tagquerytype=="tagname":
+            criteria.append(
+                    [{'field':'thething__tagname', 'op':'in', 'value':tagquery['names']},
+                                        {'field':'thething__tagtype', 'op':'eq', 'value':tagquery['tagtype']}
+                    ]
+            )
+        if postablequery and not userfqin:
+            print "NO USER", userfqin
+            criteria.append(
+                    [{'field':'pinpostables__postfqin', 'op':'all', 'value':postablequery}]
+            )
+
+        if postablequery and userfqin:
+            print "USER", userfqin
+            criteria.append(
+                    {'pinpostables':[{'field':'postfqin', 'op':'all', 'value':postablequery},
+                                        {'field':'postedby', 'op':'eq', 'value':userfqin}
+                    ]}
+            )
+        print "?OUTCRITERIA",criteria,  sort, pagtuple
+        result=self._makeQuery(klass, currentuser, useras, criteria, None, sort, shownfields, pagtuple)
+        return result
+
+    def _getPostingdocsForQuery(self, shownfields, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
+        #tagquery is currently assumed to be a list of stags=[tagfqin] or tagnames={tagtype, [names]}
+        #or postables=[postfqin]
+        klass=PostingDocument
+        #NO TAG QUERY IN THIS cASE
+        tagquery, tagquerytype, postablequery, userfqin = self._qproc(currentuser, useras, query, usernick)
+        if not criteria:
+            criteria=[]
+        #CHECK:should we separate out the n=1 case as eq not all?
+        #Do we need a any instead of all for tagging documents?
+        if postablequery and not userfqin:
+            print "NO USER", userfqin
+            criteria.append(
+                    [{'field':'thething__postfqin', 'op':'in', 'value':postablequery}]
+            )
+
+        if postablequery and userfqin:
+            print "USER", userfqin
+            criteria.append(
+                    [{'field':'thething__postfqin', 'op':'in', 'value':postablequery},
+                                        {'field':'thething__postedby', 'op':'eq', 'value':userfqin}
+                    ]
+            )
+        print "?OUTCRITERIA",criteria,  sort, pagtuple
+        result=self._makeQuery(klass, currentuser, useras, criteria, None, sort, shownfields, pagtuple)
+        return result
+
 
     def getItemsForItemspec(self, currentuser, useras, criteria, context=None, sort=None, pagtuple=None):
         SHOWNFIELDS=['itemtype', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri']
@@ -890,59 +973,42 @@ class Postdb():
 
     def getItemsForQuery(self, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
         SHOWNFIELDS=['itemtype', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri']
-        klass=Item
-        result=self._getResultsForQuery(klass, SHOWNFIELDS, currentuser, useras, query, usernick, criteria, sort, pagtuple)
-        return result
-    #PTYPESTRING MUST BE GROUP ONLY TO GET APPROPRIATE POSTABLES FOR USER
-    #otherwise we will pull in apps and get other things from users who have no connections to this user
-
-    #Get TaggingDocs consistent with the users perms
-    #BUG: in more general screens, when all we want to draw is all the tags of type lensing, how do we do it?
-    #then from the taggings we would need tags!
-
-    #THIS GETS USED FOR LHS STUFF
-    def getTaggingsForQuery(self, currentuser, useras, query, ptypestring=None, context=None, sort=None):
-        #tagquery is currently assumed to be a list of [{'tagfqin'}]
-        #or [{"postfqin"}]
-        #we assume that
-        postablesforuser=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
-        klass=TaggingDocument
-        tagquery=query.get("stags",[])
-        #postablequery=query.get("postables",[])
-        criteria=[]
-        SHOWNFIELDS=[   'thething.postfqin',
-                        'thething.posttype',
-                        'thething.thingtopostfqin',
-                        'thething.thingtoposttype',
-                        'thething.whenposted',
-                        'thething.postedby',
-                        'thething.tagtype',
-                        'thething.tagname',
-                        'thething.tagdescription']
-        #BUG: the split is not between tagname and tagtype, but whether their ought to be a namespace ot not
-
-        #this is to get the correct items in taggingdocs we need
-        for v in tagquery:
-            criteria.append([
-                {'field':'thething__tagfqin', 'op':'eq', 'value':v['tagfqin']}
-            ])
-        #this is to make sure what we get the tagguings posted to groups i have access to.
-        #note this is for posting of taggings not items
-        criteria.append([
-                {'field':'pinpostables__postfqin', 'op':'in', 'value':postablesforuser}
-            ])
-        
-        result=self.makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, None)
+        result=self._getItemsForQuery(SHOWNFIELDS, currentuser, useras, query, usernick, criteria, sort, pagtuple)
         return result
 
-    def getTaggingsConsistentWithUserQueryAndContext(self, currentuser, useras, query, context=None, sort=None):
-        result=self.getTaggingsForQuery(currentuser, useras, query, "group", context, sort)
+
+
+    def _getTaggingsForQuery(self, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
+        # SHOWNFIELDS=[   'thething.postfqin',
+        #                 'thething.posttype',
+        #                 'thething.thingtopostfqin',
+        #                 'thething.thingtoposttype',
+        #                 'thething.whenposted',
+        #                 'thething.postedby',
+        #                 'thething.tagtype',
+        #                 'thething.tagname',
+        #                 'thething.tagdescription']
+        SHOWNFIELDS=['thething.postfqin','thething.posttype', 'thething.tagname', 'thething.postedby']
+        result=self._getTaggingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, usernick, criteria, sort, pagtuple)
         return result
 
-    def getTagsConsistentWithUserQueryAndContext(self, currentuser, useras, query, context=None, sort=None):
-        taggings=self.getTaggingsConsistentWithUserQueryAndContext(currentuser, useras, query, context, sort)
-        fqtns=set([e.thething.postfqin for e in taggings])
-        return fqtns
+    #get those consistent with users group access
+    def getTaggingsForQuery(self, currentuser, useras, query, usernick=False, criteria=False, sort=None):
+        #BUG: when is this consistency stuff needed? There is a mode in which I want everything I have access to,
+        #and we want to use all those postables. But having ditched contexts, it dosent seem to be needed.
+        #groupfqinsforuser=self.whosdb.postablesForUser(currentuser, useras, "group")
+        #we dont take any other postables in this query, bcoz we dont want libs and such
+        #query['postables']=groupfqinsforuser
+        results=self._getTaggingsForQuery(currentuser, useras, query, usernick, criteria, sort, None)
+        return results
+
+
+    #this returns fqtns, but perhaps tagnames are more useful? so that we can do more general queries?
+    def getTagsForQuery(self, currentuser, useras, query, usernick=False, criteria=False, sort=None):
+        taggings=self.getTaggingsForQuery(currentuser, useras, query, usernick, criteria, sort)
+        print "TAGGINGS", taggings
+        fqtns=set([e.thething.postfqin for e in taggings[1]])
+        return len(fqtns), fqtns
     #one can use this to query the tag pingrps and pinapps
     #BUG we dont deal with stuff in the apps for now. Not sure
     #what that even means as apps are just copies.
@@ -977,10 +1043,14 @@ class Postdb():
 
     #This one assumes the tag intersection was used to get the items, and now asks, consistent eith ptypestring and the users
     #access, what taggings do we get per item. This is meant to decorate the item listing.
+
+    #IN SPEC FUNCS users groups are critical, as they scope down on a results page interestimng stuff about
+    #the users items consistent with the user's access.
     def getTaggingsForSpec(self, currentuser, useras, itemfqinlist, ptypestring=None, sort=None):
         result={}
+        query={}
         postablesforuser=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
-        klass=TaggingDocument
+        #Notice I cant send back pinpostables or I leak taggings that a user might have done which are not in this users ambit!
         SHOWNFIELDS=[   'thething.postfqin',
                         'thething.posttype',
                         'thething.thingtopostfqin',
@@ -997,15 +1067,16 @@ class Postdb():
             #should op be in?
             #BUG:understand how restricting to a particular kind of postable, or all postable affects this
             #QUESTION: should there be any libraries here?
+            #Here we have in instead of all as now we want stuff consistent with any group we are in, not all
             criteria.append([
                 {'field':'pinpostables__postfqin', 'op':'in', 'value':postablesforuser},
                 {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
             ])
-            result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, None, sort, SHOWNFIELDS, None)
+            result[fqin]=self._getTaggingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, False, criteria, sort, None)
         return result
 
     def getTaggingsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None):
-        result=self.getTaggingsForSpec(currentuser, useras, query, "group", None, sort, None)
+        result=self.getTaggingsForSpec(currentuser, useras, itemfqinlist, "group",  sort)
         return result
     #and this us the postings consistent with items  to show a groups list
     #for all these items to further filter them down. 
@@ -1015,6 +1086,7 @@ class Postdb():
     #function
     def getPostingsForSpec(self, currentuser, useras, itemfqinlist, ptypestring=None, sort=None):
         result={}
+        query={}
         postablesforuser=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
         SHOWNFIELDS=[   'thething.postfqin',
                         'thething.posttype',
@@ -1037,17 +1109,15 @@ class Postdb():
                 {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
             ])
 
-            result[fqin]=self._makeQuery(klass, currentuser, useras, criteria, None, sort, SHOWNFIELDS, None)
+            result[fqin]=result[fqin]=self._getPostingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, False, criteria, sort, None)
         return result
 
+    #This should be whittled down further
     def getPostingsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None):
-        result=self.getPostingsForSpec(currentuser, useras, query, "group", None, sort, None)
+        result=self.getPostingsForSpec(currentuser, useras, itemfqinlist, "group",  sort)
         return result
-    #this should be the one giving us tags consistent with a context
-    #QUESTION:does this give us a list of tags for each item in a group?
-    #I dont believe we need this. More precisely i think we get this implicitly from the taggings
-    def getTagPostingsForSpec(self, currentuser, useras, itemfqinlist, criteria=[], context=None, sort=None, pagetuple=None):
-        pass
+   
+
 
 
 
