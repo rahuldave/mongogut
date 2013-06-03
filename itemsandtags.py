@@ -774,8 +774,6 @@ class Postdb():
             pagend=pagoffset+pagsize
             retset=itemqset[pagoffset:pagend]
         else:
-            pagoffset=DEFPAGOFFSET
-            pagsize=DEFPAGSIZE
             retset=itemqset
 
         return count, retset
@@ -976,6 +974,18 @@ class Postdb():
         result=self._getItemsForQuery(SHOWNFIELDS, currentuser, useras, query, usernick, criteria, sort, pagtuple)
         return result
 
+    #not sure this is useful at all because of the leakage issue. But there is a web service which could take advantage
+    def getPostingsForQuery(self, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
+        SHOWNFIELDS=[   'thething.postfqin',
+                        'thething.posttype',
+                        'thething.thingtopostfqin',
+                        'thething.thingtoposttype',
+                        'thething.whenposted',
+                        'thething.postedby']
+        result=self._getPostingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, usernick, criteria, sort, pagtuple)
+        return result
+
+
 
 
     def _getTaggingsForQuery(self, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
@@ -1109,7 +1119,7 @@ class Postdb():
                 {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
             ])
 
-            result[fqin]=result[fqin]=self._getPostingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, False, criteria, sort, None)
+            result[fqin]=self._getPostingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, False, criteria, sort, None)
         return result
 
     #This should be whittled down further
