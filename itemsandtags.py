@@ -779,10 +779,10 @@ class Postdb():
         return count, retset
 
     #This can be used to somply get tags in a particular context
-    def getTagsForTagspec(self, currentuser, useras, criteria, context=None, sort=None):
+    def getTagsForTagspec(self, currentuser, useras, criteria, sort=None):
         SHOWNFIELDS=['tagtype', 'singletonmode', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri', 'basic.creator', 'owner']
         klass=Tag
-        result=self._makeQuery(klass, currentuser, useras, criteria, context, sort, SHOWNFIELDS, None)
+        result=self._makeQuery(klass, currentuser, useras, criteria, None, sort, SHOWNFIELDS, None)
         return result
 
 
@@ -793,20 +793,20 @@ class Postdb():
     #REMEMBER these are searches on tag fields, not on taggings, so postables dont matter a whit
     #except by membership. So either these give global answers, or we need to vary how we use context.
 
-    def getTagsAsOwnerOnly(self, currentuser, useras, tagtype=None, context=None, singletonmode=False):
+    def getTagsAsOwnerOnly(self, currentuser, useras, tagtype=None, singletonmode=False):
         criteria=[
             {'field':'owner', 'op':'eq', 'value':useras.basic.fqin},
             {'field':'singleton', 'op':'eq', 'value':singletonmode}
         ]
         if tagtype:
             criteria.append({'field':'tagtype', 'op':tagtype[0], 'value':tagtype[1]})
-        result=self.getTagsForTagspec(currentuser, useras, criteria, context, sort)
+        result=self.getTagsForTagspec(currentuser, useras, criteria,  sort)
         return result
 
     #You also have access to tags through group ownership of tags
     #no singletonmodes are usually transferred to group ownership
     #this will give me all
-    def getTagsAsMemberOnly(self, currentuser, useras, tagtype=None, ptypestring=None, singletonmode=False, context=None, sort=None):
+    def getTagsAsMemberOnly(self, currentuser, useras, tagtype=None, ptypestring=None, singletonmode=False, sort=None):
         #the postables for which user is a member
         postablesforuser=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
         #notice in op does OR not AND
@@ -817,10 +817,10 @@ class Postdb():
         ]
         if tagtype:
             criteria.append({'field':'tagtype', 'op':tagtype[0], 'value':tagtype[1]})
-        result=self.getTagsForTagspec(currentuser, useras, criteria, context, sort)
+        result=self.getTagsForTagspec(currentuser, useras, criteria,  sort)
         return result
 
-    
+    #if there are no postables, this wont do any checking.
     def _qproc(self, currentuser, useras, query, usernick):
         tagquery=False
         postablequery=False
@@ -1014,6 +1014,7 @@ class Postdb():
 
 
     #this returns fqtns, but perhaps tagnames are more useful? so that we can do more general queries?
+    #IMPORTANT: the usernick here gives everything tagged by you, not owned by you
     def getTagsForQuery(self, currentuser, useras, query, usernick=False, criteria=False, sort=None):
         taggings=self.getTaggingsForQuery(currentuser, useras, query, usernick, criteria, sort)
         print "TAGGINGS", taggings
