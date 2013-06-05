@@ -378,13 +378,20 @@ class Postdb():
     #can pattern below be refactored out?
     #BUG: currently only works for user creating tag. But i think this should be the way it is
     #only users can create tags. Groups etc can own them. perhaps a CREATABLE interface?
-    def canCreateThisTag(self, currentuser, useras, tagtype):
-        "return true is this user can use this tag from access to tagtype, namespace, etc"
-        tagtype=self._getTagType(currentuser, tagtype)
-        postable=self.whosdb.getPostable(currentuser, tagtype.postable)  
+
+    def canAccessThisType(self, currentuser, useras, thetype, isitemtype=True):
+        if isitemtype:
+            typeobj=self._getItemType(currentuser, thetype)
+        else:
+            typeobj=self._getTagType(currentuser, thetype)
+        postable=self.whosdb.getPostable(currentuser, typeobj.postable)
         if self.isMemberOfPostable(currentuser, useras, postable):
                 return True
         return False
+
+    def canCreateThisTag(self, currentuser, useras, tagtype):
+        "return true is this user can use this tag from access to tagtype, namespace, etc"
+        return self.canAccessThisType(currentuser, useras, tagtype, False)
 
     #this is done for making a standalone tag, without tagging anything with it
     def makeTag(self, currentuser, useras, tagspec):
@@ -778,6 +785,21 @@ class Postdb():
 
         return count, retset
 
+
+    def getTypesForQuery(self, currentuser, useras, criteria=False, usernick=False, isitemtype=True):
+        SHOWNFIELDS=['postable', 'postabletype', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri', 'basic.creator', 'owner']
+        if not criteria:
+            criteria=[]
+        if isitemtype:
+            klass=ItemType
+        else:
+            klass=TagType
+        if usernick:
+            criteria.append([{'field':'owner', 'op':'eq', 'value':useras.basic.fqin}])
+        result=self._makeQuery(klass, currentuser, useras, criteria, None, None, SHOWNFIELDS, None)
+        thetypes=[t for t in result if self.canAccessThisType(currentuser, useras, t.basic.fqin, isitemtype)]
+        return thetypes
+
     #This can be used to somply get tags in a particular context
     def getTagsForTagspec(self, currentuser, useras, criteria, sort=None):
         SHOWNFIELDS=['tagtype', 'singletonmode', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri', 'basic.creator', 'owner']
@@ -793,6 +815,10 @@ class Postdb():
     #REMEMBER these are searches on tag fields, not on taggings, so postables dont matter a whit
     #except by membership. So either these give global answers, or we need to vary how we use context.
 
+    #AUTOCOMPLETION AUTOCOMPLETION AUTOCOMPLETION
+    #BUG: should these be wrapped in canUseThisTag or have we got it implicitly right?
+    #I need functions which give me all tags I may use anywhere for AUTOCOMPLETION
+    #They are the next two!
     def getTagsAsOwnerOnly(self, currentuser, useras, tagtype=None, singletonmode=False):
         criteria=[
             {'field':'owner', 'op':'eq', 'value':useras.basic.fqin},
@@ -800,15 +826,15 @@ class Postdb():
         ]
         if tagtype:
             criteria.append({'field':'tagtype', 'op':tagtype[0], 'value':tagtype[1]})
-        result=self.getTagsForTagspec(currentuser, useras, criteria,  sort)
+        result=self.getTagsForTagspec(currentuser, useras, criteria)
         return result
 
     #You also have access to tags through group ownership of tags
     #no singletonmodes are usually transferred to group ownership
     #this will give me all
-    def getTagsAsMemberOnly(self, currentuser, useras, tagtype=None, ptypestring=None, singletonmode=False, sort=None):
+    def getTagsAsMemberOnly(self, currentuser, useras, tagtype=None, singletonmode=False):
         #the postables for which user is a member
-        postablesforuser=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
+        postablesforuser=self.whosdb.postablesForUser(currentuser, useras, "group")
         #notice in op does OR not AND
         criteria=[
             {'field':'owner', 'op':'ne', 'value':useras.basic.fqin},
@@ -817,11 +843,16 @@ class Postdb():
         ]
         if tagtype:
             criteria.append({'field':'tagtype', 'op':tagtype[0], 'value':tagtype[1]})
-        result=self.getTagsForTagspec(currentuser, useras, criteria,  sort)
+        result=self.getTagsForTagspec(currentuser, useras, criteria)
         return result
 
+    def getAllTagsForUser(self, currentuser, useras, tagtype=None, singletonmode=False):
+        total=self.getTagsAsOwnerOnly(self, currentuser, useras, tagtype singletonmode) +
+            self.getTagsAsMemberOnly(self, currentuser, useras, tagtype singletonmode)
+
+
     #if there are no postables, this wont do any checking.
-    def _qproc(self, currentuser, useras, query, usernick):
+    def _qproc(self, currentuser, useras, query, usernick, default="udg"):
         tagquery=False
         postablequery=False
         tagquerytype=None
@@ -833,6 +864,15 @@ class Postdb():
             tagquerytype="tagname"
         
         postablequery=query.get("postables",[])
+        #if postablequey is empty, then default is used
+        if not postablequery:
+            if default=="udg":
+                postablequery=[useras.nick+"/group:default"]
+            elif default=="uag":
+                postablegroupsforuser=self.whosdb.postablesForUser(currentuser, useras, "group")
+                postablelibrariesforuser=self.whosdb.postablesForUser(currentuser, useras, "library")
+                postablesforuser = postablegroupsforuser + postablelibrariesforuser
+                postablequery=[p.basic.fqin for p in postablesforuser]
         for ele in postablequery:
             postable=self.whosdb.getPostable(currentuser, ele)
             #you must be a member of the library or the group
@@ -1089,6 +1129,11 @@ class Postdb():
     def getTaggingsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None):
         result=self.getTaggingsForSpec(currentuser, useras, itemfqinlist, "group",  sort)
         return result
+
+    def getTagsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None):
+        result=self.getTaggingsConsistentWithUserAndItems(currentuser, useras, itemfqinlist, sort)
+        fqtns=set([e.thething.postfqin for e in result[1]])
+        return len(fqtns), fqtns
     #and this us the postings consistent with items  to show a groups list
     #for all these items to further filter them down. 
     #No context here as PostingDocument has none. This is purely items
