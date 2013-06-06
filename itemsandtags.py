@@ -796,9 +796,9 @@ class Postdb():
             klass=TagType
         if usernick:
             criteria.append([{'field':'owner', 'op':'eq', 'value':useras.basic.fqin}])
-        result=self._makeQuery(klass, currentuser, useras, criteria, None, None, SHOWNFIELDS, None)
+        count, result=self._makeQuery(klass, currentuser, useras, criteria, None, None, SHOWNFIELDS, None)
         thetypes=[t for t in result if self.canAccessThisType(currentuser, useras, t.basic.fqin, isitemtype)]
-        return thetypes
+        return len(thetypes), thetypes
 
     #This can be used to somply get tags in a particular context
     def getTagsForTagspec(self, currentuser, useras, criteria, sort=None):
@@ -847,8 +847,7 @@ class Postdb():
         return result
 
     def getAllTagsForUser(self, currentuser, useras, tagtype=None, singletonmode=False):
-        total=self.getTagsAsOwnerOnly(self, currentuser, useras, tagtype singletonmode) +
-            self.getTagsAsMemberOnly(self, currentuser, useras, tagtype singletonmode)
+        total=self.getTagsAsOwnerOnly(self, currentuser, useras, tagtype, singletonmode) + self.getTagsAsMemberOnly(self, currentuser, useras, tagtype, singletonmode)
 
 
     #if there are no postables, this wont do any checking.
@@ -1038,7 +1037,12 @@ class Postdb():
         #                 'thething.tagtype',
         #                 'thething.tagname',
         #                 'thething.tagdescription']
-        SHOWNFIELDS=['thething.postfqin','thething.posttype', 'thething.tagname', 'thething.postedby']
+        SHOWNFIELDS=[   'thething.postfqin',
+                        'thething.posttype',
+                        'thething.thingtopostfqin',
+                        'thething.tagname',
+                        'thething.whenposted',
+                        'thething.postedby']
         result=self._getTaggingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, usernick, criteria, sort, pagtuple)
         return result
 
@@ -1128,11 +1132,18 @@ class Postdb():
 
     def getTaggingsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None):
         result=self.getTaggingsForSpec(currentuser, useras, itemfqinlist, "group",  sort)
+        print "RESULT", result
         return result
 
     def getTagsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None):
         result=self.getTaggingsConsistentWithUserAndItems(currentuser, useras, itemfqinlist, sort)
-        fqtns=set([e.thething.postfqin for e in result[1]])
+        print result
+        fqtns=[]
+        for fqin in result:
+            tags=result[fqin][1]
+            for e in tags:
+                fqtns.append(e.thething.postfqin)
+        fqtns=set(fqtns)
         return len(fqtns), fqtns
     #and this us the postings consistent with items  to show a groups list
     #for all these items to further filter them down. 

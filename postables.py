@@ -179,6 +179,19 @@ class Database():
     def membersOfPostableFromFqin(self, currentuser, memberable, fqpn):
         postable=self.getPostable(currentuser, fqpn)
         return self.membersOfPostable(currentuser, memberable, postable)
+
+    #Needs owner or superuser access
+    def invitedsForPostable(self, currentuser, memberable, postable):
+        "is user or memberable a member of the postable?"
+        #i need to have access to this if i come in through being a member of a memberable which is a member
+        #authorize_postable member takes care of this. That memberable is NOT the same memberable in the arguments here
+        authorize_postable_owner(False, self, currentuser, memberable, postable)
+        inviteds=postable.inviteds
+        return inviteds
+
+    def invitedsForPostableFromFqin(self, currentuser, memberable, fqpn):
+        postable=self.getPostable(currentuser, fqpn)
+        return self.invitedsForPostable(currentuser, memberable, postable)
     ################################################################################
 
     #Add user to system, given a userspec from flask user object. commit needed

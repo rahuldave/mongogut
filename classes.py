@@ -4,6 +4,7 @@ import datetime
 #BUG: at some point counters on collections should be built in
 #
 
+
 #BEHAVIOUR BASIC
 class Basic(EmbeddedDocument):
     #namespace = StringField(required=True)
