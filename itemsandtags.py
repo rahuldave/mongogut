@@ -776,8 +776,10 @@ class Postdb():
         if pagtuple:
             pagoffset=pagtuple[0]
             pagsize=pagtuple[1]
-            if pagsize==None:
+            if pagsize==-1:
                 pagsize=DEFPAGSIZE
+            if pagoffset==-1:
+                pagoffset=DEFPAGOFFSET
             pagend=pagoffset+pagsize
             retset=itemqset[pagoffset:pagend]
         else:
@@ -851,7 +853,7 @@ class Postdb():
 
 
     #if there are no postables, this wont do any checking.
-    def _qproc(self, currentuser, useras, query, usernick, default="udg"):
+    def _qproc(self, currentuser, useras, query, usernick, specmode=False, default="udg"):
         tagquery=False
         postablequery=False
         tagquerytype=None
@@ -864,14 +866,17 @@ class Postdb():
         
         postablequery=query.get("postables",[])
         #if postablequey is empty, then default is used
-        if not postablequery:
-            if default=="udg":
-                postablequery=[useras.nick+"/group:default"]
-            elif default=="uag":
-                postablegroupsforuser=self.whosdb.postablesForUser(currentuser, useras, "group")
-                postablelibrariesforuser=self.whosdb.postablesForUser(currentuser, useras, "library")
-                postablesforuser = postablegroupsforuser + postablelibrariesforuser
-                postablequery=[p.basic.fqin for p in postablesforuser]
+        #BYPASS THIS BY SETTING POSTABLEQUERY FOR SPEC FUNCS
+        if not specmode:
+            if not postablequery:
+                if default=="udg":
+                    postablequery=[useras.nick+"/group:default"]
+                elif default=="uag":
+                    #BUG: should this have all libraries too?
+                    postablegroupsforuser=self.whosdb.postablesForUser(currentuser, useras, "group")
+                    postablelibrariesforuser=self.whosdb.postablesForUser(currentuser, useras, "library")
+                    postablesforuser = postablegroupsforuser + postablelibrariesforuser
+                    postablequery=[p.basic.fqin for p in postablesforuser]
         for ele in postablequery:
             postable=self.whosdb.getPostable(currentuser, ele)
             #you must be a member of the library or the group
@@ -930,12 +935,12 @@ class Postdb():
         result=self._makeQuery(klass, currentuser, useras, criteria, None, sort, shownfields, pagtuple)
         return result
 
-    def _getTaggingdocsForQuery(self, shownfields, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
+    def _getTaggingdocsForQuery(self, shownfields, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None, specmode=False):
         #tagquery is currently assumed to be a list of stags=[tagfqin] or tagnames={tagtype, [names]}
         #or postables=[postfqin]
         klass=TaggingDocument
 
-        tagquery, tagquerytype, postablequery, userfqin = self._qproc(currentuser, useras, query, usernick)
+        tagquery, tagquerytype, postablequery, userfqin = self._qproc(currentuser, useras, query, usernick, specmode)
         if not criteria:
             criteria=[]
         #CHECK:should we separate out the n=1 case as eq not all?
@@ -973,12 +978,12 @@ class Postdb():
         result=self._makeQuery(klass, currentuser, useras, criteria, None, sort, shownfields, pagtuple)
         return result
 
-    def _getPostingdocsForQuery(self, shownfields, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
+    def _getPostingdocsForQuery(self, shownfields, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None, specmode=False):
         #tagquery is currently assumed to be a list of stags=[tagfqin] or tagnames={tagtype, [names]}
         #or postables=[postfqin]
         klass=PostingDocument
         #NO TAG QUERY IN THIS cASE
-        tagquery, tagquerytype, postablequery, userfqin = self._qproc(currentuser, useras, query, usernick)
+        tagquery, tagquerytype, postablequery, userfqin = self._qproc(currentuser, useras, query, usernick, specmode)
         if not criteria:
             criteria=[]
         #CHECK:should we separate out the n=1 case as eq not all?
@@ -993,7 +998,7 @@ class Postdb():
             print "USER", userfqin
             criteria.append(
                     [{'field':'thething__postfqin', 'op':'in', 'value':postablequery},
-                                        {'field':'thething__postedby', 'op':'eq', 'value':userfqin}
+                     {'field':'thething__postedby', 'op':'eq', 'value':userfqin}
                     ]
             )
         print "?OUTCRITERIA",criteria,  sort, pagtuple
@@ -1127,7 +1132,7 @@ class Postdb():
                 {'field':'pinpostables__postfqin', 'op':'in', 'value':postablesforuser},
                 {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
             ])
-            result[fqin]=self._getTaggingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, False, criteria, sort, None)
+            result[fqin]=self._getTaggingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, False, criteria, sort, None, True)
         return result
 
     def getTaggingsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None):
@@ -1172,11 +1177,11 @@ class Postdb():
             #QUESTION: should there be any libraries here?
             #QUESTION: should there be any libraries here?
             criteria.append([
-                {'field':'thething__postfqin', 'op':'in', 'value':postablesforuser},
-                {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
-            ])
-
-            result[fqin]=self._getPostingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, False, criteria, sort, None)
+                            {'field':'thething__postfqin', 'op':'in', 'value':postablesforuser},
+                            {'field':'thething__thingtopostfqin', 'op':'eq', 'value':fqin}
+                        ])
+            print "=============================CRITERIA", criteria
+            result[fqin]=self._getPostingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, False, criteria, sort, None, True)
         return result
 
     #This should be whittled down further
