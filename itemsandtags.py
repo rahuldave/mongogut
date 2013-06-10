@@ -18,7 +18,7 @@ from blinker import signal
 def receiver(f):
     print "SETTING UP SIGNAL"
     def realreceiver(sender, **data):
-        print "In real reciever", data,f
+        #print "In real reciever", data,f
         otherargs={}
         for e in data.keys():
             if e not in ['obj', 'currentuser', 'useras']:
@@ -26,7 +26,7 @@ def receiver(f):
         obj=data['obj']
         currentuser=data['currentuser']
         useras=data['useras']
-        print "OTHERARGS", otherargs
+        #print "OTHERARGS", otherargs
         val=f(currentuser, useras, **otherargs)
         return val
     return realreceiver
@@ -110,7 +110,7 @@ class Postdb():
             for r in SIGNALS[ele]:
                 self.signals[ele].connect(r, sender=self, weak=False)
             #print "[[]]", self.signals[ele], self.signals[ele].receivers
-        print "ssiiggnnaallss", self.signals['saved-item'].receivers
+        #print "ssiiggnnaallss", self.signals['saved-item'].receivers
 
     def _getItemType(self, currentuser, fullyQualifiedItemType):
         try:
@@ -1257,7 +1257,12 @@ def initialize_testing(db_session):
         r=random.choice([0,1])
         user=users[r]
         postdb.tagItem(user, user, thedict[k].basic.fqin, dict(tagtype="ads/tagtype:tag", name=tstr))
-
+    TAGS2=['asexy', 'augly', 'aimportant', 'aboring']
+    for k in thedict.keys():
+        tstr=random.choice(TAGS2)
+        r=random.choice([0,1])
+        user=users[r]
+        postdb.tagItem(user, user, thedict[k].basic.fqin, dict(tagtype="ads/tagtype:tag", name=tstr))
     for k in thedict.keys():
         r=random.choice([0,1])
         user=users[r]
