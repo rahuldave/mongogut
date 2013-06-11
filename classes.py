@@ -130,6 +130,7 @@ class Tagging(Post):
     tagname=StringField(required=True)
     tagdescription=StringField(default="", required=True)
     tagmode = BooleanField(default=False, required=True)
+    singletonmode = BooleanField(default=False, required=True)
 
 
 class PostingDocument(Document):

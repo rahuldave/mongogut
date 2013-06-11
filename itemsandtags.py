@@ -447,6 +447,7 @@ class Postdb():
         
         tag = self.makeTag(currentuser, useras, tagspec)
         tagmode=tagtypeobj.tagmode
+        singletonmode=tag.singletonmode
         #Now that we have a tag item, we need to create a tagging
         try:
             print "was the taggingdoc found?"
@@ -472,6 +473,7 @@ class Postdb():
                                 tagname=tag.basic.name,
                                 tagtype=tag.tagtype,
                                 tagmode=tagmode,
+                                singletonmode=singletonmode,
                                 tagdescription=tagdescript
                 )
                 #itemtag.save(safe=True)
@@ -978,6 +980,43 @@ class Postdb():
         result=self._makeQuery(klass, currentuser, useras, criteria, None, sort, shownfields, pagtuple)
         return result
 
+    def _getTaggingdocsForQuery2(self, shownfields, currentuser, useras, query, usernick=False, criteria=False, specmode=False):
+        #tagquery is currently assumed to be a list of stags=[tagfqin] or tagnames={tagtype, [names]}
+        #or postables=[postfqin]
+        klass=Item
+        tagquery, tagquerytype, postablequery, userfqin = self._qproc(currentuser, useras, query, usernick, specmode)
+
+        if not criteria:
+            criteria=[]
+        #CHECK:should we separate out the n=1 case as eq not all?
+        #Do we need a any instead of all for tagging documents?
+        if tagquery and tagquerytype=="postfqin":
+            criteria.append(
+                    [{'field':'stags__postfqin', 'op':'all', 'value':tagquery}]
+            )
+        if tagquery and tagquerytype=="tagname":
+            criteria.append(
+                    {'stags':[{'field':'tagname', 'op':'all', 'value':tagquery['names']},
+                                        {'field':'tagtype', 'op':'eq', 'value':tagquery['tagtype']}
+                    ]}
+            )
+        if postablequery and not userfqin:
+            print "NO USER", userfqin
+            criteria.append(
+                    [{'field':'pinpostables__postfqin', 'op':'all', 'value':postablequery}]
+            )
+
+        if postablequery and userfqin:
+            print "USER", userfqin
+            criteria.append(
+                    {'pinpostables':[{'field':'postfqin', 'op':'all', 'value':postablequery},
+                                        {'field':'postedby', 'op':'eq', 'value':userfqin}
+                    ]}
+            )
+        print "?OUTCRITERIA2222",criteria
+        result=self._makeQuery(klass, currentuser, useras, criteria, None, None, shownfields, None)
+        return result
+
     def _getPostingdocsForQuery(self, shownfields, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None, specmode=False):
         #tagquery is currently assumed to be a list of stags=[tagfqin] or tagnames={tagtype, [names]}
         #or postables=[postfqin]
@@ -1064,10 +1103,17 @@ class Postdb():
 
     #this returns fqtns, but perhaps tagnames are more useful? so that we can do more general queries?
     #IMPORTANT: the usernick here gives everything tagged by you, not owned by you
-    def getTagsForQuery(self, currentuser, useras, query, usernick=False, criteria=False, sort=None):
-        taggings=self.getTaggingsForQuery(currentuser, useras, query, usernick, criteria, sort)
-        print "TAGGINGS", taggings
-        fqtns=set([e.thething.postfqin for e in taggings[1]])
+    #BUG currently bake in singletonmode
+    def getTagsForQuery(self, currentuser, useras, query, usernick=False, criteria=False):
+        SHOWNFIELDS=[ 'stags']
+        specmode=False #we start with false but if we are in a postable we should be fine
+        count, items=self._getTaggingdocsForQuery2(SHOWNFIELDS, currentuser, useras, query, usernick, criteria, specmode)
+        print "TAGGINGS", count, items
+        fqtns=[]
+        for i in items:
+            ltns=[e.postfqin for e in i.stags if not e.singletonmode]
+            fqtns=fqtns+ltns
+        fqtns=set(fqtns)
         return len(fqtns), fqtns
     #one can use this to query the tag pingrps and pinapps
     #BUG we dont deal with stuff in the apps for now. Not sure
@@ -1106,6 +1152,8 @@ class Postdb():
 
     #IN SPEC FUNCS users groups are critical, as they scope down on a results page interestimng stuff about
     #the users items consistent with the user's access.
+
+    #BUG: DO WE NOT WANT ANY SINGLETON MODE HERE?
     def getTaggingsForSpec(self, currentuser, useras, itemfqinlist, ptypestring=None, sort=None):
         result={}
         query={}
