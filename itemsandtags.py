@@ -16,7 +16,7 @@ from blinker import signal
 
 #BUG:replace obj by the sender
 def receiver(f):
-    print "SETTING UP SIGNAL"
+    #print "SETTING UP SIGNAL"
     def realreceiver(sender, **data):
         #print "In real reciever", data,f
         otherargs={}
@@ -106,7 +106,7 @@ class Postdb():
         }
         for ele in SIGNALS:
             self.signals[ele]=signal(ele)
-            print ele, len(SIGNALS[ele])
+            #print ele, len(SIGNALS[ele])
             for r in SIGNALS[ele]:
                 self.signals[ele].connect(r, sender=self, weak=False)
             #print "[[]]", self.signals[ele], self.signals[ele].receivers
