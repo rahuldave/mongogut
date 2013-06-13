@@ -55,6 +55,13 @@ class PostableEmbedded(EmbeddedDocument):
     fqpn = StringField(required=True)
     ptype = StringField(required=True)
 
+#we will use this for members and inviteds instead of strings to implement readwrite
+#discussed at the ADS meeting.
+class MembableEmbedded(EmbeddedDocument):
+    fqmn = StringField(required=True)
+    mtype = StringField(required=True)
+    readwrite = BooleanField(required=True, default=False)
+
 class User(Document):
     classname="user"
     adsid = StringField(required=True, unique=True)

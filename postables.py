@@ -555,11 +555,14 @@ def initialize_application(db_session):
     print "Added Initial Public group"
     adsgutuser, adsgutapp=whosdb.addApp(currentuser, adsgutuser, dict(name='adsgut', description="The MotherShip App"))
     print "Added Mothership app"
+
     adsuser=whosdb.addUser(currentuser, dict(nick='ads', adsid='ads'))
     print "Added ADS user", adsuser.to_json()
     currentuser=adsuser
     adsuser, adspubsapp=whosdb.addApp(currentuser, adsuser, dict(name='publications', description="ADS's flagship publication app"))
     print "ADS user added publications app"
+    anonuser=whosdb.addUser(adsgutuser, dict(nick='anonymous', adsid='anonymous'))
+
 
 def initialize_testing(db_session):
     print "INIT TEST"
