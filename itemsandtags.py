@@ -1114,7 +1114,8 @@ class Postdb():
             ltns=[e.postfqin for e in i.stags if not e.singletonmode]
             fqtns=fqtns+ltns
         fqtns=set(fqtns)
-        return len(fqtns), fqtns
+        tags=[parseTag(f) for f in fqtns]
+        return len(tags), tags
     #one can use this to query the tag pingrps and pinapps
     #BUG we dont deal with stuff in the apps for now. Not sure
     #what that even means as apps are just copies.

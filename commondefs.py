@@ -46,6 +46,15 @@ def gettype(fqin):
     #print 'FQIN',fqin, nstypename
     return MAPDICT[nstypename]
 
+def parseTag(fqtn):
+    #jayluker/ads/tagtype:tag:asexy
+    tagname=fqtn.split(':')[-1]
+    spl=fqtn.split('/',1)
+    taguser=spl[0]
+    n=spl[1].find(tagname)
+    tagtype=spl[1][0:n]
+    return fqtn, taguser, tagtype, tagname
+
 #BUG: add a function musthave which can then be used to validate in augmentitspec
 #this function currently dosent throw an exception it should when not in flask mode
 def musthavekeys(indict, listofkeys):
