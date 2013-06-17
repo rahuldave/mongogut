@@ -87,13 +87,15 @@ class Database():
 
     def isMemberOfMembable(self, currentuser, memberable, membable, memclass=MEMBABLES):
         "is the memberable a member of membable"
-        if memberable.basic.fqin in membable.members:
+        #this is the slow way to do it. BUG.
+        members=membable.get_member_fqins()
+        if memberable.basic.fqin in members:
             return True
-        for mem in membable.members:
+        for mem in members:
             ptype=gettype(mem)
             if  ptype in memclass:
                 pos=self.getMembable(currentuser, mem)
-                if memberable.basic.fqin in pos.members:
+                if memberable.basic.fqin in pos.get_member_fqins():
                     return True
         return False
 
@@ -173,7 +175,7 @@ class Database():
         #i need to have access to this if i come in through being a member of a memberable which is a member
         #authorize_postable member takes care of this. That memberable is NOT the same memberable in the arguments here
         authorize_postable_member(False, self, currentuser, memberable, postable)
-        members=postable.members
+        members=[ele.fqmn for ele in postable.members]
         return members
 
     def membersOfPostableFromFqin(self, currentuser, memberable, fqpn):
@@ -295,7 +297,7 @@ class Database():
 
     #BUG: there is no restriction here of what can be added to what in memberables and postables
     #BUG: when do we use get and when not. And what makes sure the fqins are kosher?
-    def addMemberableToPostable(self, currentuser, useras, fqpn, memberablefqin):
+    def addMemberableToPostable(self, currentuser, useras, fqpn, memberablefqin, changerw=False):
         "add a user, group, or app to a postable=group, app, or library"
         ptype=gettype(fqpn)
         mtype=gettype(memberablefqin)
@@ -320,11 +322,35 @@ class Database():
         try:
             pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin)
             memberableq.update(safe_update=True, push__postablesin=pe)
-            postableq.update(safe_update=True, push__members=memberablefqin)
+            if not changerw:
+                rw=RWDEFMAP[ptype]
+            else:
+                rw= (not RWDEFMAP[ptype])
+            memb=MembableEmbedded(mtype=mtype.classname, fqmn=memberablefqin, readwrite=rw)
+            postableq.update(safe_update=True, push__members=memb)
         except:
             doabort('BAD_REQ', "Failed adding memberable %s %s to postable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
         memberable.reload()
         return memberable, postableq.get()
+
+    def toggleRWForMembership(self, currentuser, useras, fqpn, memberablefqin):
+        type=gettype(fqpn)
+        mtype=gettype(memberablefqin)
+        print "types", fqpn, ptype, memberablefqin,mtype
+        postableq=ptype.objects(basic__fqin=fqpn)
+        #BUG currently restricted admission. Later we will want groups and apps proxying for users.
+        authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
+        try:
+            postable=postableq.get()
+        except:
+            doabort('BAD_REQ', "No such postable %s %s" %  (ptype.__name__,fqpn))
+        members=postable.members
+        #BUG make faster by using a mongo search
+        for me in members:
+            if me.fqmn==memberablefqin:
+                me.readwrite = (not me.readwrite)
+        #CHECK: does this make the change we want, or do we need explicit update?
+        postableq.update(safe_update=True)
 
     def addUserToPostable(self, currentuser, fqpn, nick):
         user=self.getUserForNick(currentuser,nick)
@@ -347,13 +373,16 @@ class Database():
         try:
             pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin)
             memberableq.update(safe_update=True, pull_postablesin=pe)
-            postableq.update(safe_update=True, pull__members=memberablefqin)
+            #buf not sure how removing embedded doc works, if at all
+            memb=MembableEmbedded(mtype=mtype.classname, fqmn=memberablefqin)
+            postableq.update(safe_update=True, pull__members=memb)
         except:
             doabort('BAD_REQ', "Failed removing memberable %s %s from postable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
         return OK
 
     #BUG: there is no restriction here of what can be added to what in memberables and postables
-    def addMemberableToMembable(self, currentuser, useras, fqpn, memberablefqin):
+    #CHECK: why not use this generally? why separate for postables/ this seems to be used only for Tag. BUG: combine code is possible
+    def addMemberableToMembable(self, currentuser, useras, fqpn, memberablefqin, changerw=False):
         "add a user, group, or app to a postable=group, app, or library"
         ptype=gettype(fqpn)
         mtype=gettype(memberablefqin)
@@ -361,7 +390,12 @@ class Database():
         membableq=ptype.objects(basic__fqin=fqpn)
         memberableq= mtype.objects(basic__fqin=memberablefqin)
         try:
-            membableq.update(safe_update=True, push__members=memberablefqin)
+            if not changerw:
+                rw=RWDEFMAP[ptype]
+            else:
+                rw= (not RWDEFMAP[ptype])
+            memb=MembableEmbedded(mtype=mtype.classname, fqmn=memberablefqin, readwrite=rw)
+            membableq.update(safe_update=True, push__members=memb)
         except:
             doabort('BAD_REQ', "Failed adding memberable %s %s to membable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
         return memberableq.get(), membableq.get()
@@ -381,7 +415,8 @@ class Database():
         #Bug: this is currentuser for now
         authorize_ownable_owner(False, self, currentuser, None, membable)
         try:
-            membableq.update(safe_update=True, pull__members=memberablefqin)
+            memb=MembableEmbedded(mtype=mtype.classname, fqmn=memberablefqin)
+            membableq.update(safe_update=True, pull__members=memb)
         except:
             doabort('BAD_REQ', "Failed removing memberable %s %s from postable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
         return OK
@@ -431,7 +466,8 @@ class Database():
         try:
             pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin)
             userq.update(safe_update=True, push__postablesin=pe, pull__postablesinvitedto=pe)
-            postableq.update(safe_update=True, push__members=mefqin, pull__inviteds=mefqin)
+            memb=MembableEmbedded(mtype=User.classname, fqmn=mefqin, readwrite=RWDEFMAP[ptype])
+            postableq.update(safe_update=True, push__members=memb, pull__inviteds=mefqin)
         except:
             doabort('BAD_REQ', "Failed in user %s accepting invite to gpostable %s %s" % (mefqin, ptype.__name__, fqpn))
         me.reload()
@@ -468,11 +504,14 @@ class Database():
         permit(self.isMemberOfPostable(currentuser, newowner, postable), 
             " Possible new owner %s %s must be member of postable %s %s" % (newownerptype.__name__, newownerfqpn, ptype.__name__, fqpn))
 
-       
+        #we have removed the possibility of group ownership of postables. CHECK. I've removed the push right now as i assume new owner
+        #must be a member of postable. How does this affect tag ownership if at all?
         try:
             oldownerfqpn=postable.owner
+            postable.update(safe_update=True, set__owner = newowner.basic.fqin)
             #if newownerptype != User:
-            postable.update(safe_update=True, set__owner = newowner.basic.fqin, push__members=newowner.basic.fqin)
+            #memb=MembableEmbedded(mtype=User.classname, fqmn=newowner.basic.fqin, readwrite=RWDEFMAP[ptype])
+            #postable.update(safe_update=True, set__owner = newowner.basic.fqin, push__members=memb)
             #else:
             #postable.update(safe_update=True, set__owner = newowner.basic.fqin, push__members=newowner.basic.fqin, pull__members=oldownerfqpn)
         except:
@@ -483,8 +522,11 @@ class Database():
 
     #group should be replaced by anything that can be the owner
     #dont want to use this for postables, even though they are ownable.
+    #This is where we deal with TAG's. Check. BUG: also combine with above for non repeated code.
+    #tags are membables, we dont check that here. Ought it be done with postables?
+    #and do we have use cases for tag ownership changes, as opposed to tagtypes and itemtypes?
     def changeOwnershipOfOwnable(self, currentuser, owner, fqon, newownerfqpn):
-        "this is used for things like itentypes and tagtypes, not for g/a/l"
+        "this is used for things like itentypes and tagtypes, not for g/a/l. Also for tags?"
         otype=gettype(fqon)
         newownerptype = gettype(newownerfqpn)
         oq=otype.objects(basic__fqin=fqon)

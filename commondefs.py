@@ -11,6 +11,13 @@ MEMBABLES=[Group, App, Library, Tag]#things you can be a member of
 #above all use nicks
 OWNABLES=[Group, App, Library, ItemType, TagType, Tag]#things that can be owned
 #OWNERABLES=[Group, App, User]#things that can be owners. Do we need a shadow owner?
+OWNERABLES=[User]
+RWDEFMAP={
+    Group:True,
+    App:True,#should apps use masquerading instead? BUG
+    Library:False,
+    Tag:False
+}
 #the above all have nicks
 #TAGGISH=[Group, App, Library, Tag]: or should it be PostingDoc, TaggingDoc?
 MAPDICT={

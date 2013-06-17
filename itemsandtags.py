@@ -594,6 +594,7 @@ class Postdb():
     def postTaggingIntoPostable(self, currentuser, useras, fqpn, taggingdoc):
         itemtag=taggingdoc.thething
         postable=self.whosdb.getPostable(currentuser, fqpn)
+        ptype=classtype(postable)
         #why did we have this before?
         #authorize_postable_owner(False, self, currentuser, useras, postable)
         authorize_postable_member(False, self, currentuser, useras, postable)
@@ -622,8 +623,11 @@ class Postdb():
                 postedby=useras.basic.fqin, thingtopostfqin=itemtag.postfqin, thingtoposttype=itemtag.tagtype)
             taggingdoc.update(safe_update=True, push__pinpostables=newposting)
             
-            #BUG:postables will be pushed multiple times here. How to unique?
-            tag.update(safe_update=True, push__members=postable.basic.fqin)
+            #BUG:postables will be pushed multiple times here. How to unique? i think we ought to have this
+            #happen at mongoengine/mongodb level
+            memb=MembableEmbedded(mtype=postable.classname, fqmn=postable.basic.fqin, readwrite=RWDEFMAP[ptype])
+            #tag.update(safe_update=True, push__members=postable.basic.fqin)
+            tag.update(safe_update=True, push__members=memb)
             tag.reload()
             taggingdoc.reload()
         except:
@@ -842,7 +846,7 @@ class Postdb():
         #notice in op does OR not AND
         criteria=[
             {'field':'owner', 'op':'ne', 'value':useras.basic.fqin},
-            {'field':'members', 'op':'in', 'value':postablesforuser},
+            {'field':'members__fqmn', 'op':'in', 'value':postablesforuser},
             {'field':'singleton', 'op':'eq', 'value':singletonmode}
         ]
         if tagtype:
@@ -876,8 +880,9 @@ class Postdb():
                 elif default=="uag":
                     #BUG: should this have all libraries too?
                     postablegroupsforuser=self.whosdb.postablesForUser(currentuser, useras, "group")
-                    postablelibrariesforuser=self.whosdb.postablesForUser(currentuser, useras, "library")
-                    postablesforuser = postablegroupsforuser + postablelibrariesforuser
+                    #postablelibrariesforuser=self.whosdb.postablesForUser(currentuser, useras, "library")
+                    postablesforuser = postablegroupsforuser
+                    #postablesforuser = postablegroupsforuser + postablelibrariesforuser
                     postablequery=[p.basic.fqin for p in postablesforuser]
         for ele in postablequery:
             postable=self.whosdb.getPostable(currentuser, ele)
@@ -886,6 +891,10 @@ class Postdb():
             #if you ask for atuff in apps, you better be an owner
             if getNSTypeName(ele)=="app":
                 authorize_postable_owner(False, self, currentuser, useras, postable)
+        # if tagquerytype=="postfqin":
+        #     for ele in tagquery:
+        #         tag=self._getTag(currentuser, ele)
+        #         self.canUseThisTag(currentuser, useras, tag)
         userfqin=usernick
         if usernick:
             userfqin='adsgut/user:'+usernick
@@ -1158,6 +1167,7 @@ class Postdb():
     def getTaggingsForSpec(self, currentuser, useras, itemfqinlist, ptypestring=None, sort=None):
         result={}
         query={}
+        #below could have been done through qproc too BUG: perhaps refactor?
         postablesforuser=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
         #Notice I cant send back pinpostables or I leak taggings that a user might have done which are not in this users ambit!
         SHOWNFIELDS=[   'thething.postfqin',
@@ -1189,6 +1199,7 @@ class Postdb():
         print "RESULT", result
         return result
 
+    #probably dont have a context to use the following
     def getTagsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None):
         result=self.getTaggingsConsistentWithUserAndItems(currentuser, useras, itemfqinlist, sort)
         print result

@@ -38,19 +38,6 @@ class TagType(Document):
     #once again example is note, which is created with a uuid as name
     singletonmode = BooleanField(default=False, required=True)
 
-class Tag(Document):
-    classname="tag"    
-    basic = EmbeddedDocumentField(Basic)
-    tagtype = StringField(required=True)
-    singletonmode = BooleanField(required=True)#default is false but must come from tagtype
-    #The owner of a tag can be a user, group, or app
-    #This is different from creator as ownership can be transferred. You
-    #see this in groups and apps too. Its like a duck.
-    owner = StringField(required=True)
-    #Seems like this was needed for change ownership
-    members = ListField(StringField())
-    inviteds = ListField(StringField())
-
 class PostableEmbedded(EmbeddedDocument):
     fqpn = StringField(required=True)
     ptype = StringField(required=True)
@@ -61,6 +48,23 @@ class MembableEmbedded(EmbeddedDocument):
     fqmn = StringField(required=True)
     mtype = StringField(required=True)
     readwrite = BooleanField(required=True, default=False)
+
+class Tag(Document):
+    classname="tag"    
+    basic = EmbeddedDocumentField(Basic)
+    tagtype = StringField(required=True)
+    singletonmode = BooleanField(required=True)#default is false but must come from tagtype
+    #The owner of a tag can be a user, group, or app
+    #This is different from creator as ownership can be transferred. You
+    #see this in groups and apps too. Its like a duck.
+    owner = StringField(required=True)
+    #Seems like this was needed for change ownership
+    members = ListField(EmbeddedDocumentField(MembableEmbedded))
+    inviteds = ListField(StringField())
+
+    def get_member_fqins(self):
+        return [ele.fqmn for ele in self.members]
+
 
 class User(Document):
     classname="user"
@@ -92,8 +96,11 @@ class Group(Document):
     #@interface:POSTABLE
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
-    members = ListField(StringField())
-    inviteds = ListField(StringField())
+    members = ListField(EmbeddedDocumentField(MembableEmbedded))
+    inviteds = ListField(StringField())#only fqmn
+
+    def get_member_fqins(self):
+        return [ele.fqmn for ele in self.members]
 
 class App(Document):
     classname="app"
@@ -102,8 +109,11 @@ class App(Document):
     #@interface:POSTABLE
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
-    members = ListField(StringField())
+    members = ListField(EmbeddedDocumentField(MembableEmbedded))
     inviteds = ListField(StringField())
+
+    def get_member_fqins(self):
+        return [ele.fqmn for ele in self.members]
 
 #Do we need this at all?
 class Library(Document):
@@ -111,9 +121,11 @@ class Library(Document):
     #@interface:POSTABLE
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
-    members = ListField(StringField())
+    members = ListField(EmbeddedDocumentField(MembableEmbedded))
     inviteds = ListField(StringField())
 
+    def get_member_fqins(self):
+        return [ele.fqmn for ele in self.members]
 #
 #POSTING AND TAGGING ARE DUCKS
 
