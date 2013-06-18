@@ -107,13 +107,13 @@ def authorize_ownable_owner(authstart, db, currentuser, memberable, cobj):
     #what if useras is a group? see the elif. otherwise user musr be currentuser
     if classtype(memberable)==User:
         clause = (currentuser==memberable, "User %s not authorized" % currentuser.nick)
-    elif classtype(memberable) in [Group, App]:
+    elif classtype(memberable) in [Group, App]:#thie idea is to stop allowing this, for postable cobjs at
         print "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
         clause = (db.isOwnerOfPostable(currentuser, currentuser, memberable), "must be owner of postable %s %s" % (classname(memberable), memberable.basic.fqin))
     else:
         clause=False
     print "RAGAGAGAGAGAGAGA", currentuser.basic.fqin, memberable.basic.fqin
-    clause3=(db.isOwnerOfOwnable(currentuser, currentuser, cobj), "must be owner of ownable %s %s" % (classname(cobj), cobj.basic.fqin))
+    clause3=(db.isOwnerOfOwnable(currentuser, memberable, cobj), "must be owner of ownable %s %s" % (classname(cobj), cobj.basic.fqin))
     clausesys = (db.isSystemUser(currentuser), "User %s not superuser" % currentuser.nick)
     #print "clauses", clausesys[0], clause3[0], clause[0]
     permit2(authstart, [clausesys, clause3, clause])

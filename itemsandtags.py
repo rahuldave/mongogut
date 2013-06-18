@@ -87,6 +87,7 @@ class Postdb():
         self.isOwnerOfOwnable=self.whosdb.isOwnerOfOwnable
         self.isOwnerOfPostable=self.whosdb.isOwnerOfPostable
         self.isMemberOfPostable=self.whosdb.isMemberOfPostable
+        self.canIPostToPostable=self.whosdb.canIPostToPostable
         self.isMemberOfMembable=self.whosdb.isMemberOfMembable
         self.signals={}
         #CHECK taking out  receiver(self.recv_postTaggingIntoItemtypesApp) 
@@ -221,8 +222,10 @@ class Postdb():
         typename=getNSTypeNameFromInstance(postable)
         item=self._getItem(currentuser, itemfqin)
         #Does the False have something to do with this being ok if it fails?BUG
-        permit(self.isMemberOfPostable(currentuser, useras, postable),
-            "Only member of %s %s can post into it" % (typename, postable.basic.fqin))
+        #BUG:we dont need both of these, i think
+        authorize_postable_member(False, self, currentuser, useras, postable)
+        permit(self.canIPostToPostable(currentuser, useras, postable),
+            "No perms to post into postable %s %s" % (typename, postable.basic.fqin))
         postablefqpns=[ele.postfqin for ele in item.pinpostables]
         if fqpn in postablefqpns:
             return item
@@ -562,7 +565,7 @@ class Postdb():
                 pttfqin=ptt.postfqin
                 #BUG: many database hits. perhaps cached? if not do it or query better.
                 postable=self.whosdb.getPostable(currentuser, pttfqin)
-                if pttfqin!=personalfqgn and self.whosdb.isMemberOfPostable(currentuser, useras, postable):
+                if pttfqin!=personalfqgn and self.isMemberOfPostable(currentuser, useras, postable) and self.canIPostToPostable(currentuser, useras, postable):
                     postablesin.append(postable)
             for postable in postablesin:
                 self.postTaggingIntoPostable(currentuser, useras, postable.basic.fqin, taggingdoc)
@@ -597,7 +600,10 @@ class Postdb():
         ptype=classtype(postable)
         #why did we have this before?
         #authorize_postable_owner(False, self, currentuser, useras, postable)
+        #BUG:we dont need both of these, i think
         authorize_postable_member(False, self, currentuser, useras, postable)
+        permit(self.canIPostToPostable(currentuser, useras, postable),
+            "No perms to post into postable %s %s" % (ptype, postable.basic.fqin))
         # permit(self.whosdb.isMemberOfPostable(currentuser, useras, postable),
         #     "Only member of postable %s can post into it" % postable.basic.fqin)
         #Now that we are allowing posting via canuse thistag

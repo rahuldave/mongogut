@@ -103,11 +103,29 @@ class Database():
         "is the memberable a member of postable"
         return self.isMemberOfMembable(currentuser, memberable, postable, POSTABLES)
 
+    #Also checks for membership!
+    def canIPostToPostable(self, currentuser, memberable, postable, memclass=MEMBABLES):
+        "is the memberable a member of postable"
+        rws=postable.get_member_rws()
+        print "P", postable.basic.fqin, "M", memberable.basic.fqin
+        if memberable.basic.fqin in rws.keys():
+            print "here", rws.keys()
+            return (rws[memberable.basic.fqin] or self.isOwnerOfPostable(currentuser, memberable, postable))
+        print "there", rws.keys()
+        for mem in rws.keys():
+            ptype=gettype(mem)
+            if  ptype in memclass:
+                pos=self.getMembable(currentuser, mem)
+                posmembers=pos.get_member_fqins()
+                if memberable.basic.fqin in posmembers:
+                    return (rws[mem] or self.isOwnerOfPostable(currentuser, memberable, postable))
+        return False
 
     #using MEMBERABLE/OWNABLE:this can let a group be owner of the ownable, as long as its 'fqin' is in the owner field.
     #this one is unprotected
     def isOwnerOfOwnable(self, currentuser, memberable, ownable):
         "is memberable the owner of ownerable? ownerable is postable plus others"
+        print "in IOOO", currentuser.basic.fqin, memberable.basic.fqin, ownable.basic.fqin, ownable.owner
         if memberable.basic.fqin==ownable.owner:
             return True
         else:        
@@ -182,12 +200,12 @@ class Database():
         postable=self.getPostable(currentuser, fqpn)
         return self.membersOfPostable(currentuser, memberable, postable)
 
-    #Needs owner or superuser access
-    def invitedsForPostable(self, currentuser, memberable, postable):
+    #Needs owner or superuser access. currently useras must be a user
+    def invitedsForPostable(self, currentuser, useras, postable):
         "is user or memberable a member of the postable?"
         #i need to have access to this if i come in through being a member of a memberable which is a member
         #authorize_postable member takes care of this. That memberable is NOT the same memberable in the arguments here
-        authorize_postable_owner(False, self, currentuser, memberable, postable)
+        authorize_postable_owner(False, self, currentuser, useras, postable)
         inviteds=postable.inviteds
         return inviteds
 
@@ -301,7 +319,7 @@ class Database():
         "add a user, group, or app to a postable=group, app, or library"
         ptype=gettype(fqpn)
         mtype=gettype(memberablefqin)
-        print "types", fqpn, ptype, memberablefqin,mtype
+        print "types in AMTP", fqpn, ptype, memberablefqin,mtype
         postableq=ptype.objects(basic__fqin=fqpn)
         memberableq= mtype.objects(basic__fqin=memberablefqin)
         #BUG currently restricted admission. Later we will want groups and apps proxying for users.
@@ -316,9 +334,10 @@ class Database():
             doabort('BAD_REQ', "No such memberable %s %s" %  (mtype.__name__,memberablefqin))
 
         if fqpn!='adsgut/group:public':
+            print "Adding to POSTABLE ", memberable.basic.fqin, postable.basic.fqin
             #special case so any user can add themselves to public group
             #permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
-            authorize_ownable_owner(False, self, currentuser, memberable, postable)
+            authorize_postable_owner(False, self, currentuser, useras, postable)
         try:
             pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin)
             memberableq.update(safe_update=True, push__postablesin=pe)
@@ -428,7 +447,7 @@ class Database():
         ptype=gettype(fqpn)
         postable=self.getPostable(currentuser, fqpn)
         userq= User.objects(basic__fqin=usertobeaddedfqin)
-        authorize_ownable_owner(False, self, currentuser, useras, postable)
+        authorize_postable_owner(False, self, currentuser, useras, postable)
         try:
             pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin)
             userq.update(safe_update=True, push__postablesinvitedto=pe)
@@ -487,7 +506,7 @@ class Database():
         #Bug this dosent work if useras is a group
 
         #useras must be member of postable
-        authorize_ownable_owner(False, self, currentuser, owner, postable)
+        authorize_postable_owner(False, self, currentuser, owner, postable)
 
         try:
             newownerq=newownerptype.objects(basic__fqin=newownerfqpn)
@@ -612,17 +631,20 @@ def initialize_testing(db_session):
     currentuser=None
     adsgutuser=whosdb.getUserForNick(currentuser, "adsgut")
     currentuser=adsgutuser
+    adsuser=whosdb.getUserForNick(currentuser, "ads")
+
     rahuldave=whosdb.addUser(currentuser, dict(nick='rahuldave', adsid="rahuldave"))
     rahuldave, mlg=whosdb.addGroup(rahuldave, rahuldave, dict(name='ml', description="Machine Learning Group"))
     rahuldave, mll=whosdb.addLibrary(rahuldave, rahuldave, dict(name='mll', description="Machine Learning Library"))
-    rahuldave, adspubapp=whosdb.addUserToPostable(currentuser, 'ads/app:publications', 'rahuldave')
+    #why does currentuser below need to be adsgutuser?
+    rahuldave, adspubapp=whosdb.addUserToPostable(adsuser, 'ads/app:publications', 'rahuldave')
     #rahuldave.applicationsin.append(adspubsapp)
-    adsuser=whosdb.getUserForNick(currentuser, "ads")
+    
     print "currentuser", currentuser.nick
     jayluker=whosdb.addUser(currentuser, dict(nick='jayluker', adsid="jayluker"))
     jayluker, adspubapp=whosdb.addUserToPostable(adsuser, 'ads/app:publications', 'jayluker')
     #jayluker.applicationsin.append(adspubsapp)
-    print "testing invite"
+    print "GAGAGAGAGAGA", adspubapp.to_json()
     jayluker, mlg=whosdb.inviteUserToPostableUsingNick(rahuldave, 'rahuldave/group:ml', 'jayluker')
     print "invited", jayluker.to_json()
 

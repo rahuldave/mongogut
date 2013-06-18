@@ -65,6 +65,12 @@ class Tag(Document):
     def get_member_fqins(self):
         return [ele.fqmn for ele in self.members]
 
+    def get_member_rws(self):
+        perms={}
+        for ele in self.members:
+            perms[ele.fqmn]=ele.readwrite
+        return perms
+
 
 class User(Document):
     classname="user"
@@ -102,6 +108,12 @@ class Group(Document):
     def get_member_fqins(self):
         return [ele.fqmn for ele in self.members]
 
+    def get_member_rws(self):
+        perms={}
+        for ele in self.members:
+            perms[ele.fqmn]=ele.readwrite
+        return perms
+
 class App(Document):
     classname="app"
     #ISMEMBER INTERFACE
@@ -115,6 +127,12 @@ class App(Document):
     def get_member_fqins(self):
         return [ele.fqmn for ele in self.members]
 
+    def get_member_rws(self):
+        perms={}
+        for ele in self.members:
+            perms[ele.fqmn]=ele.readwrite
+        return perms
+
 #Do we need this at all?
 class Library(Document):
     classname="library"
@@ -126,6 +144,12 @@ class Library(Document):
 
     def get_member_fqins(self):
         return [ele.fqmn for ele in self.members]
+
+    def get_member_rws(self):
+        perms={}
+        for ele in self.members:
+            perms[ele.fqmn]=ele.readwrite
+        return perms
 #
 #POSTING AND TAGGING ARE DUCKS
 
