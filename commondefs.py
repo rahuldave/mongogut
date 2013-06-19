@@ -59,7 +59,7 @@ def parseTag(fqtn):
     spl=fqtn.split('/',1)
     taguser=spl[0]
     n=spl[1].find(tagname)
-    tagtype=spl[1][0:n]
+    tagtype=spl[1][0:n-1]
     return fqtn, taguser, tagtype, tagname
 
 #BUG: add a function musthave which can then be used to validate in augmentitspec

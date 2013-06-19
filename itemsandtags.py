@@ -8,7 +8,7 @@ from errors import abort, doabort, ERRGUT
 import types
 
 from commondefs import *
-
+from collections import defaultdict
 
 from postables import Database
 
@@ -73,6 +73,40 @@ def elematchmaker(ed, clauseargs):
             mq[ele[0]]=ele[2]
     f[ed]["$elemMatch"]=mq
     print "f",f
+    return f
+
+#elematchmaker is wrong, atleast for now. so fix
+def elematchmaker2(ed, clauseargs):
+    f={}
+    f[ed]={}
+    clauselist=[]
+    #print "CLAUSEARGS", clauseargs
+    for k in clauseargs.keys():
+        klst=k.split('__')
+        field=klst[0]
+        op="eq"
+        if len(klst) ==2:
+            op=klst[1]
+        clauselist.append((field, op, clauseargs[k]))
+    #BUG:allow for onely one list for now
+    #print "CLAUSELIST", clauselist
+    for ele in clauselist:
+        if ele[1]=='all':
+            thedicts=[{ele[0]:x} for x in ele[2]]
+    d={}
+    #print "THEDICTS", thedicts
+    for ele in clauselist:
+        if ele[1]!='all':
+            if ele[1] != 'eq':
+                d[ele[0]]={'$'+ele[1]: ele[2]}
+            elif ele[1] == 'eq':#got a list
+                d[ele[0]]=ele[2]
+    #print "ddddddddddddd", d
+    for e in thedicts:
+        e.update(d)
+    mq=[{'$elemMatch': e} for e in thedicts]
+    f[ed]["$all"]=mq
+    print "fffffffffffffffff",f
     return f
 #BUG need signal handlers for added to app, added to lib. Especially for lib, do we post tags to lib.
 #what does that even mean? We will do it but i am not sure what it means. I mean we will get tags
@@ -726,7 +760,7 @@ class Postdb():
                 kwdict={}
                 for d in l[precursor]:
                     kwdict[d['field']+'__'+d['op']]=d['value']
-                f=elematchmaker(precursor, kwdict)
+                f=elematchmaker2(precursor, kwdict)
                 qterms.append(Q(__raw__=f))
                 print "in zees", Q
         print "qterms are", qterms
@@ -869,11 +903,12 @@ class Postdb():
         tagquery=False
         postablequery=False
         tagquerytype=None
+        print "QUERY=", query
         if query.has_key('stags'):
             tagquery=query.get("stags",[])
             tagquerytype="postfqin"
-        elif query.has_key('tagnames'):
-            tagquery=query.get("tagnames",{})
+        elif query.has_key('tagname'):
+            tagquery=query.get("tagname",{})
             tagquerytype="tagname"
         
         postablequery=query.get("postables",[])
@@ -931,8 +966,8 @@ class Postdb():
             )
         if tagquery and tagquerytype=="tagname":
             criteria.append(
-                    {'stags':[{'field':'tagname', 'op':'all', 'value':tagquery['names']},
-                                        {'field':'tagtype', 'op':'eq', 'value':tagquery['tagtype']}
+                    {'stags':[{'field':'tagname', 'op':'all', 'value':tagquery},
+                                        {'field':'tagtype', 'op':'eq', 'value':query['tagtype'][0]}
                     ]}
             )
         if postablequery and not userfqin:
@@ -974,8 +1009,8 @@ class Postdb():
         #     )
         if tagquery and tagquerytype=="tagname":
             criteria.append(
-                    [{'field':'thething__tagname', 'op':'in', 'value':tagquery['names']},
-                                        {'field':'thething__tagtype', 'op':'eq', 'value':tagquery['tagtype']}
+                    [{'field':'thething__tagname', 'op':'in', 'value':tagquery},
+                                        {'field':'thething__tagtype', 'op':'eq', 'value':query['tagtype'][0]}
                     ]
             )
         if postablequery and not userfqin:
@@ -1005,14 +1040,16 @@ class Postdb():
             criteria=[]
         #CHECK:should we separate out the n=1 case as eq not all?
         #Do we need a any instead of all for tagging documents?
+        print "TAGQ", tagquery, tagquerytype
         if tagquery and tagquerytype=="postfqin":
             criteria.append(
                     [{'field':'stags__postfqin', 'op':'all', 'value':tagquery}]
             )
         if tagquery and tagquerytype=="tagname":
+
             criteria.append(
-                    {'stags':[{'field':'tagname', 'op':'all', 'value':tagquery['names']},
-                                        {'field':'tagtype', 'op':'eq', 'value':tagquery['tagtype']}
+                    {'stags':[{'field':'tagname', 'op':'all', 'value':tagquery},
+                                        {'field':'tagtype', 'op':'eq', 'value':query['tagtype'][0]}
                     ]}
             )
         if postablequery and not userfqin:
@@ -1130,7 +1167,10 @@ class Postdb():
             fqtns=fqtns+ltns
         fqtns=set(fqtns)
         tags=[parseTag(f) for f in fqtns]
-        return len(tags), tags
+        tagdict=defaultdict(list)
+        for k in tags:
+            tagdict[k[2]].append(k) 
+        return len(tags), tagdict
     #one can use this to query the tag pingrps and pinapps
     #BUG we dont deal with stuff in the apps for now. Not sure
     #what that even means as apps are just copies.
@@ -1202,7 +1242,7 @@ class Postdb():
 
     def getTaggingsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None):
         result=self.getTaggingsForSpec(currentuser, useras, itemfqinlist, "group",  sort)
-        print "RESULT", result
+        #print "RESULT", result
         return result
 
     #probably dont have a context to use the following
