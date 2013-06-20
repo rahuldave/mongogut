@@ -746,6 +746,9 @@ class Postdb():
         #make sure we are atleast logged in and useras or superuser
 
         authorize(False, self, currentuser, useras)
+        #CHECK we merge RAW criteria so this is always an AND. I believe this is ok.
+        dcriteria={}
+        numdict=0
         for l in criteria:
             if type(l)==types.ListType:
                 kwdict={}
@@ -756,13 +759,16 @@ class Postdb():
                         kwdict[d['field']+'__'+d['op']]=d['value']
                 qterms.append(Q(**kwdict))
             elif type(l)==types.DictType:
+                numdict=numdict+1
                 precursor=l.keys()[0]
                 kwdict={}
                 for d in l[precursor]:
                     kwdict[d['field']+'__'+d['op']]=d['value']
                 f=elematchmaker2(precursor, kwdict)
-                qterms.append(Q(__raw__=f))
+                dcriteria.update(f)
                 print "in zees", Q
+        if numdict > 0:
+            qterms.append(Q(__raw__=dcriteria))
         print "qterms are", qterms
         
 
@@ -783,6 +789,8 @@ class Postdb():
         #merge that onto pinpostable criteria, is any. might have to combing raw with $all.
         userthere=False
         #CONTEXTS ONLY MAKE SENSE WHEN WE DONT USE pinpostables in the criteria.
+
+        #BUG: THIS STUFF DOSENT SEEM TO BE cALLED ANY MORE. SO REMOVE, MAYBE
         if postablecontext:
             if postablecontext=='default':
                 postablecontext={'user':True, 'type':'group', 'value':useras.nick+"/group:default"}
@@ -795,7 +803,7 @@ class Postdb():
             #BUG cant have dups here in context That would require an anding with context?
             #BUG: None of this is currently protected it seems. Add protection here
             if userthere:
-                print "USERTHERE", useras.basic.fqin, ctarget
+                print "USERTHERE", useras.basic.fqin, ctarget, ctype
                 if ctype=="user":
                     itemqset=itemqset.filter(pinpostables__postedby=ctarget)
                 elif ctype in Postables:
@@ -1106,6 +1114,7 @@ class Postdb():
 
     def getItemsForQuery(self, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
         SHOWNFIELDS=['itemtype', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri']
+        print "USERNICK", usernick
         result=self._getItemsForQuery(SHOWNFIELDS, currentuser, useras, query, usernick, criteria, sort, pagtuple)
         return result
 
