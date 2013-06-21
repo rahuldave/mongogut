@@ -382,7 +382,9 @@ class Postdb():
         ismember=self.whosdb.isMemberOfMembable(currentuser, useras, tag)
         return ismember
 
-
+    def canUseThisFqtn(self, currentuser, useras, fqtn):
+        tag=self._getTag(currentuser, fqtn)
+        return self.canUseThisTag(currentuser, useras, tag)
     #BUG when will we make these useras other memberables?
     #BUG need to deal with tagmode and singletonmode here. Do we?
     def canUseThisTag(self, currentuser, useras, tag):
@@ -408,7 +410,7 @@ class Postdb():
         # for m in memberables:
         #     if self.isMemberOfPostable(currentuser, useras, m):
         #         return True
-        if self.isMemberOfTag(currentuser, useras, tag):
+        if self.isMemberOfTag(currentuser, useras, tag.basic.fqin):
             return True
         return False
 
@@ -791,30 +793,30 @@ class Postdb():
         #CONTEXTS ONLY MAKE SENSE WHEN WE DONT USE pinpostables in the criteria.
 
         #BUG: THIS STUFF DOSENT SEEM TO BE cALLED ANY MORE. SO REMOVE, MAYBE
-        if postablecontext:
-            if postablecontext=='default':
-                postablecontext={'user':True, 'type':'group', 'value':useras.nick+"/group:default"}
-            #BUG validate the values this can take. for eg: type must be a postable. none of then can be None
-            print "POSTABLECONTEXT", postablecontext
-            userthere=postablecontext['user']
-            ctype=postablecontext['type']
-            ctarget=postablecontext['value']#a userfqin when needed
-            postable=self.whosdb.getPostable(currentuser, ctarget)
-            #BUG cant have dups here in context That would require an anding with context?
-            #BUG: None of this is currently protected it seems. Add protection here
-            if userthere:
-                print "USERTHERE", useras.basic.fqin, ctarget, ctype
-                if ctype=="user":
-                    itemqset=itemqset.filter(pinpostables__postedby=ctarget)
-                elif ctype in Postables:
-                    itemqset=elematch(itemqset, "pinpostables", postfqin=ctarget, postedby=useras.basic.fqin)
-                #itemqset=itemqset.filter(pinpostables__postfqin=ctarget, pinpostables__postedby=useras.basic.fqin)
-                print "count", itemqset.count()
-            else:
-                print "USERNOTTHERE", ctarget
-                if ctype in Postables:
-                    itemqset=itemqset.filter(pinpostables__postfqin=ctarget)
-            #BUG: need to set up proper aborts here.
+        # if postablecontext:
+        #     if postablecontext=='default':
+        #         postablecontext={'user':True, 'type':'group', 'value':useras.nick+"/group:default"}
+        #     #BUG validate the values this can take. for eg: type must be a postable. none of then can be None
+        #     print "POSTABLECONTEXT", postablecontext
+        #     userthere=postablecontext['user']
+        #     ctype=postablecontext['type']
+        #     ctarget=postablecontext['value']#a userfqin when needed
+        #     postable=self.whosdb.getPostable(currentuser, ctarget)
+        #     #BUG cant have dups here in context That would require an anding with context?
+        #     #BUG: None of this is currently protected it seems. Add protection here
+        #     if userthere:
+        #         print "USERTHERE", useras.basic.fqin, ctarget, ctype
+        #         if ctype=="user":
+        #             itemqset=itemqset.filter(pinpostables__postedby=ctarget)
+        #         elif ctype in Postables:
+        #             itemqset=elematch(itemqset, "pinpostables", postfqin=ctarget, postedby=useras.basic.fqin)
+        #         #itemqset=itemqset.filter(pinpostables__postfqin=ctarget, pinpostables__postedby=useras.basic.fqin)
+        #         print "count", itemqset.count()
+        #     else:
+        #         print "USERNOTTHERE", ctarget
+        #         if ctype in Postables:
+        #             itemqset=itemqset.filter(pinpostables__postfqin=ctarget)
+        #     #BUG: need to set up proper aborts here.
         if sort:
             prefix=""
             if not sort['ascending']:
@@ -1175,7 +1177,7 @@ class Postdb():
             ltns=[e.postfqin for e in i.stags if not e.singletonmode]
             fqtns=fqtns+ltns
         fqtns=set(fqtns)
-        tags=[parseTag(f) for f in fqtns]
+        tags=[parseTag(f) for f in fqtns if self.canUseThisFqtn(currentuser, useras, f)]
         tagdict=defaultdict(list)
         for k in tags:
             tagdict[k[2]].append(k) 
