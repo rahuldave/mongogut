@@ -264,6 +264,8 @@ class Postdb():
         if fqpn in postablefqpns:
             return item
         try:#BUG:what if its already there? Now fixed?
+            #BUG: what if someone else had also posted it into a group, should we do it again or not?
+            #or do a unique on the query later in postings...
             newposting=Post(postfqin=postable.basic.fqin, posttype=getNSTypeName(fqpn), 
                 postedby=useras.basic.fqin, thingtopostfqin=itemfqin, 
                 thingtoposttype=item.itemtype)
