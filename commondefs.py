@@ -12,12 +12,42 @@ MEMBABLES=[Group, App, Library, Tag]#things you can be a member of
 OWNABLES=[Group, App, Library, ItemType, TagType, Tag]#things that can be owned
 #OWNERABLES=[Group, App, User]#things that can be owners. Do we need a shadow owner?
 OWNERABLES=[User]
+#The Memberable-Membable-Map tells you who can be a member of whom.
+MMMAP={
+    Group:{Group:False, App:False, User:True},
+    App:{Group:True, App:False, User:True},
+    Library:{Group:True, App:True, User:True},
+    Tag:{Group:True, App:True, User:True}
+}
+#The RWDEFMAP tells you about your membership mode. If you are a member of a group, ir says u can read everything in
+#the group and write to it, but for a library, you may read everything, but not necessarily write to it.
+#What if you dont want to even be able to read everything. 
+#i think App=True is a bug for now and we should use masquerading instead to get things into apps
+#users ought not to add to apps directly.
 RWDEFMAP={
-    Group:True,
+    Group:True, 
     App:True,#should apps use masquerading instead? BUG
     Library:False,
     Tag:False
 }
+
+#Critically, the fact that you cannot read all items in an app is done in _qproc
+#not sure that is right place.
+READDEFMAP={
+    Group:{Group:False, App:False, User:True},
+    App:{Group:False, App:False, User:True},
+    Library:{Group:False, App:False, User:True},
+    Tag:{Group:False, App:False, User:True}
+}
+WRITEDEFMAP={
+    Group:{Group:False, App:False, User:True},
+    App:{Group:False, App:False, User:True},
+    Library:{Group:False, App:False, User:True},
+    Tag:{Group:False, App:False, User:True}
+}
+#if the default for tag is false, and we actually do land up checking this, then we have to find a way to let other use tags.
+#that i'd want is for it to be true for group and user members of tags, but not for apps.
+
 #the above all have nicks
 #TAGGISH=[Group, App, Library, Tag]: or should it be PostingDoc, TaggingDoc?
 MAPDICT={

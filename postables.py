@@ -138,7 +138,7 @@ class Database():
     #invitations only work for users for now, even tho we have a memberable. unprotected
     def isInvitedToMembable(self, currentuser, memberable, membable):
         print "MEMBERABLE", memberable.to_json(), "MEMBABLE", membable.to_json()
-        if memberable.basic.fqin in membable.inviteds:
+        if memberable.basic.fqin in [m.fqmn for m in membable.inviteds]:
             return True
         else:
             return False
@@ -172,6 +172,16 @@ class Database():
             postables=allpostables
         return postables
 
+    def postablesUserCanWriteTo(self, currentuser, useras, ptypestr=None):
+        "return the postables the user is a member of"
+        authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
+        allpostables=useras.postablesin
+        if ptypestr:
+            postables=[e['fqpn'] for e in allpostables if e['ptype']==ptypestr]
+        else:
+            postables=allpostables
+        return postables
+
 
     #unprotected
     #invitations only work for users for now.
@@ -193,7 +203,7 @@ class Database():
         #i need to have access to this if i come in through being a member of a memberable which is a member
         #authorize_postable member takes care of this. That memberable is NOT the same memberable in the arguments here
         authorize_postable_member(False, self, currentuser, memberable, postable)
-        members=[ele.fqmn for ele in postable.members]
+        members=postable.get_member_rws()
         return members
 
     def membersOfPostableFromFqin(self, currentuser, memberable, fqpn):
@@ -206,7 +216,7 @@ class Database():
         #i need to have access to this if i come in through being a member of a memberable which is a member
         #authorize_postable member takes care of this. That memberable is NOT the same memberable in the arguments here
         authorize_postable_owner(False, self, currentuser, useras, postable)
-        inviteds=postable.inviteds
+        inviteds=postable.get_invited_rws()
         return inviteds
 
     def invitedsForPostableFromFqin(self, currentuser, memberable, fqpn):
@@ -288,6 +298,7 @@ class Database():
             
         except:
             doabort('BAD_REQ', "Failed adding postable %s %s" % (ptype.__name__, postablespec['basic'].fqin))
+        #BUG changerw must be appropriate here!
         self.addMemberableToPostable(currentuser, useras, newpostable.basic.fqin, newpostable.basic.creator)
         #print "autoRELOAD?", userq.get().to_json()
         newpostable.reload()
@@ -442,17 +453,22 @@ class Database():
 
 
     #do we want to use this for libraries? why not? Ca we invite other memberables?
-    def inviteUserToPostable(self, currentuser, useras, fqpn, usertobeaddedfqin):
+    def inviteUserToPostable(self, currentuser, useras, fqpn, usertobeaddedfqin, changerw=False):
         "invite a user to a postable."
         ptype=gettype(fqpn)
         postable=self.getPostable(currentuser, fqpn)
         userq= User.objects(basic__fqin=usertobeaddedfqin)
         authorize_postable_owner(False, self, currentuser, useras, postable)
         try:
-            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin)
+            if not changerw:
+                rw=RWDEFMAP[ptype]
+            else:
+                rw= (not RWDEFMAP[ptype])
+            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, readwrite=rw)
             userq.update(safe_update=True, push__postablesinvitedto=pe)
+            memb=MembableEmbedded(mtype=User.classname, fqmn=usertobeaddedfqin, readwrite=rw)
             #BUG: ok to use fqin here instead of getting from oblect?
-            postable.update(safe_update=True, push__inviteds=usertobeaddedfqin)
+            postable.update(safe_update=True, push__inviteds=memb)
             #print "userq", userq.to_json()
         except:
             doabort('BAD_REQ', "Failed inviting user %s to postable %s" % (usertobeaddedfqin, fqpn))
@@ -460,10 +476,10 @@ class Database():
         postable.reload()
         return userq.get(), postable
 
-    def inviteUserToPostableUsingNick(self, currentuser, fqpn, nick):
+    def inviteUserToPostableUsingNick(self, currentuser, fqpn, nick, changerw=False):
         "invite a user to a postable."
         user=self.getUserForNick(currentuser,nick)
-        return self.inviteUserToPostable(currentuser, currentuser, fqpn, user.basic.fqin)
+        return self.inviteUserToPostable(currentuser, currentuser, fqpn, user.basic.fqin, changerw)
 
     #this cannot be masqueraded, must be explicitly approved by user
     #can we do without the mefqin?
@@ -483,16 +499,26 @@ class Database():
         authorize(False, self, currentuser, me)
         permit(self.isInvitedToPostable(currentuser, me, postable), "User %s must be invited to postable %s %s" % (mefqin, ptype.__name__,fqpn))
         try:
-            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin)
+            inviteds=postable.inviteds
+            memb=None
+            for inv in inviteds:
+                if inv.fqmn==mefqin:
+                    memb=inv
+            pe=None
+            for uinv in me.postablesinvitedto:
+                if uinv.fqpn==fqpn:
+                    pe=uinv
+            if memb==None or pe==None:
+                doabort('BAD_REQ', "User %s was never invited to postable %s %s" % (mefqin, ptype.__name__, fqpn))
             userq.update(safe_update=True, push__postablesin=pe, pull__postablesinvitedto=pe)
-            memb=MembableEmbedded(mtype=User.classname, fqmn=mefqin, readwrite=RWDEFMAP[ptype])
-            postableq.update(safe_update=True, push__members=memb, pull__inviteds=mefqin)
+            postableq.update(safe_update=True, push__members=memb, pull__inviteds=memb)
         except:
             doabort('BAD_REQ', "Failed in user %s accepting invite to gpostable %s %s" % (mefqin, ptype.__name__, fqpn))
         me.reload()
         return me, postableq.get()
 
     #changes postable ownership to a 'ownerable'
+    #USER must be owner! This CAN happen through membership in a member group.
     def changeOwnershipOfPostable(self, currentuser, owner, fqpn, newownerfqpn):
         "give ownership over to another user/group etc for g/a/l"
         ptype=gettype(fqpn)
@@ -522,7 +548,7 @@ class Database():
         #newowner must be member of the postable (group cant own itself)
         permit(self.isMemberOfPostable(currentuser, newowner, postable), 
             " Possible new owner %s %s must be member of postable %s %s" % (newownerptype.__name__, newownerfqpn, ptype.__name__, fqpn))
-
+        #BUG new orners rwmode must be  true!
         #we have removed the possibility of group ownership of postables. CHECK. I've removed the push right now as i assume new owner
         #must be a member of postable. How does this affect tag ownership if at all?
         try:

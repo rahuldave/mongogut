@@ -38,16 +38,20 @@ class TagType(Document):
     #once again example is note, which is created with a uuid as name
     singletonmode = BooleanField(default=False, required=True)
 
+#This is for the postable
 class PostableEmbedded(EmbeddedDocument):
     fqpn = StringField(required=True)
     ptype = StringField(required=True)
+    readwrite = BooleanField(required=True, default=False)
 
+#This is for the membable. But these are identical interfaces
 #we will use this for members and inviteds instead of strings to implement readwrite
 #discussed at the ADS meeting.
 class MembableEmbedded(EmbeddedDocument):
     fqmn = StringField(required=True)
     mtype = StringField(required=True)
     readwrite = BooleanField(required=True, default=False)
+
 
 class Tag(Document):
     classname="tag"    
@@ -60,7 +64,7 @@ class Tag(Document):
     owner = StringField(required=True)
     #Seems like this was needed for change ownership
     members = ListField(EmbeddedDocumentField(MembableEmbedded))
-    inviteds = ListField(StringField())
+    inviteds = ListField(EmbeddedDocumentField(MembableEmbedded))
 
     def get_member_fqins(self):
         return [ele.fqmn for ele in self.members]
@@ -71,7 +75,16 @@ class Tag(Document):
             perms[ele.fqmn]=ele.readwrite
         return perms
 
+    def get_invited_fqins(self):
+        return [ele.fqmn for ele in self.inviteds]
 
+    def get_invited_rws(self):
+        perms={}
+        for ele in self.inviteds:
+            perms[ele.fqmn]=ele.readwrite
+        return perms
+
+#BUG: do we want a similar thing for tags?
 class User(Document):
     classname="user"
     adsid = StringField(required=True, unique=True)
@@ -103,7 +116,7 @@ class Group(Document):
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
     members = ListField(EmbeddedDocumentField(MembableEmbedded))
-    inviteds = ListField(StringField())#only fqmn
+    inviteds = ListField(EmbeddedDocumentField(MembableEmbedded))#only fqmn
 
     def get_member_fqins(self):
         return [ele.fqmn for ele in self.members]
@@ -111,6 +124,15 @@ class Group(Document):
     def get_member_rws(self):
         perms={}
         for ele in self.members:
+            perms[ele.fqmn]=ele.readwrite
+        return perms
+
+    def get_invited_fqins(self):
+        return [ele.fqmn for ele in self.inviteds]
+
+    def get_invited_rws(self):
+        perms={}
+        for ele in self.inviteds:
             perms[ele.fqmn]=ele.readwrite
         return perms
 
@@ -122,7 +144,7 @@ class App(Document):
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
     members = ListField(EmbeddedDocumentField(MembableEmbedded))
-    inviteds = ListField(StringField())
+    inviteds = ListField(EmbeddedDocumentField(MembableEmbedded))
 
     def get_member_fqins(self):
         return [ele.fqmn for ele in self.members]
@@ -133,6 +155,15 @@ class App(Document):
             perms[ele.fqmn]=ele.readwrite
         return perms
 
+    def get_invited_fqins(self):
+        return [ele.fqmn for ele in self.inviteds]
+
+    def get_invited_rws(self):
+        perms={}
+        for ele in self.inviteds:
+            perms[ele.fqmn]=ele.readwrite
+        return perms
+
 #Do we need this at all?
 class Library(Document):
     classname="library"
@@ -140,7 +171,7 @@ class Library(Document):
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
     members = ListField(EmbeddedDocumentField(MembableEmbedded))
-    inviteds = ListField(StringField())
+    inviteds = ListField(EmbeddedDocumentField(MembableEmbedded))
 
     def get_member_fqins(self):
         return [ele.fqmn for ele in self.members]
@@ -148,6 +179,15 @@ class Library(Document):
     def get_member_rws(self):
         perms={}
         for ele in self.members:
+            perms[ele.fqmn]=ele.readwrite
+        return perms
+
+    def get_invited_fqins(self):
+        return [ele.fqmn for ele in self.inviteds]
+
+    def get_invited_rws(self):
+        perms={}
+        for ele in self.inviteds:
             perms[ele.fqmn]=ele.readwrite
         return perms
 #
