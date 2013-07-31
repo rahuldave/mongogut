@@ -387,8 +387,8 @@ class Postdb():
     def canUseThisFqtn(self, currentuser, useras, fqtn):
         tag=self._getTag(currentuser, fqtn)
         return self.canUseThisTag(currentuser, useras, tag)
-    #BUG when will we make these useras other memberables?
-    #BUG need to deal with tagmode and singletonmode here. Do we?
+
+    #BUG when will we make these useras other memberables? like a group
     def canUseThisTag(self, currentuser, useras, tag):
         "return true is this user can use this tag from access to tagtype, namespace, etc"
         #If you OWN this tag
@@ -453,6 +453,9 @@ class Postdb():
                 
                 tag=Tag(**tagspec)
                 tag.save(safe=True)
+                memb=MembableEmbedded(mtype=User.classname, fqmn=useras.basic.fqin, readwrite=True)
+                #tag.update(safe_update=True, push__members=postable.basic.fqin)
+                tag.update(safe_update=True, push__members=memb)
                 tag.reload()
                 #can obviously use tag if i created it
             except:
@@ -669,7 +672,11 @@ class Postdb():
             
             #BUG:postables will be pushed multiple times here. How to unique? i think we ought to have this
             #happen at mongoengine/mongodb level
-            memb=MembableEmbedded(mtype=postable.classname, fqmn=postable.basic.fqin, readwrite=RWDEFMAP[ptype])
+            if postable.basic.fqin==useras.nick+"/group:default":
+                rw=True
+            else:
+                rw=RWDEFMAP[ptype]
+            memb=MembableEmbedded(mtype=postable.classname, fqmn=postable.basic.fqin, readwrite=rw)
             #tag.update(safe_update=True, push__members=postable.basic.fqin)
             tag.update(safe_update=True, push__members=memb)
             tag.reload()
