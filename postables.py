@@ -203,8 +203,14 @@ class Database():
         #i need to have access to this if i come in through being a member of a memberable which is a member
         #authorize_postable member takes care of this. That memberable is NOT the same memberable in the arguments here
         authorize_postable_member(False, self, currentuser, memberable, postable)
-        members=postable.get_member_rws()
-        return members
+        if authorize_postable_owner(False, self, currentuser, memberable, postable):
+            perms=postable.get_member_rws()
+        else:
+            members=postable.get_member_fqins()
+            perms={}
+            for k in members:
+                perms[k]=''
+        return perms
 
     def membersOfPostableFromFqin(self, currentuser, memberable, fqpn):
         postable=self.getPostable(currentuser, fqpn)
