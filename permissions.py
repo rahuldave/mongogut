@@ -16,7 +16,7 @@ def permit2(authstart, clausetuples):
     start=authstart
     reasons=[]
     for tup in clausetuples:
-        start = start or tup[0]
+        start = start and tup[0]
         reasons.append(tup[1])
     if start==False:
         doabort('NOT_AUT', {'reason':' or '.join(reasons)})
@@ -85,21 +85,26 @@ def authorize_membable_member(authstart, db, currentuser, memberable, cobj):
     permit(currentuser!=None, "must be logged in")
     #clause = (currentuser==useras, "User %s not authorized" % currentuser.nick)
     if classtype(memberable)==User:
-        clause = (currentuser==memberable, "User %s not authorized" % currentuser.nick)
+        clause=(currentuser==memberable, "User %s not authorized" % currentuser.nick)
     elif classtype(memberable) in [Group, App]:
         #CHOICE:if you are testing membership, is it enough to be member? or should you be owner of memberable
         clause = (db.isMemberOfPostable(currentuser, currentuser, memberable), "must be member of postable %s %s" % (classname(memberable), memberable.basic.fqin))
     else:
         clause=False
+    permit(*clause)
     #BUG: what if useras is a group?
     clause3=(db.isMemberOfMembable(currentuser, memberable, cobj), "must be member of membable %s %s" % (classname(cobj), cobj.basic.fqin))
     clausesys = (db.isSystemUser(currentuser), "User %s not superuser" % currentuser.nick)
-    #print "clauses", clausesys[0], clause3[0], clause[0]
-    permit2(authstart, [clausesys, clause3, clause])
+    print "clauses", clausesys[0], clause3[0], clause[0]
+    if not clausesys[0]:
+        print "here", currentuser.nick, memberable.nick, clause3
+        permit(*clause3)
 
 authorize_postable_member=authorize_membable_member
 #bug fix for useras being a memberable. would seem to be ok otherwise?
 #
+
+#NEW Ownables must be users so we should just go through directly
 def authorize_ownable_owner(authstart, db, currentuser, memberable, cobj):
     #print ">>>",currentuser, memberable, cobj
     #print "<<<", currentuser.basic.fqin, memberable.basic.fqin, cobj.basic.fqin
@@ -112,10 +117,12 @@ def authorize_ownable_owner(authstart, db, currentuser, memberable, cobj):
         clause = (db.isOwnerOfPostable(currentuser, currentuser, memberable), "must be owner of postable %s %s" % (classname(memberable), memberable.basic.fqin))
     else:
         clause=False
+    permit(*clause)
     print "RAGAGAGAGAGAGAGA", currentuser.basic.fqin, memberable.basic.fqin
     clause3=(db.isOwnerOfOwnable(currentuser, memberable, cobj), "must be owner of ownable %s %s" % (classname(cobj), cobj.basic.fqin))
     clausesys = (db.isSystemUser(currentuser), "User %s not superuser" % currentuser.nick)
     #print "clauses", clausesys[0], clause3[0], clause[0]
-    permit2(authstart, [clausesys, clause3, clause])
+    if not clausesys[0]:
+        permit(*clause3)
 
 authorize_postable_owner=authorize_ownable_owner

@@ -76,7 +76,9 @@ class Database():
         "gets postable only if you are member of the postable"
         postable=self.getPostable(currentuser, fqpn)
         #BUG:this should work for a user member of postable as well as a memberable member of postable
+        print "AUTHING", currentuser.nick, memberable.nick
         authorize_postable_member(MEMBER_OF_POSTABLE, self, currentuser, memberable, postable)
+        print "GOT HERE"
         return postable
 
     #using MEMBERABLE interface. this one is unprotected
@@ -203,7 +205,9 @@ class Database():
         #i need to have access to this if i come in through being a member of a memberable which is a member
         #authorize_postable member takes care of this. That memberable is NOT the same memberable in the arguments here
         authorize_postable_member(False, self, currentuser, memberable, postable)
-        if authorize_postable_owner(False, self, currentuser, memberable, postable):
+        print "CU", currentuser.nick, memberable.nick
+        if self.isOwnerOfPostable(currentuser, memberable, postable):
+            print "IS OWNER"
             perms=postable.get_member_rws()
         else:
             members=postable.get_member_fqins()
