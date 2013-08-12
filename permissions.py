@@ -12,7 +12,7 @@ def permit(clause, reason):
     if clause==False:
         doabort('NOT_AUT', {'reason':reason})
 
-def permit2(authstart, clausetuples):
+def permit_and(authstart, clausetuples):
     start=authstart
     reasons=[]
     for tup in clausetuples:
@@ -21,7 +21,16 @@ def permit2(authstart, clausetuples):
     if start==False:
         doabort('NOT_AUT', {'reason':' or '.join(reasons)})
 
+permit2=permit_and
 
+def permit_or(authstart, clausetuples):
+    start=authstart
+    reasons=[]
+    for tup in clausetuples:
+        start = start or tup[0]
+        reasons.append(tup[1])
+    if start==False:
+        doabort('NOT_AUT', {'reason':' or '.join(reasons)})
 #add permission helpers here to refactor permits
 #example group membership etc
 
@@ -36,7 +45,7 @@ def authorize(authstart, db, currentuser, useras):
     permit(currentuser!=None, "must be logged in")
     clause = (currentuser==useras, "User %s not authorized" % currentuser.nick)
     clausesys = (db.isSystemUser(currentuser), "User %s not superuser" % currentuser.nick)
-    permit2(authstart, [clausesys, clause])
+    permit_or(authstart, [clausesys, clause])
 
 def authorize_systemuser(authstart, db, currentuser):
     return authorize(authstart, db, currentuser, None)
@@ -46,30 +55,30 @@ def authorize_loggedin_or_systemuser(authstart, db, currentuser):
 #For next two, for additions and such, switch between useras=currentuser and useras=None
 #where a useras is not required
 
-#BUG: need to add types here!!!!!!!!!
-def authorize_context_owner(authstart, db, currentuser, useras, cobj):
-    permit(currentuser!=None, "must be logged in")
-    clause = (currentuser==useras, "User %s not authorized" % currentuser.nick)
-    clausesys = (db.isSystemUser(currentuser), "User %s not superuser" % currentuser.nick)
-    if cobj.__class__.__name__=='Group':
-        clause3=(db.isOwnerOfGroup(currentuser,cobj), "must be owner of group %s" % cobj.basic.fqin)
-    elif cobj.__class__.__name__=='App':
-        clause3=(db.isOwnerOfApp(currentuser,cobj), "must be owner of app %s" % cobj.basic.fqin)
-    elif cobj.__class__.__name__=='Library':
-        clause3=(db.isOwnerOfLibrary(currentuser,cobj), "must be owner of library %s" % cobj.basic.fqin)
-    permit2(authstart, [clausesys, clause3, clause])
+# #BUG: need to add types here!!!!!!!!!
+# def authorize_context_owner(authstart, db, currentuser, useras, cobj):
+#     permit(currentuser!=None, "must be logged in")
+#     clause = (currentuser==useras, "User %s not authorized" % currentuser.nick)
+#     clausesys = (db.isSystemUser(currentuser), "User %s not superuser" % currentuser.nick)
+#     if cobj.__class__.__name__=='Group':
+#         clause3=(db.isOwnerOfGroup(currentuser,cobj), "must be owner of group %s" % cobj.basic.fqin)
+#     elif cobj.__class__.__name__=='App':
+#         clause3=(db.isOwnerOfApp(currentuser,cobj), "must be owner of app %s" % cobj.basic.fqin)
+#     elif cobj.__class__.__name__=='Library':
+#         clause3=(db.isOwnerOfLibrary(currentuser,cobj), "must be owner of library %s" % cobj.basic.fqin)
+#     permit2(authstart, [clausesys, clause3, clause])
 
-def authorize_context_member(authstart, db, currentuser, useras, cobj):
-    permit(currentuser!=None, "must be logged in")
-    clause = (currentuser==useras, "User %s not authorized" % currentuser.nick)
-    clausesys = (db.isSystemUser(currentuser), "User %s not superuser" % currentuser.nick)
-    if cobj.__class__.__name__=='Group':
-        clause3=(db.isMemberOfGroup(currentuser,cobj), "must be member of group %s" % cobj.basic.fqin)
-    elif cobj.__class__.__name__=='App':
-        clause3=(db.isMemberOfApp(currentuser,cobj), "must be member of app %s" % cobj.basic.fqin)
-    elif cobj.__class__.__name__=='Library':
-        clause3=(db.isMemberOfLibrary(currentuser,cobj), "must be member of group that owns library %s" % cobj.basic.fqin)
-    permit2(authstart, [clausesys, clause3, clause])
+# def authorize_context_member(authstart, db, currentuser, useras, cobj):
+#     permit(currentuser!=None, "must be logged in")
+#     clause = (currentuser==useras, "User %s not authorized" % currentuser.nick)
+#     clausesys = (db.isSystemUser(currentuser), "User %s not superuser" % currentuser.nick)
+#     if cobj.__class__.__name__=='Group':
+#         clause3=(db.isMemberOfGroup(currentuser,cobj), "must be member of group %s" % cobj.basic.fqin)
+#     elif cobj.__class__.__name__=='App':
+#         clause3=(db.isMemberOfApp(currentuser,cobj), "must be member of app %s" % cobj.basic.fqin)
+#     elif cobj.__class__.__name__=='Library':
+#         clause3=(db.isMemberOfLibrary(currentuser,cobj), "must be member of group that owns library %s" % cobj.basic.fqin)
+#     permit2(authstart, [clausesys, clause3, clause])
 
 
 def classname(instance):
