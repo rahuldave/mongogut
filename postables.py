@@ -262,6 +262,11 @@ class Database():
 
         #currentuser adds this as newuser
         #print adding default personal group
+
+        #BUG:CHANGED: is this ok?
+        # self.addPostable(currentuser, newuser, "group", dict(name='default', creator=newuser.basic.fqin,
+        #     personalgroup=True
+        # ))
         self.addPostable(currentuser, newuser, "group", dict(name='default', creator=newuser.basic.fqin,
             personalgroup=True
         ))
@@ -355,7 +360,7 @@ class Database():
             doabort('BAD_REQ', "No such memberable %s %s" %  (mtype.__name__,memberablefqin))
 
         if fqpn!='adsgut/group:public':
-            print "Adding to POSTABLE ", memberable.basic.fqin, postable.basic.fqin
+            print "Adding to POSTABLE ", memberable.basic.fqin, postable.basic.fqin, currentuser.basic.fqin, useras.basic.fqin
             #special case so any user can add themselves to public group
             #permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
             authorize_postable_owner(False, self, currentuser, useras, postable)
@@ -657,18 +662,18 @@ def initialize_application(db_session):
     whosdb=Database(db_session)
     adsgutuser=whosdb.addUser(currentuser, dict(nick='adsgut', adsid='adsgut'))
     currentuser=adsgutuser
-    print "Added Initial User, this should have added private group too"
+    print "11111 Added Initial User, this should have added private group too"
     igspec=dict(personalgroup=False, name="public", description="Public Group")
-    adsgutuser, publicgrp=whosdb.addGroup(currentuser, adsgutuser, igspec)
-    print "Added Initial Public group"
-    adsgutuser, adsgutapp=whosdb.addApp(currentuser, adsgutuser, dict(name='adsgut', description="The MotherShip App"))
-    print "Added Mothership app"
+    adsgutuser, publicgrp=whosdb.addGroup(adsgutuser, adsgutuser, igspec)
+    print "22222 Added Initial Public group"
+    adsgutuser, adsgutapp=whosdb.addApp(adsgutuser, adsgutuser, dict(name='adsgut', description="The MotherShip App"))
+    print "33333 Added Mothership app"
 
-    adsuser=whosdb.addUser(currentuser, dict(nick='ads', adsid='ads'))
-    print "Added ADS user", adsuser.to_json()
+    adsuser=whosdb.addUser(adsgutuser, dict(nick='ads', adsid='ads'))
+    print "44444 Added ADS user", adsuser.to_json()
     currentuser=adsuser
-    adsuser, adspubsapp=whosdb.addApp(currentuser, adsuser, dict(name='publications', description="ADS's flagship publication app"))
-    print "ADS user added publications app"
+    adsuser, adspubsapp=whosdb.addApp(adsuser, adsuser, dict(name='publications', description="ADS's flagship publication app"))
+    print "55555 ADS user added publications app"
     anonuser=whosdb.addUser(adsgutuser, dict(nick='anonymous', adsid='anonymous'))
 
 
@@ -680,7 +685,7 @@ def initialize_testing(db_session):
     currentuser=adsgutuser
     adsuser=whosdb.getUserForNick(currentuser, "ads")
 
-    rahuldave=whosdb.addUser(currentuser, dict(nick='rahuldave', adsid="rahuldave"))
+    rahuldave=whosdb.addUser(adsgutuser, dict(nick='rahuldave', adsid="rahuldave"))
     rahuldave, mlg=whosdb.addGroup(rahuldave, rahuldave, dict(name='ml', description="Machine Learning Group"))
     rahuldave, mll=whosdb.addLibrary(rahuldave, rahuldave, dict(name='mll', description="Machine Learning Library"))
     #why does currentuser below need to be adsgutuser?
@@ -698,6 +703,7 @@ def initialize_testing(db_session):
     jayluker, mlg = whosdb.acceptInviteToPostable(jayluker, 'rahuldave/group:ml', jayluker.basic.fqin)
     jayluker, spg=whosdb.addGroup(jayluker, jayluker, dict(name='sp', description="Solr Programming Group"))
     jayluker, spl=whosdb.addLibrary(jayluker, jayluker, dict(name='spl', description="Solr Programming Library"))
+    rahuldave, spl=whosdb.inviteUserToPostableUsingNick(jayluker, 'jayluker/library:spl', 'rahuldave')
     rahuldave, spg=whosdb.addUserToPostable(jayluker, 'jayluker/group:sp', 'rahuldave')
     import random
     for i in range(20):

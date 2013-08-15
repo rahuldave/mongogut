@@ -3,7 +3,7 @@
 # @app.route("/test")
 # def view():
 #     abort(422, {'errors': dict(password="Wrong password")})
-WEBMODE=True
+WEBMODE=False
 from werkzeug.exceptions import default_exceptions, HTTPException
 from flask import make_response, abort as flask_abort, request
 from flask.exceptions import JSONHTTPException

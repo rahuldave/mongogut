@@ -129,7 +129,7 @@ def augmentspec(specdict, specstr="user"):
     del specdict['creator']
     if specdict.has_key('description'):
         del specdict['description']
-    #print "OUTSPECDICT", specdict
+    print "OUTSPECDICT", specdict
     return specdict
 
 def augmentitspec(specdict, spectype="item"):
