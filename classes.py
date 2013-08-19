@@ -117,6 +117,7 @@ class Group(Document):
     owner = StringField(required=True)
     members = ListField(EmbeddedDocumentField(MembableEmbedded))
     inviteds = ListField(EmbeddedDocumentField(MembableEmbedded))#only fqmn
+    postablesin=ListField(EmbeddedDocumentField(PostableEmbedded))
 
     def get_member_fqins(self):
         return [ele.fqmn for ele in self.members]
@@ -145,6 +146,8 @@ class App(Document):
     owner = StringField(required=True)
     members = ListField(EmbeddedDocumentField(MembableEmbedded))
     inviteds = ListField(EmbeddedDocumentField(MembableEmbedded))
+    postablesin=ListField(EmbeddedDocumentField(PostableEmbedded))
+
 
     def get_member_fqins(self):
         return [ele.fqmn for ele in self.members]

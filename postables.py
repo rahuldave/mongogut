@@ -474,6 +474,10 @@ class Database():
         ptype=gettype(fqpn)
         postable=self.getPostable(currentuser, fqpn)
         userq= User.objects(basic__fqin=usertobeaddedfqin)
+        try:
+            user=userq.get()
+        except:
+            doabort('BAD_REQ', "No such user %s" % usertobeaddedfqin)
         authorize_postable_owner(False, self, currentuser, useras, postable)
         try:
             if not changerw:
@@ -484,6 +488,8 @@ class Database():
             userq.update(safe_update=True, push__postablesinvitedto=pe)
             memb=MembableEmbedded(mtype=User.classname, fqmn=usertobeaddedfqin, readwrite=rw)
             #BUG: ok to use fqin here instead of getting from oblect?
+            print "LLL", pe.to_json(), memb.to_json(), "+++++++++++++"
+            print postable.to_json()
             postable.update(safe_update=True, push__inviteds=memb)
             #print "userq", userq.to_json()
         except:
@@ -533,6 +539,10 @@ class Database():
         me.reload()
         return me, postableq.get()
 
+    def acceptInviteToPostableUsingNick(self, currentuser, fqpn, nick):
+        "invite a user to a postable."
+        user=self.getUserForNick(currentuser,nick)
+        return self.acceptInviteToPostable(currentuser, fqpn, user.basic.fqin)
     #changes postable ownership to a 'ownerable'
     #USER must be owner! This CAN happen through membership in a member group.
     def changeOwnershipOfPostable(self, currentuser, owner, fqpn, newownerfqin):
@@ -714,6 +724,7 @@ def initialize_testing(db_session):
 
         if r==1:
             user, mlg=whosdb.inviteUserToPostableUsingNick(rahuldave, 'rahuldave/group:ml', userstring)
+            print "==================================================================================================="
         else:
             user, spg=whosdb.inviteUserToPostableUsingNick(jayluker, 'jayluker/group:sp', userstring)
     #whosdb.addGroupToApp(currentuser, 'ads@adslabs.org/app:publications', 'adsgut@adslabs.org/group:public', None )
