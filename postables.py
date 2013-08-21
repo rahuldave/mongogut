@@ -382,23 +382,34 @@ class Database():
         return memberable, postableq.get()
 
     def toggleRWForMembership(self, currentuser, useras, fqpn, memberablefqin):
-        type=gettype(fqpn)
+        ptype=gettype(fqpn)
         mtype=gettype(memberablefqin)
         print "types", fqpn, ptype, memberablefqin,mtype
         postableq=ptype.objects(basic__fqin=fqpn)
+        memberableq=mtype.objects(basic__fqin=memberablefqin)
         #BUG currently restricted admission. Later we will want groups and apps proxying for users.
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         try:
             postable=postableq.get()
+            memberable=memberableq.get()
         except:
-            doabort('BAD_REQ', "No such postable %s %s" %  (ptype.__name__,fqpn))
+            doabort('BAD_REQ', "No such unique memberable %s %s postable %s %s" %  (mtype.__name__, memberablefqin, ptype.__name__,fqpn))
         members=postable.members
+        postables=memberable.postablesin
         #BUG make faster by using a mongo search
+        #REAL BIG BUG: need to flip on both
         for me in members:
             if me.fqmn==memberablefqin:
                 me.readwrite = (not me.readwrite)
+        for p in postables:
+            if p.fqpn==fqpn:
+                p.readwrite = (not p.readwrite)
         #CHECK: does this make the change we want, or do we need explicit update?
-        postableq.update(safe_update=True)
+        #postableq.update(safe_update=True)
+        #memberableq.update(safe_update=True)
+        postable.save(safe=True)
+        memberable.save(safe=True)
+        return memberable, postable
 
     def addUserToPostable(self, currentuser, fqpn, nick):
         user=self.getUserForNick(currentuser,nick)
@@ -548,7 +559,6 @@ class Database():
     def changeOwnershipOfPostable(self, currentuser, owner, fqpn, newownerfqin):
         "give ownership over to another user/group etc for g/a/l"
         ptype=gettype(fqpn)
-        newownertype = gettype(newownerfqin)
         postableq=ptype.objects(basic__fqin=fqpn)
         try:
             postable=postableq.get()
@@ -561,11 +571,10 @@ class Database():
         authorize_postable_owner(False, self, currentuser, owner, postable)
 
         try:
-            newownerq=newownertype.objects(basic__fqin=newownerfqin)
-            newowner=newownerq.get()
+            newowner=self.getUserForFqin(currentuser, newownerfqin)
         except:
             #make sure target exists.
-            doabort('BAD_REQ', "No such newowner %s %s" % (newownertype.__name__, newownerfqin))
+            doabort('BAD_REQ', "No such newowner %s" % newownerfqin)
         #Either as a user or a group, you must be member of group/app or app respectively to
         #transfer membership there. But what does it mean for a group to own a group. 
         #it makes sense for library and app, but not for group. Though currently let us have it
@@ -609,7 +618,6 @@ class Database():
     def changeOwnershipOfOwnable(self, currentuser, owner, fqon, newownerfqin):
         "this is used for things like itentypes and tagtypes, not for g/a/l. Also for tags?"
         otype=gettype(fqon)
-        newownertype = gettype(newownerfqin)
         oq=otype.objects(basic__fqin=fqon)
         try:
             ownable=oq.get()
@@ -618,11 +626,10 @@ class Database():
         authorize_ownable_owner(False, self, currentuser, owner, ownable)
 
         try:
-            newownerq=newownertype.objects(basic__fqin=newownerfqin)
-            newowner=newownerq.get()
+            newowner=self.getUserForFqin(currentuser, newownerfqin)
         except:
             #make sure target exists.
-            doabort('BAD_REQ', "No such newowner %s %s" % (newownertype.__name__, newowner.basic.fqpn))
+            doabort('BAD_REQ', "No such newowner %s" % newownerfqin)
         
         permit(self.isMemberOfMembable(currentuser, newowner, ownable), 
             " Possible new owner %s %s must be member of ownable %s %s" % (newownertype.__name__, newownerfqin, ptype.__name__, fqpn))
