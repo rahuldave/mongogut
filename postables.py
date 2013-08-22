@@ -157,9 +157,9 @@ class Database():
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         allpostables=useras.postablesowned
         if ptypestr:
-            postables=[e['fqpn'] for e in allpostables if e['ptype']==ptypestr]
+            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables if e['ptype']==ptypestr]
         else:
-            postables=allpostables
+            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables]
         return postables
 
     #unprotected
@@ -169,9 +169,9 @@ class Database():
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         allpostables=useras.postablesin
         if ptypestr:
-            postables=[e['fqpn'] for e in allpostables if e['ptype']==ptypestr]
+            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables if e['ptype']==ptypestr]
         else:
-            postables=allpostables
+            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables]
         return postables
 
     def postablesUserCanWriteTo(self, currentuser, useras, ptypestr=None):
@@ -179,9 +179,9 @@ class Database():
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         allpostables=useras.postablesin
         if ptypestr:
-            postables=[e['fqpn'] for e in allpostables if e['ptype']==ptypestr]
+            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables if e['ptype']==ptypestr]
         else:
-            postables=allpostables
+            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables]
         return postables
 
 
@@ -192,9 +192,9 @@ class Database():
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         allpostables=useras.postablesinvitedto
         if ptypestr:
-            postables=[e['fqpn'] for e in allpostables if e['ptype']==ptypestr]
+            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables if e['ptype']==ptypestr]
         else:
-            postables=allpostables
+            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables]
         return postables
 
     #unprotected
