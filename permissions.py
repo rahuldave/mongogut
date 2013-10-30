@@ -42,7 +42,7 @@ def permit_or(authstart, clausetuples):
 #authorize with useras=currentuser will allow u through if u r either
 #logged in or are superuser. useras=None will only allow you if u r systemuser
 def authorize(authstart, db, currentuser, useras):
-    permit(currentuser!=None, "must be logged in")
+    permit(currentuser.nick!='anonymouse', "must be logged in")
     clause = (currentuser==useras, "User %s not authorized" % currentuser.nick)
     clausesys = (db.isSystemUser(currentuser), "User %s not superuser" % currentuser.nick)
     permit_or(authstart, [clausesys, clause])
@@ -91,19 +91,19 @@ def classtype(instance):
 def authorize_membable_member(authstart, db, currentuser, memberable, cobj):
     print "<<<",currentuser.basic.fqin, memberable.basic.fqin, cobj.basic.fqin
     #print currentuser.basic.fqin, memberable.basic.fqin, cobj.basic.fqin
-    permit(currentuser!=None, "must be logged in")
+    permit(currentuser.nick!='anonymouse', "must be logged in")
     #clause = (currentuser==useras, "User %s not authorized" % currentuser.nick)
     if classtype(memberable)==User:
         clause=(currentuser==memberable, "User %s not authorized" % currentuser.nick)
         clause=(True,'') #BUG: corrently allow these to be different
     elif classtype(memberable) in [Group, App]:
         #CHOICE:if you are testing membership, is it enough to be member? or should you be owner of memberable
-        clause = (db.isMemberOfPostable(currentuser, currentuser, memberable), "must be member of postable %s %s" % (classname(memberable), memberable.basic.fqin))
+        clause = (db.isMemberOfPostable(currentuser, currentuser, memberable), "%s must be member of postable %s %s" % (currentuser.adsid, classname(memberable), memberable.basic.fqin))
     else:
         clause=False
     permit(*clause)
     #BUG: what if useras is a group?
-    clause3=(db.isMemberOfMembable(currentuser, memberable, cobj), "must be member of membable %s %s" % (classname(cobj), cobj.basic.fqin))
+    clause3=(db.isMemberOfMembable(currentuser, memberable, cobj), "%s must be member of membable %s %s" % (currentuser.adsid, classname(cobj), cobj.basic.fqin))
     clausesys = (db.isSystemUser(currentuser), "User %s not superuser" % currentuser.nick)
     print "clauses", clausesys[0], clause3[0], clause[0]
     if not clausesys[0]:
@@ -118,17 +118,17 @@ authorize_postable_member=authorize_membable_member
 def authorize_ownable_owner(authstart, db, currentuser, memberable, cobj):
     print ">>>",currentuser.basic.fqin, memberable.basic.fqin, cobj.basic.fqin
     #print "<<<", currentuser.basic.fqin, memberable.basic.fqin, cobj.basic.fqin
-    permit(currentuser!=None, "must be logged in")
+    permit(currentuser.adsid!='anonymouse', "must be logged in")
     #what if useras is a group? see the elif. otherwise user musr be currentuser
     if classtype(memberable)==User:
         clause = (currentuser==memberable, "User %s not authorized" % currentuser.nick)
         clause=(True,'') #BUG: corrently allow these to be different
     elif classtype(memberable) in [Group, App]:#thie idea is to stop allowing this, for postable cobjs at
-        clause = (db.isOwnerOfPostable(currentuser, currentuser, memberable), "must be owner of postable %s %s" % (classname(memberable), memberable.basic.fqin))
+        clause = (db.isOwnerOfPostable(currentuser, currentuser, memberable), "%s must be owner of postable %s %s" % (currentuser.adsid, classname(memberable), memberable.basic.fqin))
     else:
         clause=False
     permit(*clause)
-    clause3=(db.isOwnerOfOwnable(currentuser, memberable, cobj), "must be owner of ownable %s %s" % (classname(cobj), cobj.basic.fqin))
+    clause3=(db.isOwnerOfOwnable(currentuser, memberable, cobj), "%s must be owner of ownable %s %s" % (currentuser.adsid, classname(cobj), cobj.basic.fqin))
     clausesys = (db.isSystemUser(currentuser), "User %s not superuser" % currentuser.nick)
     print "clauses", clausesys[0], clause3[0], clause[0]
     if not clausesys[0]:

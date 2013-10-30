@@ -100,6 +100,10 @@ def musthavekeys(indict, listofkeys):
             doabort('BAD_REQ', "Indict does not have key %s" % k)
     return indict
 
+import uuid
+def makeUuid():
+    return str(uuid.uuid4())
+
 def augmentspec(specdict, specstr="user"):
     basicdict={}
     #print "INSPECDICT", specdict
@@ -117,7 +121,11 @@ def augmentspec(specdict, specstr="user"):
         specdict['nick']=basicdict['fqin']
         del specdict['name']
     elif spectype==User:
-        specdict=musthavekeys(specdict, ['adsid', 'nick'])
+        specdict=musthavekeys(specdict, ['adsid'])
+        if not specdict.has_key('nick'):
+            specdict['nick']=makeUuid()
+        if not specdict.has_key('cookieid'):
+            specdict['cookieid']=specdict['adsid']
         specdict['creator']="adsgut/user:adsgut"
         basicdict['creator']=specdict['creator']
         crnick=getNSVal(specdict['creator'])

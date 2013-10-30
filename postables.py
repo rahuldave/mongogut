@@ -34,6 +34,17 @@ class Database():
             doabort('NOT_FND', "User %s not found" % nick)
         return user
 
+    def getUserForAdsid(self, currentuser, adsid):
+        "gets user for adsid"
+        #print "ingetuser", [e.nick for e in User.objects]
+        #print "nick", nick
+        try:
+            user=User.objects(adsid=adsid).get()
+        except:
+            print "JJJJ", sys.exc_info()
+            doabort('NOT_FND', "User %s not found" % adsid)
+        return user
+
     def getUserForFqin(self, currentuser, userfqin):
         "gets user for nick"
         try:
@@ -46,6 +57,12 @@ class Database():
     def getUserInfo(self, currentuser, nick):
         "gets user for nick only if you are superuser or that user"
         user=self.getUserForNick(currentuser, nick)
+        authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, user)
+        return user
+
+    def getUserInfoFromAdsid(self, currentuser, adsid):
+        "gets user for nick only if you are superuser or that user"
+        user=self.getUserForAdsid(currentuser, adsid)
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, user)
         return user
 
@@ -244,7 +261,7 @@ class Database():
     def addUser(self, currentuser, userspec):
         "add a user to the system. currently only sysadmin can do this"
         #BUG BUG BUG: big security hole opened here for testing. This should be added externally to mongo.
-        if not userspec['nick']=='adsgut':
+        if not userspec['adsid']=='adsgut':
             authorize_systemuser(False, self, currentuser)
         try:
             userspec=augmentspec(userspec)
@@ -252,10 +269,10 @@ class Database():
             newuser.save(safe=True)
         except:
             print sys.exc_info()
-            doabort('BAD_REQ', "Failed adding user %s" % userspec['nick'])
+            doabort('BAD_REQ', "Failed adding user %s" % userspec['adsid'])
 
         #BUG: more leakage here in bootstrap
-        if userspec['nick']=='adsgut':
+        if userspec['adsid']=='adsgut':
             currentuser=newuser
 
         #Also add user to private default group and public group
@@ -271,13 +288,13 @@ class Database():
             personalgroup=True
         ))
         #currentuser adds this as root
-        if not userspec['nick']=='adsgut':
+        if not userspec['adsid']=='adsgut':
             self.addMemberableToPostable(currentuser, currentuser, 'adsgut/group:public', newuser.basic.fqin)
         #BUG:Bottom ought to be done via routing
         #self.addUserToApp(currentuser, 'ads@adslabs.org/app:publications', newuser, None)
         #should this be also done by routing?
         #This is also added as root
-        if not userspec['nick']=='adsgut':
+        if not userspec['adsid']=='adsgut':
             self.addMemberableToPostable(currentuser, currentuser, 'adsgut/app:adsgut', newuser.basic.fqin)
         newuser.reload()
         return newuser
@@ -685,13 +702,12 @@ def initialize_application(db_session):
     print "22222 Added Initial Public group"
     adsgutuser, adsgutapp=whosdb.addApp(adsgutuser, adsgutuser, dict(name='adsgut', description="The MotherShip App"))
     print "33333 Added Mothership app"
-
+    anonymouseuser=whosdb.addUser(adsgutuser, dict(nick='anonymouse', adsid='anonymouse'))
     adsuser=whosdb.addUser(adsgutuser, dict(nick='ads', adsid='ads'))
     print "44444 Added ADS user", adsuser.to_json()
     currentuser=adsuser
     adsuser, adspubsapp=whosdb.addApp(adsuser, adsuser, dict(name='publications', description="ADS's flagship publication app"))
     print "55555 ADS user added publications app"
-    anonuser=whosdb.addUser(adsgutuser, dict(nick='anonymous', adsid='anonymous'))
 
 
 def initialize_testing(db_session):
@@ -702,7 +718,7 @@ def initialize_testing(db_session):
     currentuser=adsgutuser
     adsuser=whosdb.getUserForNick(currentuser, "ads")
 
-    rahuldave=whosdb.addUser(adsgutuser, dict(nick='rahuldave', adsid="rahuldave"))
+    rahuldave=whosdb.addUser(adsgutuser, dict(nick='rahuldave', adsid="rahuldave@gmail.com"))
     rahuldave, mlg=whosdb.addGroup(rahuldave, rahuldave, dict(name='ml', description="Machine Learning Group"))
     rahuldave, mll=whosdb.addLibrary(rahuldave, rahuldave, dict(name='mll', description="Machine Learning Library"))
     #why does currentuser below need to be adsgutuser?
@@ -710,7 +726,7 @@ def initialize_testing(db_session):
     #rahuldave.applicationsin.append(adspubsapp)
     
     print "currentuser", currentuser.nick
-    jayluker=whosdb.addUser(currentuser, dict(nick='jayluker', adsid="jayluker"))
+    jayluker=whosdb.addUser(currentuser, dict(nick='jayluker', adsid="jayluker@gmail.com"))
     jayluker, adspubapp=whosdb.addUserToPostable(adsuser, 'ads/app:publications', 'jayluker')
     #jayluker.applicationsin.append(adspubsapp)
     print "GAGAGAGAGAGA", adspubapp.to_json()
@@ -726,14 +742,14 @@ def initialize_testing(db_session):
     for i in range(20):
         r=random.choice([1,2])
         userstring='user'+str(i)
-        user=whosdb.addUser(adsgutuser, dict(nick=userstring, adsid=userstring))
-        user, adspubapp = whosdb.addUserToPostable(adsuser, 'ads/app:publications', userstring)
+        user=whosdb.addUser(adsgutuser, dict(adsid=userstring))
+        user, adspubapp = whosdb.addUserToPostable(adsuser, 'ads/app:publications', user.nick)
 
         if r==1:
-            user, mlg=whosdb.inviteUserToPostableUsingNick(rahuldave, 'rahuldave/group:ml', userstring)
+            user, mlg=whosdb.inviteUserToPostableUsingNick(rahuldave, 'rahuldave/group:ml', user.nick)
             print "==================================================================================================="
         else:
-            user, spg=whosdb.inviteUserToPostableUsingNick(jayluker, 'jayluker/group:sp', userstring)
+            user, spg=whosdb.inviteUserToPostableUsingNick(jayluker, 'jayluker/group:sp', user.nick)
     #whosdb.addGroupToApp(currentuser, 'ads@adslabs.org/app:publications', 'adsgut@adslabs.org/group:public', None )
     #public.applicationsin.append(adspubsapp)
     #rahuldavedefault.applicationsin.append(adspubsapp)
