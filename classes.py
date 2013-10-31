@@ -89,6 +89,7 @@ class User(Document):
     classname="user"
     adsid = StringField(required=True, unique=True)
     cookieid = StringField(required=True, unique=True)
+    classicimported = BooleanField(default=False, required=True)
     #Unless user sets nick, its equal to adsid
     #ISMEMBER INTERFACE
     nick = StringField(required=True, unique=True)
