@@ -118,7 +118,9 @@ def augmentspec(specdict, specstr="user"):
         basicdict['description']=specdict.get('description','')
         crnick=getNSVal(specdict['creator'])
         basicdict['fqin']=crnick+"/"+spectypestring+":"+specdict['name']
-        specdict['nick']=basicdict['fqin']
+        #specdict['nick']=basicdict['fqin']
+        if not specdict.has_key('nick'):
+            specdict['nick']=makeUuid()
         del specdict['name']
     elif spectype==User:
         specdict=musthavekeys(specdict, ['adsid'])

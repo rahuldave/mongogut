@@ -45,6 +45,17 @@ class Database():
             doabort('NOT_FND', "User %s not found" % adsid)
         return user
 
+    def getUserForCookieid(self, currentuser, cookieid):
+        "gets user for adsid"
+        #print "ingetuser", [e.nick for e in User.objects]
+        #print "nick", nick
+        try:
+            user=User.objects(cookieid=cookieid).get()
+        except:
+            print "JJJJ", sys.exc_info()
+            doabort('NOT_FND', "User %s not found" % cookieid)
+        return user
+
     def getUserForFqin(self, currentuser, userfqin):
         "gets user for nick"
         try:
@@ -718,7 +729,7 @@ def initialize_testing(db_session):
     currentuser=adsgutuser
     adsuser=whosdb.getUserForNick(currentuser, "ads")
 
-    rahuldave=whosdb.addUser(adsgutuser, dict(nick='rahuldave', adsid="rahuldave@gmail.com"))
+    rahuldave=whosdb.addUser(adsgutuser, dict(nick='rahuldave', adsid="rahuldave@gmail.com", cookieid='4df7ce0d06'))
     rahuldave, mlg=whosdb.addGroup(rahuldave, rahuldave, dict(name='ml', description="Machine Learning Group"))
     rahuldave, mll=whosdb.addLibrary(rahuldave, rahuldave, dict(name='mll', description="Machine Learning Library"))
     #why does currentuser below need to be adsgutuser?

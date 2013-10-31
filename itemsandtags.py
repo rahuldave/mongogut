@@ -1343,10 +1343,50 @@ class Postdb():
         result=self.getPostingsForSpec(currentuser, useras, itemfqinlist, "group",  sort)
         return result
    
+    #issues: what if you run this twice? BUG: make sure libs has your current libraries
+    #or blow away existing libraries
+    def populateLibraries(self, currentuser, useras, libjson):
+        authorize(False, self, currentuser, useras)
+        li={}
+        li=getlibs(li, libjson)
+        for k in li.keys():
+            print "LIK", li[k][0]
+            useras, library=self.whosdb.addLibrary(useras, useras, dict(name=li[k][0], description=li[k][1]))
+            bibdict={}
+            for i in range(len(li[k][2])):
+                bib=li[k][2][i]
+                note=li[k][3][i]
+                #this is for speed. the saveItem checks if item is already there and simply returns it.
+                if not bibdict.has_key(bib):
+                    paper={}
+                    paper['name']=bib
+                    paper['itemtype']='ads/itemtype:pub'
+                    theitem=self.saveItem(useras, useras, paper)
+                    bibdict[bib]=theitem
+                self.postItemIntoLibrary(useras, useras, library.basic.fqin, bibdict[bib])
+                if note != "":
+                    i,t,td=self.tagItem(useras, useras, bibdict[bib], dict(tagtype="ads/tagtype:note", content=note))
+                    #if i could override the non-routed tagging i use for notes, below is not needed
+                    #however, lower should be faster
+                    self.postTaggingIntoLibrary(useras, useras, library.basic.fqin, td)
+        return 1
+
+        
 
 
 
-
+def getlibs(libs, json):
+    for l in json['libraries']:
+        if not libs.has_key(l['name']):
+            libs[l['name']]=[l['name'],  l.get('desc',""), [e['bibcode'] for e in l['entries']], [e.get('note',"") for e in l['entries']]]
+        else:
+            print "repeated key", l['name']
+            daset=set(libs[l['name']][2])
+            newe=[e['bibcode'] for e in l['entries']]
+            for e in newe:
+                daset.add(e)
+            libs[l['name']][2]=list(daset)
+    return libs
 
 def initialize_application(sess):
     currentuser=None

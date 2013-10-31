@@ -172,6 +172,8 @@ class App(Document):
 #Do we need this at all?
 class Library(Document):
     classname="library"
+    #Libraries cant me members, but still we implement this ISMEMBER INTERFACE
+    nick = StringField(required=True, unique=True)
     #@interface:POSTABLE
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
