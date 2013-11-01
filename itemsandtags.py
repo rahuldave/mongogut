@@ -547,7 +547,7 @@ class Postdb():
                 taggingdoc=taggingdoc, tagmode=tagmode, item=itemtobetagged)
         #if itemtag found just return it, else create, add to group, return
         itemtobetagged.reload()
-        return itemtobetagged, tag, itemtag
+        return itemtobetagged, tag, itemtag, taggingdoc
 
     def untagItem(self, currentuser, useras, fullyQualifiedTagName, fullyQualifiedItemName):
         #Do not remove item, do not remove tag, do not remove tagging
@@ -1365,7 +1365,7 @@ class Postdb():
                     bibdict[bib]=theitem
                 self.postItemIntoLibrary(useras, useras, library.basic.fqin, bibdict[bib])
                 if note != "":
-                    i,t,td=self.tagItem(useras, useras, bibdict[bib], dict(tagtype="ads/tagtype:note", content=note))
+                    i,t,it, td=self.tagItem(useras, useras, bibdict[bib], dict(tagtype="ads/tagtype:note", content=note))
                     #if i could override the non-routed tagging i use for notes, below is not needed
                     #however, lower should be faster
                     self.postTaggingIntoLibrary(useras, useras, library.basic.fqin, td)
@@ -1468,8 +1468,8 @@ def initialize_testing(db_session):
         nstr=random.choice(NOTES)
         r=random.choice([0,1])
         user=users[r]
-        i,t,td=postdb.tagItem(user, user, thedict[k], dict(tagtype="ads/tagtype:note", content=nstr))
-        notes[t.basic.name]=(user, i,t,td)
+        i,t,it,td=postdb.tagItem(user, user, thedict[k], dict(tagtype="ads/tagtype:note", content=nstr))
+        notes[t.basic.name]=(user, i,t,it)
         print t.basic.name
     mykey=notes.keys()[0]
     print "USING", mykey
