@@ -64,6 +64,14 @@ class Database():
             doabort('NOT_FND', "User %s not found" % userfqin)
         return user
 
+    def getMemberableForFqin(self, currentuser, mtype, memberfqin):
+        "gets user for nick"
+        try:
+            member=mtype.objects(basic__fqin=memberfqin).get()
+        except:
+            doabort('NOT_FND', "User %s not found" % memberfqin)
+        return member
+
     #this one is PROTECTED
     def getUserInfo(self, currentuser, nick):
         "gets user for nick only if you are superuser or that user"
@@ -84,14 +92,14 @@ class Database():
     #or for tagging. So I wont expose external functions to start with, and as we
     #go along, I will make sure to.
 
-    def getMembable(self, currentuser, fqpn):
+    def getMembable(self, currentuser, fqmn):
         "gets the membable corresponding to the fqpn"
-        ptype=gettype(fqpn)
+        mtype=gettype(fqmn)
         try:
-            postable=ptype.objects(basic__fqin=fqpn).get()
+            membable=mtype.objects(basic__fqin=fqmn).get()
         except:
-            doabort('NOT_FND', "%s %s not found" % (classname(ptype), fqpn))
-        return postable
+            doabort('NOT_FND', "%s %s not found" % (classname(mtype), fqmn))
+        return membable
 
     #this one is unprotected
     #BUG make sure ptype is in MEMBABLES.
@@ -409,17 +417,21 @@ class Database():
         memberable.reload()
         return memberable, postableq.get()
 
-    def toggleRWForMembership(self, currentuser, useras, fqpn, memberablefqin):
+    #because this is used along with other membership apply/decline funcs, we will go with memberable
+    #as opposed to memberablefqin
+    def toggleRWForMembership(self, currentuser, useras, fqpn, memberable):
         ptype=gettype(fqpn)
+        memberablefqin=memberable.basic.fqin
         mtype=gettype(memberablefqin)
         print "types", fqpn, ptype, memberablefqin,mtype
         postableq=ptype.objects(basic__fqin=fqpn)
-        memberableq=mtype.objects(basic__fqin=memberablefqin)
+        #memberableq=mtype.objects(basic__fqin=memberablefqin)
+        
         #BUG currently restricted admission. Later we will want groups and apps proxying for users.
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         try:
             postable=postableq.get()
-            memberable=memberableq.get()
+            #memberable=memberableq.get()
         except:
             doabort('BAD_REQ', "No such unique memberable %s %s postable %s %s" %  (mtype.__name__, memberablefqin, ptype.__name__,fqpn))
         members=postable.members
@@ -508,15 +520,16 @@ class Database():
 
 
     #do we want to use this for libraries? why not? Ca we invite other memberables?
-    def inviteUserToPostable(self, currentuser, useras, fqpn, usertobeaddedfqin, changerw=False):
+    def inviteUserToPostable(self, currentuser, useras, fqpn, user, changerw=False):
         "invite a user to a postable."
         ptype=gettype(fqpn)
         postable=self.getPostable(currentuser, fqpn)
-        userq= User.objects(basic__fqin=usertobeaddedfqin)
-        try:
-            user=userq.get()
-        except:
-            doabort('BAD_REQ', "No such user %s" % usertobeaddedfqin)
+        usertobeaddedfqin=user.basic.fqin
+        # userq= User.objects(basic__fqin=usertobeaddedfqin)
+        # try:
+        #     user=userq.get()
+        # except:
+        #     doabort('BAD_REQ', "No such user %s" % usertobeaddedfqin)
         authorize_postable_owner(False, self, currentuser, useras, postable)
         try:
             if not changerw:
@@ -524,7 +537,7 @@ class Database():
             else:
                 rw= (not RWDEFMAP[ptype])
             pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, readwrite=rw)
-            userq.update(safe_update=True, push__postablesinvitedto=pe)
+            user.update(safe_update=True, push__postablesinvitedto=pe)
             memb=MembableEmbedded(mtype=User.classname, fqmn=usertobeaddedfqin, readwrite=rw)
             #BUG: ok to use fqin here instead of getting from oblect?
             print "LLL", pe.to_json(), memb.to_json(), "+++++++++++++"
@@ -535,24 +548,31 @@ class Database():
             doabort('BAD_REQ', "Failed inviting user %s to postable %s" % (usertobeaddedfqin, fqpn))
         #print "IIIII", userq.get().groupsinvitedto
         postable.reload()
-        return userq.get(), postable
+        user.reload()
+        return user, postable
 
     def inviteUserToPostableUsingNick(self, currentuser, fqpn, nick, changerw=False):
         "invite a user to a postable."
         user=self.getUserForNick(currentuser,nick)
-        return self.inviteUserToPostable(currentuser, currentuser, fqpn, user.basic.fqin, changerw)
+        return self.inviteUserToPostable(currentuser, currentuser, fqpn, user, changerw)
+
+    def inviteUserToPostableUsingAdsid(self, currentuser, fqpn, adsid, changerw=False):
+        "invite a user to a postable."
+        user=self.getUserForAdsid(currentuser,adsid)
+        return self.inviteUserToPostable(currentuser, currentuser, fqpn, user, changerw)
 
     #this cannot be masqueraded, must be explicitly approved by user
     #can we do without the mefqin?
-    def acceptInviteToPostable(self, currentuser, fqpn, mefqin):
+    def acceptInviteToPostable(self, currentuser, fqpn, me):
         "do i accept the invite?"
         ptype=gettype(fqpn)
         postableq=ptype.objects(basic__fqin=fqpn)
-        userq= User.objects(basic__fqin=mefqin)
-        try:
-            me=userq.get()
-        except:
-            doabort('BAD_REQ', "No such user %s" % mefqin)
+        # userq= User.objects(basic__fqin=mefqin)
+        # try:
+        #     me=userq.get()
+        # except:
+        #     doabort('BAD_REQ', "No such user %s" % mefqin)
+        mefqin=me.basic.fqin
         try:
             postable=postableq.get()
         except:
@@ -571,7 +591,7 @@ class Database():
                     pe=uinv
             if memb==None or pe==None:
                 doabort('BAD_REQ', "User %s was never invited to postable %s %s" % (mefqin, ptype.__name__, fqpn))
-            userq.update(safe_update=True, push__postablesin=pe, pull__postablesinvitedto__fqpn=pe.fqpn)
+            me.update(safe_update=True, push__postablesin=pe, pull__postablesinvitedto__fqpn=pe.fqpn)
             postableq.update(safe_update=True, push__members=memb, pull__inviteds__fqmn=memb.fqmn)
         except:
             doabort('BAD_REQ', "Failed in user %s accepting invite to gpostable %s %s" % (mefqin, ptype.__name__, fqpn))
@@ -581,11 +601,17 @@ class Database():
     def acceptInviteToPostableUsingNick(self, currentuser, fqpn, nick):
         "invite a user to a postable."
         user=self.getUserForNick(currentuser,nick)
-        return self.acceptInviteToPostable(currentuser, fqpn, user.basic.fqin)
+        return self.acceptInviteToPostable(currentuser, fqpn, user)
+
+    def acceptInviteToPostableUsingNiAdsid(self, currentuser, fqpn, adsid):
+        "invite a user to a postable."
+        user=self.getUserForNick(currentuser,adsid)
+        return self.acceptInviteToPostable(currentuser, fqpn, user)
+
     #changes postable ownership to a 'ownerable'
     #USER must be owner! This CAN happen through membership in a member group.
-    def changeOwnershipOfPostable(self, currentuser, owner, fqpn, newownerfqin):
-        "give ownership over to another user/group etc for g/a/l"
+    def changeOwnershipOfPostable(self, currentuser, owner, fqpn, newowner):
+        "give ownership over to another user for g/a/l"
         ptype=gettype(fqpn)
         postableq=ptype.objects(basic__fqin=fqpn)
         try:
@@ -598,11 +624,12 @@ class Database():
         #useras must be member of postable
         authorize_postable_owner(False, self, currentuser, owner, postable)
 
-        try:
-            newowner=self.getUserForFqin(currentuser, newownerfqin)
-        except:
-            #make sure target exists.
-            doabort('BAD_REQ', "No such newowner %s" % newownerfqin)
+        # try:
+        #     newowner=self.getUserForFqin(currentuser, newownerfqin)
+        # except:
+        #     #make sure target exists.
+        #     doabort('BAD_REQ', "No such newowner %s" % newownerfqin)
+        newownerfqin=newowner.basic.fqin
         #Either as a user or a group, you must be member of group/app or app respectively to
         #transfer membership there. But what does it mean for a group to own a group. 
         #it makes sense for library and app, but not for group. Though currently let us have it
@@ -643,7 +670,7 @@ class Database():
     #This is where we deal with TAG's. Check. BUG: also combine with above for non repeated code.
     #tags are membables, we dont check that here. Ought it be done with postables?
     #and do we have use cases for tag ownership changes, as opposed to tagtypes and itemtypes?
-    def changeOwnershipOfOwnable(self, currentuser, owner, fqon, newownerfqin):
+    def changeOwnershipOfOwnable(self, currentuser, owner, fqon, newowner):
         "this is used for things like itentypes and tagtypes, not for g/a/l. Also for tags?"
         otype=gettype(fqon)
         oq=otype.objects(basic__fqin=fqon)
@@ -653,12 +680,12 @@ class Database():
             doabort('BAD_REQ', "No such ownable %s %s" % (otype.__name__,fqon))
         authorize_ownable_owner(False, self, currentuser, owner, ownable)
 
-        try:
-            newowner=self.getUserForFqin(currentuser, newownerfqin)
-        except:
-            #make sure target exists.
-            doabort('BAD_REQ', "No such newowner %s" % newownerfqin)
-        
+        # try:
+        #     newowner=self.getUserForFqin(currentuser, newownerfqin)
+        # except:
+        #     #make sure target exists.
+        #     doabort('BAD_REQ', "No such newowner %s" % newownerfqin)
+        newownerfqin=newowner.basic.fqin
         permit(self.isMemberOfMembable(currentuser, newowner, ownable), 
             " Possible new owner %s %s must be member of ownable %s %s" % (newownertype.__name__, newownerfqin, ptype.__name__, fqpn))
         try:
@@ -744,7 +771,7 @@ def initialize_testing(db_session):
     jayluker, mlg=whosdb.inviteUserToPostableUsingNick(rahuldave, 'rahuldave/group:ml', 'jayluker')
     print "invited", jayluker.to_json()
 
-    jayluker, mlg = whosdb.acceptInviteToPostable(jayluker, 'rahuldave/group:ml', jayluker.basic.fqin)
+    jayluker, mlg = whosdb.acceptInviteToPostable(jayluker, 'rahuldave/group:ml', jayluker)
     jayluker, spg=whosdb.addGroup(jayluker, jayluker, dict(name='sp', description="Solr Programming Group"))
     jayluker, spl=whosdb.addLibrary(jayluker, jayluker, dict(name='spl', description="Solr Programming Library"))
     rahuldave, spl=whosdb.inviteUserToPostableUsingNick(jayluker, 'jayluker/library:spl', 'rahuldave')
