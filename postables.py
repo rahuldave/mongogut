@@ -215,9 +215,9 @@ class Database():
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         allpostables=useras.postablesin
         if ptypestr:
-            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables if e['ptype']==ptypestr]
+            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables if (e['ptype']==ptypestr and e['readwrite']==True)]
         else:
-            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables]
+            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables if e['readwrite']==True]
         return postables
 
 

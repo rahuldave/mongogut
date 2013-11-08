@@ -251,6 +251,7 @@ class Postdb():
         return newowner
 
     def postItemIntoPostable(self, currentuser, useras, fqpn, item):
+        print "FQPN=======", fqpn
         ptype=gettype(fqpn)
         postable=self.whosdb.getPostable(currentuser, fqpn)
         typename=getNSTypeNameFromInstance(postable)
@@ -370,7 +371,7 @@ class Postdb():
                 # print sys.exc_info()
                 doabort('BAD_REQ', "Failed adding item %s" % itemspec['basic'].fqin)
 
-        print "RECEIBERS", self.signals['saved-item'], self.signals['saved-item'].receivers
+        #print "RECEIBERS", self.signals['saved-item'], self.signals['saved-item'].receivers
         self.signals['saved-item'].send(self, obj=self, currentuser=currentuser, useras=useras, item=newitem)
         #not needed due to above:self.postItemIntoGroup(currentuser, useras, personalfqgn, newitem.basic.fqin)
         #SIGNALS needed even if item is already saved so we add it to personal group! Tres cool! What about itemtypes app?
@@ -1312,7 +1313,10 @@ class Postdb():
     def getPostingsForSpec(self, currentuser, useras, itemfqinlist, ptypestring=None, sort=None):
         result={}
         query={}
-        postablesforuser=[e['fqpn'] for e in self.whosdb.postablesForUser(currentuser, useras, ptypestring)]
+        if ptypestring==None:
+            postablesforuser=[e['fqpn'] for e in self.whosdb.postablesForUser(currentuser, useras)]
+        else:
+            postablesforuser=[e['fqpn'] for e in self.whosdb.postablesForUser(currentuser, useras, ptypestring)]
         print "gps", postablesforuser
         SHOWNFIELDS=[   'thething.postfqin',
                         'thething.posttype',
@@ -1339,8 +1343,11 @@ class Postdb():
         return result
 
     #This should be whittled down further
-    def getPostingsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None):
-        result=self.getPostingsForSpec(currentuser, useras, itemfqinlist, "group",  sort)
+    def getPostingsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, ptypestring=None, sort=None):
+        if ptypestring==None:
+            result=self.getPostingsForSpec(currentuser, useras, itemfqinlist, None,  sort)
+        else:
+            result=self.getPostingsForSpec(currentuser, useras, itemfqinlist, ptypestring,  sort)
         return result
    
     #issues: what if you run this twice? BUG: make sure libs has your current libraries
