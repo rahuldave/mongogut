@@ -27,7 +27,7 @@ class Database():
     def getUserForNick(self, currentuser, nick):
         "gets user for nick"
         #print "ingetuser", [e.nick for e in User.objects]
-        #print "nick", nick
+        print "nick", nick
         try:
             user=User.objects(nick=nick).get()
         except:
