@@ -17,7 +17,6 @@ setup(
     long_description=__doc__,
     py_modules=['mongogut'],
     install_requires=[
-        'mongoengine',
         'pymongo',
         'simplejson'
     ],
