@@ -15,6 +15,7 @@ setup(
     author_email='rahuldave@gmail.com',
     description='A mongo version of GUT',
     long_description=__doc__,
+    package_dir = {'': '.'},
     py_modules=['mongogut'],
     install_requires=[
         'pymongo',
