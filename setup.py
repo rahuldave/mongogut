@@ -16,6 +16,7 @@ setup(
     description='A mongo version of GUT',
     long_description=__doc__,
     package_dir = {'': '.'},
+    packages=['.'],
     py_modules=['mongogut'],
     install_requires=[
         'pymongo',
