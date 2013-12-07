@@ -343,7 +343,7 @@ class Database():
             newpostable.save(safe=True)
             #how to save it together?
             userq= User.objects(basic__fqin=newpostable.owner)
-            newpe=PostableEmbedded(ptype=ptypestr,fqpn=newpostable.basic.fqin, readwrite=True)
+            newpe=PostableEmbedded(ptype=ptypestr,fqpn=newpostable.basic.fqin, readwrite=True, description=newpostable.basic.description)
             res=userq.update(safe_update=True, push__postablesowned=newpe)
             #print "result", res, currentuser.groupsowned, currentuser.to_json()
             
@@ -408,7 +408,7 @@ class Database():
                     rw=RWDEFMAP[ptype]
                 else:
                     rw= (not RWDEFMAP[ptype])
-            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, readwrite=rw)
+            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, readwrite=rw, description=postable.basic.description)
             memberableq.update(safe_update=True, push__postablesin=pe)
             memb=MembableEmbedded(mtype=mtype.classname, fqmn=memberablefqin, readwrite=rw)
             postableq.update(safe_update=True, push__members=memb)
@@ -536,7 +536,7 @@ class Database():
                 rw=RWDEFMAP[ptype]
             else:
                 rw= (not RWDEFMAP[ptype])
-            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, readwrite=rw)
+            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, readwrite=rw, description=postable.basic.description)
             user.update(safe_update=True, push__postablesinvitedto=pe)
             memb=MembableEmbedded(mtype=User.classname, fqmn=usertobeaddedfqin, readwrite=rw)
             #BUG: ok to use fqin here instead of getting from oblect?
@@ -645,14 +645,14 @@ class Database():
             oldownerfqpn=postable.owner
             members=postable.members
             memb=MembableEmbedded(mtype=User.classname, fqmn=newowner.basic.fqin, readwrite=True)
-            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, readwrite=True)
+            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, readwrite=True, description=postable.basic.description)
             #find new owner as member, locate in postable his membership, update it with readwrite if needed, and make him owner
             #add embedded postable to his ownership and his membership
             postableq.filter(members__fqmn=newowner.basic.fqin).update_one(safe_update=True, set__owner = newowner.basic.fqin, set__members_S=memb)
             newownerq.filter(postablesin__fqpn==fqpn).update_one(safe_update=True, set__postablesin_S=pe)
             newowner.update(safe_update=True, push__postablesowned=pe)
             #for old owner we have removed ownership by changing owner, now remove ownership from him
-            owner.update(safe_update=True, pull__postablesowned_fqpn=fqpn)
+            owner.update(safe_update=True, pull__postablesowned__fqpn=fqpn)
             #if newownertype != User:
             #
             #postable.update(safe_update=True, set__owner = newowner.basic.fqin, push__members=memb)
@@ -664,6 +664,40 @@ class Database():
         postable.reload()
         owner.reload()
         return newowner, postable
+
+    def changeDescriptionOfPostable(self, currentuser, owner, fqpn, description):
+        "give ownership over to another user for g/a/l"
+        ptype=gettype(fqpn)
+        postableq=ptype.objects(basic__fqin=fqpn)
+        try:
+            postable=postableq.get()
+        except:
+            doabort('BAD_REQ', "No such postable %s %s" % (ptype.__name__,fqpn))
+        #Before anything else, make sure I own the stuff so can transfer it.
+        #Bug this dosent work if useras is a group
+
+        #useras must be member of postable
+        authorize_postable_owner(False, self, currentuser, owner, postable)
+
+        
+        try:
+            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, readwrite=True, description=description)
+            #find new owner as member, locate in postable his membership, update it with readwrite if needed, and make him owner
+            #add embedded postable to his ownership and his membership
+            postableq.update_one(safe_update=True, set__basic__description=description)
+            owner.update(safe_update=True, pull__postablesowned__fqpn=fqpn)
+            owner.update(safe_update=True, push__postablesowned=pe)
+
+            #if newownertype != User:
+            #
+            #postable.update(safe_update=True, set__owner = newowner.basic.fqin, push__members=memb)
+            #else:
+            #postable.update(safe_update=True, set__owner = newowner.basic.fqin, push__members=newowner.basic.fqin, pull__members=oldownerfqpn)
+        except:
+            doabort('BAD_REQ', "Failed changing owner description for postable %s %s" % ( ptype.__name__, fqpn))
+        owner.reload()
+        postable.reload()
+        return owner, postable
 
     #group should be replaced by anything that can be the owner
     #dont want to use this for postables, even though they are ownable.

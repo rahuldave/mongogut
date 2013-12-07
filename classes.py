@@ -43,6 +43,7 @@ class PostableEmbedded(EmbeddedDocument):
     fqpn = StringField(required=True)
     ptype = StringField(required=True)
     readwrite = BooleanField(required=True, default=False)
+    description = StringField(default="")
 
 #This is for the membable. But these are identical interfaces
 #we will use this for members and inviteds instead of strings to implement readwrite
