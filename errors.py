@@ -3,10 +3,10 @@
 # @app.route("/test")
 # def view():
 #     abort(422, {'errors': dict(password="Wrong password")})
-WEBMODE=False
-#from werkzeug.exceptions import default_exceptions, HTTPException
-#from flask import make_response, abort as flask_abort, request
-#from flask.exceptions import JSONHTTPException
+#WEBMODE=False
+# from werkzeug.exceptions import default_exceptions, HTTPException
+# from flask import make_response, abort as flask_abort, request
+# from flask.exceptions import JSONHTTPException
 
 ERRGUT={}
 ERRGUT['AOK_REQ']=200
@@ -29,7 +29,7 @@ adsgut_errtypes=[
     ('ADSGUT_FOR_BID',ERRGUT['FOR_BID'], 'Forbidden'),
 ]
 
-# def abort(status_code, body=None, headers={}):
+# def webabort(status_code, body=None, headers={}):
 #     """
 #     Content negiate the error response.
 
@@ -57,15 +57,26 @@ adsgut_errtypes=[
 #     #This is just a hack to get the code and the name in currently
 #     flask_abort(make_response(errori, status_code, headers))
 
-# webabort=abort
+# # webabort=abort
 
 import sys, traceback
 
-class Error(Exception):
-    pass
+class MongoGutError(Exception):
 
-def codeabort(status_code, reason):
-    raise Error(status_code, reason)
+    def __init__(self, message, status_code=None, payload=None):
+        Exception.__init__(self)
+        self.message = message
+        if status_code is not None:
+            self.status_code = status_code
+        self.payload = payload
+
+    def to_dict(self):
+        rv = dict(self.payload or ())
+        rv['reason'] = self.message
+        return rv
+
+def codeabort(status_code, reasondict):
+    raise MongoGutError(reasondict['reason'], status_code)
 
 #Implement flask error handling outside
 webabort=codeabort
@@ -77,15 +88,15 @@ def doabort(codestring, reason):
     print x
     print traceback.print_tb(x[2])
     print '==============================='
-    if WEBMODE:
-        webabort(ERRGUT[codestring], {'reason':reason})
-    else:
-        codeabort(ERRGUT[codestring], reason)
-        #print ERRGUT[codestring], {'reason':reason}
-        #sys.exit(0)
-        # try:
-        #     print sys.exc_info()
-        #     codeabort(ERRGUT[codestring], reason)
-        # except Error, e:
-        #     print e[0], e[1]
-        #     sys.exit(0)
+    # if WEBMODE:
+    #     webabort(ERRGUT[codestring], {'reason':reason})
+    # else:
+    codeabort(ERRGUT[codestring], {'reason':reason})
+    #print ERRGUT[codestring], {'reason':reason}
+    #sys.exit(0)
+    # try:
+    #     print sys.exc_info()
+    #     codeabort(ERRGUT[codestring], reason)
+    # except Error, e:
+    #     print e[0], e[1]
+    #     sys.exit(0)

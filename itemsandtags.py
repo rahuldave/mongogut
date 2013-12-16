@@ -924,6 +924,7 @@ class Postdb():
     #this will give me all
     def getTagsAsMemberOnly(self, currentuser, useras, tagtype=None, singletonmode=False):
         #the postables for which user is a member
+        #this is only for group so ok to use postablesForUser
         postablesforuser=[e['fqpn'] for e in self.whosdb.postablesForUser(currentuser, useras, "group")]
         print "gtamo", postablesforuser
         #notice in op does OR not AND
@@ -963,9 +964,9 @@ class Postdb():
                     postablequery=[useras.nick+"/group:default"]
                 elif default=="uag":
                     #BUG: should this have all libraries too?
+                    #if its a group postablesForUSer is just fine, as there are no wierd access issues
                     postablegroupsforuser=[e['fqpn'] for e in self.whosdb.postablesForUser(currentuser, useras, "group")]
                     print "pgfu", postablegroupsforuser
-                    #postablelibrariesforuser=self.whosdb.postablesForUser(currentuser, useras, "library")
                     postablesforuser = postablegroupsforuser
                     #postablesforuser = postablegroupsforuser + postablelibrariesforuser
                     postablequery=[p.basic.fqin for p in postablesforuser]
@@ -1191,7 +1192,6 @@ class Postdb():
     def getTaggingsForQuery(self, currentuser, useras, query, usernick=False, criteria=False, sort=None):
         #BUG: when is this consistency stuff needed? There is a mode in which I want everything I have access to,
         #and we want to use all those postables. But having ditched contexts, it dosent seem to be needed.
-        #groupfqinsforuser=self.whosdb.postablesForUser(currentuser, useras, "group")
         #we dont take any other postables in this query, bcoz we dont want libs and such
         #query['postables']=groupfqinsforuser
         results=self._getTaggingsForQuery(currentuser, useras, query, usernick, criteria, sort, None)
@@ -1259,7 +1259,8 @@ class Postdb():
         result={}
         query={}
         #below could have been done through qproc too BUG: perhaps refactor?
-        pfu=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
+        #pfu=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
+        pfu=self.whosdb.postablesUserCanAccess(currentuser, useras, ptypestring)
         print "PFU", pfu
         postablesforuser=[e['fqpn'] for e in pfu]
         print "PFU2", postablesforuser
@@ -1313,10 +1314,14 @@ class Postdb():
     def getPostingsForSpec(self, currentuser, useras, itemfqinlist, ptypestring=None, sort=None):
         result={}
         query={}
+        # if ptypestring==None:
+        #     postablesforuser=[e['fqpn'] for e in self.whosdb.postablesForUser(currentuser, useras)]
+        # else:
+        #     postablesforuser=[e['fqpn'] for e in self.whosdb.postablesForUser(currentuser, useras, ptypestring)]
         if ptypestring==None:
-            postablesforuser=[e['fqpn'] for e in self.whosdb.postablesForUser(currentuser, useras)]
+            postablesforuser=[e['fqpn'] for e in self.whosdb.postablesUserCanAccess(currentuser, useras)]
         else:
-            postablesforuser=[e['fqpn'] for e in self.whosdb.postablesForUser(currentuser, useras, ptypestring)]
+            postablesforuser=[e['fqpn'] for e in self.whosdb.postablesUserCanAccess(currentuser, useras, ptypestring)]
         print "gps", postablesforuser
         SHOWNFIELDS=[   'thething.postfqin',
                         'thething.posttype',

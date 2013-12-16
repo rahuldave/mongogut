@@ -82,7 +82,8 @@ def authorize_loggedin_or_systemuser(authstart, db, currentuser):
 
 
 def classname(instance):
-    return type(instance).__name__
+    #return type(instance).__name__
+    return instance.classname
 
 def classtype(instance):
     return type(instance)

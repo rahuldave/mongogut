@@ -4,6 +4,7 @@ import datetime
 #BUG: at some point counters on collections should be built in
 #
 
+#default indexes on basic.fqin
 
 #BEHAVIOUR BASIC
 class Basic(EmbeddedDocument):
@@ -42,6 +43,7 @@ class TagType(Document):
 class PostableEmbedded(EmbeddedDocument):
     fqpn = StringField(required=True)
     ptype = StringField(required=True)
+    pname = StringField(required=True)
     readwrite = BooleanField(required=True, default=False)
     description = StringField(default="")
 
@@ -51,11 +53,40 @@ class PostableEmbedded(EmbeddedDocument):
 class MembableEmbedded(EmbeddedDocument):
     fqmn = StringField(required=True)
     mtype = StringField(required=True)
+    pname = StringField(required=True)
     readwrite = BooleanField(required=True, default=False)
+
+def Gget_member_fqins(memb):
+    return [ele.fqmn for ele in memb.members]
+
+def Gget_member_pnames(memb):
+    return [ele.pname for ele in memb.users]
+
+def Gget_member_rws(memb):
+    perms={}
+    for ele in memb.members:
+        perms[ele.fqmn]=[ele.pname, ele.readwrite]
+    return perms
+
+def Gget_invited_fqins(memb):
+    return [ele.fqmn for ele in memb.inviteds]
+
+def Gget_invited_pnames(memb):
+    return [ele.pname for ele in memb.inviteds]
+
+def Gget_invited_rws(memb):
+    perms={}
+    for ele in memb.inviteds:
+        perms[ele.fqmn]=[ele.pname, ele.readwrite]
+    return perms
 
 
 class Tag(Document):
-    classname="tag"    
+    classname="tag"
+    meta = {
+        'indexes': ['owner', 'basic.name', 'tagtype','basic.whencreated'],
+        'ordering': ['-basic.whencreated']
+    }
     basic = EmbeddedDocumentField(Basic)
     tagtype = StringField(required=True)
     singletonmode = BooleanField(required=True)#default is false but must come from tagtype
@@ -67,27 +98,37 @@ class Tag(Document):
     members = ListField(EmbeddedDocumentField(MembableEmbedded))
     inviteds = ListField(EmbeddedDocumentField(MembableEmbedded))
 
+    def presentable_name(self):
+        return self.basic.name
+
     def get_member_fqins(self):
-        return [ele.fqmn for ele in self.members]
+        return Gget_member_fqins(self)
+
+    def get_member_pnames(memb):
+        return Gget_member_pnames(memb)
 
     def get_member_rws(self):
-        perms={}
-        for ele in self.members:
-            perms[ele.fqmn]=ele.readwrite
-        return perms
+        return Gget_member_rws(self)
 
     def get_invited_fqins(self):
-        return [ele.fqmn for ele in self.inviteds]
+        return Gget_invited_fqins(self)
+
+    def get_invited_pnames(memb):
+        return Gget_invited_pnames(memb)
 
     def get_invited_rws(self):
-        perms={}
-        for ele in self.inviteds:
-            perms[ele.fqmn]=ele.readwrite
-        return perms
+        return Gget_invited_rws(self)
+
+
+
 
 #BUG: do we want a similar thing for tags?
 class User(Document):
     classname="user"
+    meta = {
+        'indexes': ['nick', 'basic.name', 'adsid', 'basic.whencreated'],
+        'ordering': ['-basic.whencreated']
+    }
     adsid = StringField(required=True, unique=True)
     cookieid = StringField(required=True, unique=True)
     classicimported = BooleanField(default=False, required=True)
@@ -108,10 +149,105 @@ class User(Document):
     # librariesowned = ListField(StringField())
     # librariesinvitedto = ListField(StringField())
 
+    #for this one i care to blame where we came from
+    def postablesother_blame(self):
+        plist=[]
+        libs=[]
+        for ele in self.postablesin:
+            if ele.ptype == 'library':
+                libs.append(ele)
+        lfqpns=[l.fqpn for l in libs]
+        names={}
+        for l in lfqpns:
+            names[l] = ""
+        for ele in self.postablesin:
+            if ele.ptype != 'library':
+                p = MAPDICT[ele.ptype].objects(basic__fqin=ele.fqpn).get()
+                ls = p.postablesin
+                for e in ls:
+                    if e.fqpn not in lfqpns:
+                        if not names.has_key(e.fqpn):
+                            names[e.fqpn]=[]
+                        names[e.fqpn].append((ele.ptype, ele.pname))
+                    plist.append(e)
+
+        libs = libs + plist
+        pdict={}
+        rw={}
+        for l in libs:
+            if not pdict.has_key(l.fqpn):
+                pdict[l.fqpn] = l
+                rw[l.fqpn] = l.readwrite
+            else:
+                rw[l.fqpn] = rw[l.fqpn] or l.readwrite
+        for k in pdict.keys():
+            pdict[k].readwrite = rw[k]
+        return pdict.values(), names
+
+    def postablesnotlibrary(self):
+        plist=[]
+        for ele in self.postablesin:
+            if ele.ptype != 'library':
+                plist.append(ele)
+        return plist
+    #for this one i want one per library, dont care where the library perms came from
+    def postableslibrary(self):
+        plist=[]
+        libs=[]
+        for ele in self.postablesin:
+            if ele.ptype != 'library':
+                p = MAPDICT[ele.ptype].objects(basic__fqin=ele.fqpn).get()
+                ls = p.postablesin
+                for e in ls:
+                    plist.append(e)
+            else:
+                libs.append(ele)
+        libs = libs + plist
+        pdict={}
+        rw={}
+        for l in libs:
+            if not pdict.has_key(l.fqpn):
+                pdict[l.fqpn] = l
+                rw[l.fqpn] = l.readwrite
+            else:
+                rw[l.fqpn] = rw[l.fqpn] or l.readwrite
+        for k in pdict.keys():
+            pdict[k].readwrite = rw[k]
+        return pdict.values()
+
+
+        
+
+    #this below is wrong as we dont take into account multiple groups that can be in a library
+    # def postablesall_rws(self):
+    #     perms2={}
+    #     perms={}
+    #     for ele in self.postablesin:
+    #         if ele.ptype == 'library':
+    #             perms[ele.fqpn]=[ele.pname, ele.readwrite]
+    #         else:#in a group or app which can be members.
+    #             perms[ele.fqpn]=[ele.pname, ele.readwrite]
+    #             p = MAPDICT[ele.ptype].objects(basic__fqin=ele.fqpn).get()
+    #             perms2[ele.fqpn] = p.get_postablesin_rws()
+    #     #BUG: we dont distinguish group and app hierarchies. Currently only assuming groups.
+    #     for k in perms2.keys():
+    #         pdict = perms2[k]
+    #         for l in pdict.keys():
+    #             #if we are already member of library directly get perms from there
+    #             if not perms.has_key(l):
+    #                 perms[l] = pdict[l]
+    #     return perms
+
+    def presentable_name(self):
+        return self.adsid
 
 #POSTABLES
 class Group(Document):
     classname="group"
+    meta = {
+        'indexes': ['owner', 'basic.name', 'nick','basic.whencreated'],
+        'ordering': ['-basic.whencreated']
+    }
     personalgroup=BooleanField(default=False, required=True)
     #ISMEMBER INTERFACE
     nick = StringField(required=True, unique=True)
@@ -123,25 +259,38 @@ class Group(Document):
     postablesin=ListField(EmbeddedDocumentField(PostableEmbedded))
 
     def get_member_fqins(self):
-        return [ele.fqmn for ele in self.members]
+        return Gget_member_fqins(self)
+
+    def get_member_pnames(memb):
+        return Gget_member_pnames(memb)
 
     def get_member_rws(self):
-        perms={}
-        for ele in self.members:
-            perms[ele.fqmn]=ele.readwrite
-        return perms
+        return Gget_member_rws(self)
 
     def get_invited_fqins(self):
-        return [ele.fqmn for ele in self.inviteds]
+        return Gget_invited_fqins(self)
+
+    def get_invited_pnames(memb):
+        return Gget_invited_pnames(memb)
 
     def get_invited_rws(self):
+        return Gget_invited_rws(self)
+
+    def get_postablesin_rws(self):
         perms={}
-        for ele in self.inviteds:
-            perms[ele.fqmn]=ele.readwrite
+        for ele in self.postablesin:
+            perms[ele.fqpn]=[ele.pname, ele.readwrite]
         return perms
+
+    def presentable_name(self):
+        return self.classname+":"+self.basic.name
 
 class App(Document):
     classname="app"
+    meta = {
+        'indexes': ['owner', 'basic.name', 'nick', 'basic.whencreated'],
+        'ordering': ['-basic.whencreated']
+    }
     #ISMEMBER INTERFACE
     nick = StringField(required=True, unique=True)
     #@interface:POSTABLE
@@ -153,26 +302,38 @@ class App(Document):
 
 
     def get_member_fqins(self):
-        return [ele.fqmn for ele in self.members]
+        return Gget_member_fqins(self)
+
+    def get_member_pnames(memb):
+        return Gget_member_pnames(memb)
 
     def get_member_rws(self):
-        perms={}
-        for ele in self.members:
-            perms[ele.fqmn]=ele.readwrite
-        return perms
+        return Gget_member_rws(self)
 
     def get_invited_fqins(self):
-        return [ele.fqmn for ele in self.inviteds]
+        return Gget_invited_fqins(self)
+
+    def get_invited_pnames(memb):
+        return Gget_invited_pnames(memb)
 
     def get_invited_rws(self):
+        return Gget_invited_rws(self)
+
+    def get_postablesin_rws(self):
         perms={}
-        for ele in self.inviteds:
-            perms[ele.fqmn]=ele.readwrite
+        for ele in self.postablesin:
+            perms[ele.fqpn]=[ele.pname, ele.readwrite]
         return perms
 
+    def presentable_name(self):
+        return self.classname+":"+self.basic.name
 #Do we need this at all?
 class Library(Document):
     classname="library"
+    meta = {
+        'indexes': ['owner', 'basic.name', 'nick', 'basic.whencreated'],
+        'ordering': ['-basic.whencreated']
+    }
     #Libraries cant me members, but still we implement this ISMEMBER INTERFACE
     nick = StringField(required=True, unique=True)
     #@interface:POSTABLE
@@ -182,22 +343,26 @@ class Library(Document):
     inviteds = ListField(EmbeddedDocumentField(MembableEmbedded))
 
     def get_member_fqins(self):
-        return [ele.fqmn for ele in self.members]
+        return Gget_member_fqins(self)
+
+    def get_member_pnames(memb):
+        return Gget_member_pnames(memb)
 
     def get_member_rws(self):
-        perms={}
-        for ele in self.members:
-            perms[ele.fqmn]=ele.readwrite
-        return perms
+        return Gget_member_rws(self)
 
     def get_invited_fqins(self):
-        return [ele.fqmn for ele in self.inviteds]
+        return Gget_invited_fqins(self)
+
+    def get_invited_pnames(memb):
+        return Gget_invited_pnames(memb)
 
     def get_invited_rws(self):
-        perms={}
-        for ele in self.inviteds:
-            perms[ele.fqmn]=ele.readwrite
-        return perms
+        return Gget_invited_rws(self)
+
+
+    def presentable_name(self):
+        return self.classname+":"+self.basic.name
 #
 #POSTING AND TAGGING ARE DUCKS
 
@@ -226,10 +391,18 @@ class Tagging(Post):
 
 class PostingDocument(Document):
     classname="postingdocument"
+    meta = {
+        'indexes': ['thething.postfqin', 'thething.posttype', 'thething.whenposted', 'thething.postedby', 'thething.thingtoposttype'],
+        'ordering': ['-thething.whenposted']
+    }
     thething=EmbeddedDocumentField(Post)
 
 class TaggingDocument(Document):
     classname="taggingdocument"
+    meta = {
+        'indexes': ['thething.postfqin', 'thething.posttype', 'thething.whenposted', 'thething.postedby', 'thething.thingtoposttype', 'thething.tagname', 'thething.tagtype'],
+        'ordering': ['-thething.whenposted']
+    }
     thething=EmbeddedDocumentField(Tagging)
     #pingrps = ListField(EmbeddedDocumentField(Post))
     #pinapps = ListField(EmbeddedDocumentField(Post))
@@ -238,8 +411,14 @@ class TaggingDocument(Document):
     #pinlibs = ListField(EmbeddedDocumentField(Tagging))
 
 
+#how to have indexes work within pinpostables abd stags? use those documents
+#hopefully we are doing this but how to handle the multiple postings?
 class Item(Document):
     classname="item"
+    meta = {
+        'indexes': ['itemtype', 'basic.whencreated', 'basic.name'],
+        'ordering': ['-basic.whencreated']
+    }
     #itypefqin
     itemtype = StringField(required=True)
     basic = EmbeddedDocumentField(Basic)
@@ -257,5 +436,12 @@ class Item(Document):
 #Have specific collections for @group, @app, @library
 ##but not for other tags. Do full intersections there.
 #for each collection have items, not tags
+MAPDICT={
+    'group':Group,
+    'app':App,
+    'user':User,
+    'library':Library
+}
+
 if __name__=="__main__":
     pass

@@ -144,20 +144,24 @@ class Database():
     #Also checks for membership!
     def canIPostToPostable(self, currentuser, memberable, postable, memclass=MEMBABLES):
         "is the memberable a member of postable"
+        if self.isOwnerOfPostable(currentuser, memberable, postable):
+            return True
         rws=postable.get_member_rws()
         print "P", postable.basic.fqin, "M", memberable.basic.fqin
+        start=False
         if memberable.basic.fqin in rws.keys():
             print "here", rws.keys()
-            return (rws[memberable.basic.fqin] or self.isOwnerOfPostable(currentuser, memberable, postable))
+            start = start or rws[memberable.basic.fqin][1]
         print "there", rws.keys()
+        #goes down membership list here
         for mem in rws.keys():
             ptype=gettype(mem)
             if  ptype in memclass:
                 pos=self.getMembable(currentuser, mem)
                 posmembers=pos.get_member_fqins()
                 if memberable.basic.fqin in posmembers:
-                    return (rws[mem] or self.isOwnerOfPostable(currentuser, memberable, postable))
-        return False
+                    start = start or rws[mem][1]
+        return start
 
     #using MEMBERABLE/OWNABLE:this can let a group be owner of the ownable, as long as its 'fqin' is in the owner field.
     #this one is unprotected
@@ -210,10 +214,24 @@ class Database():
             postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables]
         return postables
 
+    def postablesUserCanAccess(self, currentuser, useras, ptypestr=None):
+        "return the postables the user is a member of"
+        authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
+        nlibpostables = useras.postablesnotlibrary()
+        otherpostables = useras.postableslibrary()
+        allpostables = nlibpostables + otherpostables
+        if ptypestr:
+            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables if e['ptype']==ptypestr]
+        else:
+            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables]
+        return postables
+
     def postablesUserCanWriteTo(self, currentuser, useras, ptypestr=None):
         "return the postables the user is a member of"
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
-        allpostables=useras.postablesin
+        nlibpostables = useras.postablesnotlibrary()
+        otherpostables = useras.postableslibrary()
+        allpostables = nlibpostables + otherpostables
         if ptypestr:
             postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables if (e['ptype']==ptypestr and e['readwrite']==True)]
         else:
@@ -246,10 +264,9 @@ class Database():
             print "IS OWNER"
             perms=postable.get_member_rws()
         else:
-            members=postable.get_member_fqins()
-            perms={}
-            for k in members:
-                perms[k]=''
+            perms=postable.get_member_rws()
+            for k in perms.keys():
+                perms[k][1]=''
         return perms
 
     def membersOfPostableFromFqin(self, currentuser, memberable, fqpn):
@@ -343,7 +360,7 @@ class Database():
             newpostable.save(safe=True)
             #how to save it together?
             userq= User.objects(basic__fqin=newpostable.owner)
-            newpe=PostableEmbedded(ptype=ptypestr,fqpn=newpostable.basic.fqin, readwrite=True, description=newpostable.basic.description)
+            newpe=PostableEmbedded(ptype=ptypestr,fqpn=newpostable.basic.fqin, pname = newpostable.presentable_name(), readwrite=True, description=newpostable.basic.description)
             res=userq.update(safe_update=True, push__postablesowned=newpe)
             #print "result", res, currentuser.groupsowned, currentuser.to_json()
             
@@ -408,9 +425,9 @@ class Database():
                     rw=RWDEFMAP[ptype]
                 else:
                     rw= (not RWDEFMAP[ptype])
-            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, readwrite=rw, description=postable.basic.description)
+            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, pname = postable.presentable_name(), readwrite=rw, description=postable.basic.description)
             memberableq.update(safe_update=True, push__postablesin=pe)
-            memb=MembableEmbedded(mtype=mtype.classname, fqmn=memberablefqin, readwrite=rw)
+            memb=MembableEmbedded(mtype=mtype.classname, fqmn=memberablefqin, readwrite=rw, pname = memberable.presentable_name())
             postableq.update(safe_update=True, push__members=memb)
         except:
             doabort('BAD_REQ', "Failed adding memberable %s %s to postable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
@@ -487,12 +504,13 @@ class Database():
         #BUG: need exception handling here, also want to make sure no strange fqins are accepted
         membableq=ptype.objects(basic__fqin=fqpn)
         memberableq= mtype.objects(basic__fqin=memberablefqin)
+        memberable = memberableq.get()
         try:
             if not changerw:
                 rw=RWDEFMAP[ptype]
             else:
                 rw= (not RWDEFMAP[ptype])
-            memb=MembableEmbedded(mtype=mtype.classname, fqmn=memberablefqin, readwrite=rw)
+            memb=MembableEmbedded(mtype=mtype.classname, fqmn=memberablefqin, readwrite=rw, pname = memberable.presentable_name())
             membableq.update(safe_update=True, push__members=memb)
         except:
             doabort('BAD_REQ', "Failed adding memberable %s %s to membable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
@@ -525,6 +543,8 @@ class Database():
         ptype=gettype(fqpn)
         postable=self.getPostable(currentuser, fqpn)
         usertobeaddedfqin=user.basic.fqin
+        if usertobeaddedfqin==useras.basic.fqin:
+            doabort('BAD_REQ', "Failed inviting user %s to postable %s as cant invite owner" % (usertobeaddedfqin, fqpn))
         # userq= User.objects(basic__fqin=usertobeaddedfqin)
         # try:
         #     user=userq.get()
@@ -536,9 +556,9 @@ class Database():
                 rw=RWDEFMAP[ptype]
             else:
                 rw= (not RWDEFMAP[ptype])
-            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, readwrite=rw, description=postable.basic.description)
+            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, pname = postable.presentable_name(), readwrite=rw, description=postable.basic.description)
             user.update(safe_update=True, push__postablesinvitedto=pe)
-            memb=MembableEmbedded(mtype=User.classname, fqmn=usertobeaddedfqin, readwrite=rw)
+            memb=MembableEmbedded(mtype=User.classname, fqmn=usertobeaddedfqin, readwrite=rw, pname = user.presentable_name())
             #BUG: ok to use fqin here instead of getting from oblect?
             print "LLL", pe.to_json(), memb.to_json(), "+++++++++++++"
             print postable.to_json()
@@ -644,8 +664,8 @@ class Database():
         try:
             oldownerfqpn=postable.owner
             members=postable.members
-            memb=MembableEmbedded(mtype=User.classname, fqmn=newowner.basic.fqin, readwrite=True)
-            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, readwrite=True, description=postable.basic.description)
+            memb=MembableEmbedded(mtype=User.classname, fqmn=newowner.basic.fqin, readwrite=True, pname = newowner.presentable_name())
+            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, pname = postable.presentable_name(), readwrite=True, description=postable.basic.description)
             #find new owner as member, locate in postable his membership, update it with readwrite if needed, and make him owner
             #add embedded postable to his ownership and his membership
             postableq.filter(members__fqmn=newowner.basic.fqin).update_one(safe_update=True, set__owner = newowner.basic.fqin, set__members_S=memb)
@@ -681,7 +701,7 @@ class Database():
 
         
         try:
-            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, readwrite=True, description=description)
+            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, pname = postable.presentable_name(), readwrite=True, description=description)
             #find new owner as member, locate in postable his membership, update it with readwrite if needed, and make him owner
             #add embedded postable to his ownership and his membership
             postableq.update_one(safe_update=True, set__basic__description=description)
@@ -724,7 +744,7 @@ class Database():
             " Possible new owner %s %s must be member of ownable %s %s" % (newownertype.__name__, newownerfqin, ptype.__name__, fqpn))
         try:
             oldownerfqpn=ownable.owner
-            memb=MembableEmbedded(mtype=User.classname, fqmn=newowner.basic.fqin, readwrite=True)
+            memb=MembableEmbedded(mtype=User.classname, fqmn=newowner.basic.fqin, readwrite=True, pname = newowner.presentable_name())
             oq.filter(members__fqmn=newowner.basic.fqin).update_one(safe_update=True, set__owner = newowner.basic.fqin, set__members_S=memb)
             #ownable.update(safe_update=True, set__owner = newowner.basic.fqin)
         except:
@@ -807,9 +827,14 @@ def initialize_testing(db_session):
 
     jayluker, mlg = whosdb.acceptInviteToPostable(jayluker, 'rahuldave/group:ml', jayluker)
     jayluker, spg=whosdb.addGroup(jayluker, jayluker, dict(name='sp', description="Solr Programming Group"))
+    jayluker, gpg=whosdb.addGroup(jayluker, jayluker, dict(name='gp', description="Gaussian Process Group"))
     jayluker, spl=whosdb.addLibrary(jayluker, jayluker, dict(name='spl', description="Solr Programming Library"))
-    rahuldave, spl=whosdb.inviteUserToPostableUsingNick(jayluker, 'jayluker/library:spl', 'rahuldave')
+    jayluker, mpl=whosdb.addLibrary(jayluker, jayluker, dict(name='mpl', description="Mongo Programming Library"))
+    rahuldave, mpl=whosdb.inviteUserToPostableUsingNick(jayluker, 'jayluker/library:mpl', 'rahuldave')
+    rahuldave, gpg=whosdb.inviteUserToPostableUsingNick(jayluker, 'jayluker/group:gp', 'rahuldave')
     rahuldave, spg=whosdb.addUserToPostable(jayluker, 'jayluker/group:sp', 'rahuldave')
+    u, p =whosdb.addMemberableToPostable(jayluker, jayluker, 'jayluker/library:spl', 'rahuldave/group:ml', True)
+    print "GEEEE", u, p
     import random
     for i in range(20):
         r=random.choice([1,2])
