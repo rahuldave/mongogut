@@ -115,7 +115,9 @@ class Database():
         print "AUTHING", currentuser.nick, memberable.nick
         authorize_postable_member(MEMBER_OF_POSTABLE, self, currentuser, memberable, postable)
         print "GOT HERE"
-        return postable
+        owner = self.getUserForFqin(currentuser, postable.owner)
+        creator = self.getUserForFqin(currentuser, postable.basic.creator)
+        return postable, owner, creator
 
     #using MEMBERABLE interface. this one is unprotected
     #also returns true if a user is a member of a postable(say a group), which is a member
