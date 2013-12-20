@@ -772,6 +772,9 @@ class Postdb():
     #   criteria=[{field:fieldname, op:operator, value:val}...]
     #   CURRENTLY we use AND outside. To do OR use an op:in query
     #   Finally we need to handle pagination/offsets
+    #CRITTERS [{'field': 'owner', 'value': u'adsgut/user:rahuldave', 'op': 'eq'}, 
+    #{'field': 'singleton', 'value': False, 'op': 'eq'}]
+    #PREK field owner {'field': 'owner', 'value': u'adsgut/user:rahuldave', 'op': 'eq'
     def _makeQuery(self, klass, currentuser, useras, criteria, postablecontext=None, sort=None, shownfields=None, pagtuple=None):
         DEFPAGOFFSET=0
         DEFPAGSIZE=10
@@ -783,6 +786,7 @@ class Postdb():
         #CHECK we merge RAW criteria so this is always an AND. I believe this is ok.
         dcriteria={}
         numdict=0
+        print "CRITTERS", criteria
         for l in criteria:
             if type(l)==types.ListType:
                 kwdict={}
@@ -796,6 +800,7 @@ class Postdb():
                 numdict=numdict+1
                 precursor=l.keys()[0]
                 kwdict={}
+                print "PREK", precursor, l[precursor], l
                 for d in l[precursor]:
                     kwdict[d['field']+'__'+d['op']]=d['value']
                 f=elematchmaker2(precursor, kwdict)
@@ -912,11 +917,13 @@ class Postdb():
     def getTagsAsOwnerOnly(self, currentuser, useras, tagtype=None, singletonmode=False):
         criteria=[
             {'field':'owner', 'op':'eq', 'value':useras.basic.fqin},
-            {'field':'singleton', 'op':'eq', 'value':singletonmode}
+            {'field':'singletonmode', 'op':'eq', 'value':singletonmode}
         ]
+        #BUG: later add in support for tagtype being a list of tagtypes, currently only one
         if tagtype:
-            criteria.append({'field':'tagtype', 'op':tagtype[0], 'value':tagtype[1]})
-        result=self.getTagsForTagspec(currentuser, useras, criteria)
+            criteria.append({'field':'tagtype', 'op':'eq', 'value':tagtype})
+        result=self.getTagsForTagspec(currentuser, useras, [criteria])
+        print "RESO", [e.basic.name for e in list(result[1])]
         return result
 
     #You also have access to tags through group ownership of tags
@@ -926,20 +933,23 @@ class Postdb():
         #the postables for which user is a member
         #this is only for group so ok to use postablesForUser
         postablesforuser=[e['fqpn'] for e in self.whosdb.postablesForUser(currentuser, useras, "group")]
-        print "gtamo", postablesforuser
+        #print "gtamo", postablesforuser
         #notice in op does OR not AND
         criteria=[
             {'field':'owner', 'op':'ne', 'value':useras.basic.fqin},
             {'field':'members__fqmn', 'op':'in', 'value':postablesforuser},
-            {'field':'singleton', 'op':'eq', 'value':singletonmode}
+            {'field':'singletonmode', 'op':'eq', 'value':singletonmode}
         ]
         if tagtype:
-            criteria.append({'field':'tagtype', 'op':tagtype[0], 'value':tagtype[1]})
-        result=self.getTagsForTagspec(currentuser, useras, criteria)
+            criteria.append({'field':'tagtype', 'op':'eq', 'value':tagtype})
+        result=self.getTagsForTagspec(currentuser, useras, [criteria])
+        print "RESM", [e.basic.name for e in list(result[1])]
         return result
 
     def getAllTagsForUser(self, currentuser, useras, tagtype=None, singletonmode=False):
-        total=self.getTagsAsOwnerOnly(self, currentuser, useras, tagtype, singletonmode) + self.getTagsAsMemberOnly(self, currentuser, useras, tagtype, singletonmode)
+        a=self.getTagsAsOwnerOnly(currentuser, useras, tagtype, singletonmode)
+        b=self.getTagsAsMemberOnly(currentuser, useras, tagtype, singletonmode)
+        return (a[0]+b[0], list(a[1])+list(b[1]))
 
 
     #if there are no postables, this wont do any checking.
@@ -947,7 +957,7 @@ class Postdb():
         tagquery=False
         postablequery=False
         tagquerytype=None
-        print "QUERY=", query
+        #print "QUERY=", query
         if query.has_key('stags'):
             tagquery=query.get("stags",[])
             tagquerytype="postfqin"
@@ -966,7 +976,7 @@ class Postdb():
                     #BUG: should this have all libraries too?
                     #if its a group postablesForUSer is just fine, as there are no wierd access issues
                     postablegroupsforuser=[e['fqpn'] for e in self.whosdb.postablesForUser(currentuser, useras, "group")]
-                    print "pgfu", postablegroupsforuser
+                    #print "pgfu", postablegroupsforuser
                     postablesforuser = postablegroupsforuser
                     #postablesforuser = postablegroupsforuser + postablelibrariesforuser
                     postablequery=[p.basic.fqin for p in postablesforuser]
@@ -1016,19 +1026,19 @@ class Postdb():
                     ]}
             )
         if postablequery and not userfqin:
-            print "NO USER", userfqin
+            #print "NO USER", userfqin
             criteria.append(
                     [{'field':'pinpostables__postfqin', 'op':'all', 'value':postablequery}]
             )
 
         if postablequery and userfqin:
-            print "USER", userfqin
+            #print "USER", userfqin
             criteria.append(
                     {'pinpostables':[{'field':'postfqin', 'op':'all', 'value':postablequery},
                                         {'field':'postedby', 'op':'eq', 'value':userfqin}
                     ]}
             )
-        print "?OUTCRITERIA",criteria,  sort, pagtuple
+        #print "?OUTCRITERIA",criteria,  sort, pagtuple
         result=self._makeQuery(klass, currentuser, useras, criteria, None, sort, shownfields, pagtuple)
         return result
 
