@@ -15,6 +15,7 @@ class Basic(EmbeddedDocument):
     uri = StringField(default="", required=True)
     creator=StringField(required=True)
     whencreated=DateTimeField(required=True, default=datetime.datetime.now)
+    lastmodified=DateTimeField(required=True, default=datetime.datetime.now)
     #Below is a combination of namespace and name
     fqin = StringField(required=True, unique=True)
     description = StringField(default="")
@@ -44,6 +45,7 @@ class PostableEmbedded(EmbeddedDocument):
     fqpn = StringField(required=True)
     ptype = StringField(required=True)
     pname = StringField(required=True)
+    owner = StringField(required=True)
     readwrite = BooleanField(required=True, default=False)
     description = StringField(default="")
 
@@ -282,7 +284,9 @@ class Group(Document):
             perms[ele.fqpn]=[ele.pname, ele.readwrite]
         return perms
 
-    def presentable_name(self):
+    def presentable_name(self, withoutclass=False):
+        if withoutclass:
+            return self.basic.name
         return self.classname+":"+self.basic.name
 
 class App(Document):
@@ -325,7 +329,9 @@ class App(Document):
             perms[ele.fqpn]=[ele.pname, ele.readwrite]
         return perms
 
-    def presentable_name(self):
+    def presentable_name(self, withoutclass=False):
+        if withoutclass:
+            return self.basic.name
         return self.classname+":"+self.basic.name
 #Do we need this at all?
 class Library(Document):
@@ -361,7 +367,9 @@ class Library(Document):
         return Gget_invited_rws(self)
 
 
-    def presentable_name(self):
+    def presentable_name(self, withoutclass=False):
+        if withoutclass:
+            return self.basic.name
         return self.classname+":"+self.basic.name
 #
 #POSTING AND TAGGING ARE DUCKS
@@ -385,7 +393,7 @@ class Tagging(Post):
     tagtype=StringField(default="ads/tag", required=True)
     tagname=StringField(required=True)
     tagdescription=StringField(default="", required=True)
-    tagmode = BooleanField(default=False, required=True)
+    tagmode = IntField(default=0, required=True)
     singletonmode = BooleanField(default=False, required=True)
 
 

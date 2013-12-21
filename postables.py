@@ -356,23 +356,30 @@ class Database():
         postablespec['creator']=useras.basic.fqin
         postablespec=augmentspec(postablespec, ptypestr)
         ptype=gettype(postablespec['basic'].fqin)
-        print "In addPostable", ptypestr, ptype
         try:
-            newpostable=ptype(**postablespec)
-            newpostable.save(safe=True)
-            #how to save it together?
-            userq= User.objects(basic__fqin=newpostable.owner)
-            newpe=PostableEmbedded(ptype=ptypestr,fqpn=newpostable.basic.fqin, pname = newpostable.presentable_name(), readwrite=True, description=newpostable.basic.description)
-            res=userq.update(safe_update=True, push__postablesowned=newpe)
-            #print "result", res, currentuser.groupsowned, currentuser.to_json()
-            
-        except:
-            doabort('BAD_REQ', "Failed adding postable %s %s" % (ptype.__name__, postablespec['basic'].fqin))
-        #BUG changerw must be appropriate here!
-        self.addMemberableToPostable(currentuser, useras, newpostable.basic.fqin, newpostable.basic.creator, changerw=False, ownermode=True)
-        #print "autoRELOAD?", userq.get().to_json()
-        newpostable.reload()
-        return userq.get(), newpostable
+            print "do we exist",postablespec['basic'].fqin
+            p=ptype.objects.get(basic__fqin=postablespec['basic'].fqin)
+            print "postable exists", p.basic.fqin
+            return useras, p
+        except:            
+            print "In addPostable", ptypestr, ptype
+            try:
+                newpostable=ptype(**postablespec)
+                newpostable.save(safe=True)
+                #how to save it together?
+                userq= User.objects(basic__fqin=newpostable.owner)
+                user=userq.get()
+                newpe=PostableEmbedded(ptype=ptypestr,fqpn=newpostable.basic.fqin, owner=user.adsid, pname = newpostable.presentable_name(), readwrite=True, description=newpostable.basic.description)
+                res=userq.update(safe_update=True, push__postablesowned=newpe)
+                #print "result", res, currentuser.groupsowned, currentuser.to_json()
+                
+            except:
+                doabort('BAD_REQ', "Failed adding postable %s %s" % (ptype.__name__, postablespec['basic'].fqin))
+            #BUG changerw must be appropriate here!
+            self.addMemberableToPostable(currentuser, useras, newpostable.basic.fqin, newpostable.basic.creator, changerw=False, ownermode=True)
+            #print "autoRELOAD?", userq.get().to_json()
+            newpostable.reload()
+            return user, newpostable
 
     def addGroup(self, currentuser, useras, groupspec):
         return self.addPostable(currentuser, useras, "group", groupspec)
@@ -427,7 +434,7 @@ class Database():
                     rw=RWDEFMAP[ptype]
                 else:
                     rw= (not RWDEFMAP[ptype])
-            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, pname = postable.presentable_name(), readwrite=rw, description=postable.basic.description)
+            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=useras.adsid, pname = postable.presentable_name(), readwrite=rw, description=postable.basic.description)
             memberableq.update(safe_update=True, push__postablesin=pe)
             memb=MembableEmbedded(mtype=mtype.classname, fqmn=memberablefqin, readwrite=rw, pname = memberable.presentable_name())
             postableq.update(safe_update=True, push__members=memb)
@@ -558,7 +565,7 @@ class Database():
                 rw=RWDEFMAP[ptype]
             else:
                 rw= (not RWDEFMAP[ptype])
-            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, pname = postable.presentable_name(), readwrite=rw, description=postable.basic.description)
+            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=useras.adsid, pname = postable.presentable_name(), readwrite=rw, description=postable.basic.description)
             user.update(safe_update=True, push__postablesinvitedto=pe)
             memb=MembableEmbedded(mtype=User.classname, fqmn=usertobeaddedfqin, readwrite=rw, pname = user.presentable_name())
             #BUG: ok to use fqin here instead of getting from oblect?
@@ -667,7 +674,7 @@ class Database():
             oldownerfqpn=postable.owner
             members=postable.members
             memb=MembableEmbedded(mtype=User.classname, fqmn=newowner.basic.fqin, readwrite=True, pname = newowner.presentable_name())
-            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, pname = postable.presentable_name(), readwrite=True, description=postable.basic.description)
+            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=newowner.adsid, pname = postable.presentable_name(), readwrite=True, description=postable.basic.description)
             #find new owner as member, locate in postable his membership, update it with readwrite if needed, and make him owner
             #add embedded postable to his ownership and his membership
             postableq.filter(members__fqmn=newowner.basic.fqin).update_one(safe_update=True, set__owner = newowner.basic.fqin, set__members_S=memb)
@@ -703,7 +710,7 @@ class Database():
 
         
         try:
-            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, pname = postable.presentable_name(), readwrite=True, description=description)
+            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=owner.adsid, pname = postable.presentable_name(), readwrite=True, description=description)
             #find new owner as member, locate in postable his membership, update it with readwrite if needed, and make him owner
             #add embedded postable to his ownership and his membership
             postableq.update_one(safe_update=True, set__basic__description=description)

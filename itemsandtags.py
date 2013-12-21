@@ -127,10 +127,12 @@ class Postdb():
         #CHECK taking out  receiver(self.recv_postTaggingIntoItemtypesApp) 
         # , from tagged items as will happen by appr.
         #postables. General BUG tho that we can post taggings multiple times. Add check
+        #"added-to-group":[receiver(self.recv_postItemIntoPersonal), receiver(self.recv_spreadOwnedTaggingIntoPostable)],
+
 
         SIGNALS={
             "saved-item":[receiver(self.recv_postItemIntoPersonal), receiver(self.recv_postItemIntoItemtypesApp)],
-            "added-to-group":[receiver(self.recv_postItemIntoPersonal), receiver(self.recv_spreadOwnedTaggingIntoPostable)],
+            "added-to-group":[receiver(self.recv_spreadOwnedTaggingIntoPostable)],
             "save-to-personal-group-if-not":[receiver(self.recv_postItemIntoPersonal)],
             "tagged-item":[
                         receiver(self.recv_spreadTaggingToAppropriatePostables), receiver(self.recv_postTaggingIntoPersonal)
@@ -500,9 +502,15 @@ class Postdb():
         #itemtobetagged=self._getItem(currentuser, fullyQualifiedItemName)
         itemtobetagged=item
 
+        
+        if tagspec.has_key('tagmode'):
+            tagmode = tagspec('tagmode')
+            del tagspec['tagmode']
+        else:
+            tagmode=tagtypeobj.tagmode
+
         #makeTag handles idempotency
         tag = self.makeTag(currentuser, useras, tagspec)
-        tagmode=tagtypeobj.tagmode
         singletonmode=tag.singletonmode
         #Now that we have a tag item, we need to create a tagging
         try:
@@ -544,6 +552,7 @@ class Postdb():
             self.signals['save-to-personal-group-if-not'].send(self, obj=self, currentuser=currentuser, useras=useras, 
                 item=itemtobetagged)
             #now since in personal group, appropriate postables will pick it up
+            #tagmode here must be from taggingdoc, not from tag
             self.signals['tagged-item'].send(self, obj=self, currentuser=currentuser, useras=useras, 
                 taggingdoc=taggingdoc, tagmode=tagmode, item=itemtobetagged)
         #if itemtag found just return it, else create, add to group, return
@@ -569,7 +578,7 @@ class Postdb():
         return taggingdoc
     #BUG: protection of this tagging? Use useras.basic.fqin for now
     #BUG: this does not work in the direction of making tagging private for now
-    def changeTagmodeOfTagging(self, currentuser, useras, fqin, fqtn, tomode=False):
+    def changeTagmodeOfTagging(self, currentuser, useras, fqin, fqtn, tomode=0):
         #below makes sure user owned that tagging doc
         taggingdoc=self.getTaggingDoc(currentuser, useras, fqin, fqtn)
         taggingdoc.update(safe_update=True, set__thething__tagmode=tomode)
@@ -598,7 +607,7 @@ class Postdb():
         item=kwargs['item']
         taggingdoc=kwargs['taggingdoc']
         tagmode=kwargs['tagmode']
-        if not tagmode:
+        if tagmode==0:
             #item=self._getItem(currentuser, itemfqin)
             fqan=self._getItemType(currentuser, item.itemtype).postable
             self.postTaggingIntoApp(currentuser, useras, fqan, taggingdoc)
@@ -613,7 +622,7 @@ class Postdb():
         tagmode=kwargs['tagmode']
         #item=self._getItem(currentuser, itemfqin)
         personalfqgn=useras.nick+"/group:default"
-        if not tagmode:
+        if tagmode==0:
             postablesin=[]
             for ptt in item.pinpostables:
                 pttfqin=ptt.postfqin
@@ -644,7 +653,9 @@ class Postdb():
                     thingtopostfqin=tagging.thingtopostfqin, 
                     postedby=tagging.postedby).get()
             #if tagmode allows us to post it, then we post it. This could be made faster later
-            if not self._getTagType(currentuser, tagging.tagtype).tagmode:
+            #tagmode = self._getTagType(currentuser, tagging.tagtype).tagmode
+            #Shut down the above as taggingmode is there in taggingdoc
+            if taggingdoc.thething.tagmode==0:
                 self.postTaggingIntoPostable(currentuser, useras, fqpn, taggingdoc)
 
     #BUG only do if postable does not exist
@@ -1372,12 +1383,11 @@ class Postdb():
         li={}
         li=getlibs(li, libjson)
         for k in li.keys():
-            print "LIK", li[k][0]
-            useras, library=self.whosdb.addLibrary(useras, useras, dict(name=li[k][0], description=li[k][1]))
+            useras, library=self.whosdb.addLibrary(useras, useras, dict(name=li[k][0], description=li[k][1], lastmodified=li[k][2]))
             bibdict={}
-            for i in range(len(li[k][2])):
-                bib=li[k][2][i]
-                note=li[k][3][i]
+            for i in range(len(li[k][3])):
+                bib=li[k][3][i]
+                note=li[k][4][i]
                 #this is for speed. the saveItem checks if item is already there and simply returns it.
                 if not bibdict.has_key(bib):
                     paper={}
@@ -1396,13 +1406,20 @@ class Postdb():
         
 
 
-
+import datetime
 def getlibs(libs, json):
     for l in json['libraries']:
         if not libs.has_key(l['name']):
-            libs[l['name']]=[l['name'],  l.get('desc',""), [e['bibcode'] for e in l['entries']], [e.get('note',"") for e in l['entries']]]
+            if l.has_key('lastmod'):
+                try:
+                    tstr=l['lastmod']
+                    t=datetime.strptime(tstr,"%d-%b-%Y")
+                except:
+                    t=datetime.datetime.now()
+            else:
+                t=datetime.datetime.now()
+            libs[l['name']]=[l['name'],  l.get('desc',""), t, [e['bibcode'] for e in l['entries']], [e.get('note',"") for e in l['entries']]]
         else:
-            print "repeated key", l['name']
             daset=set(libs[l['name']][2])
             newe=[e['bibcode'] for e in l['entries']]
             for e in newe:
@@ -1424,7 +1441,7 @@ def initialize_application(sess):
     postdb.addItemType(adsuser, dict(name="search", postable="ads/app:publications"))
     postdb.addTagType(adsuser, dict(name="tag",  postable="ads/app:publications"))
     postdb.addTagType(adsuser, dict(name="note", 
-        postable="ads/app:publications", tagmode=True, singletonmode=True))
+        postable="ads/app:publications", tagmode=1, singletonmode=True))
 
 
 def initialize_testing(db_session):
