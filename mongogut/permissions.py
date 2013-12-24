@@ -10,7 +10,7 @@ AUTHTOKENS={
 }
 def permit(clause, reason):
     if clause==False:
-        doabort('NOT_AUT', {'reason':reason})
+        doabort('NOT_AUT', reason)
 
 def permit_and(authstart, clausetuples):
     start=authstart
@@ -19,7 +19,7 @@ def permit_and(authstart, clausetuples):
         start = start and tup[0]
         reasons.append(tup[1])
     if start==False:
-        doabort('NOT_AUT', {'reason':' or '.join(reasons)})
+        doabort('NOT_AUT', ' or '.join(reasons))
 
 permit2=permit_and
 
@@ -30,7 +30,7 @@ def permit_or(authstart, clausetuples):
         start = start or tup[0]
         reasons.append(tup[1])
     if start==False:
-        doabort('NOT_AUT', {'reason':' or '.join(reasons)})
+        doabort('NOT_AUT', ' or '.join(reasons))
 #add permission helpers here to refactor permits
 #example group membership etc
 
