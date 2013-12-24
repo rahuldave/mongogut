@@ -140,12 +140,12 @@ def augmentspec(specdict, specstr="user"):
     del specdict['creator']
     if specdict.has_key('description'):
         del specdict['description']
-    print "OUTSPECDICT", specdict
+    #print "OUTSPECDICT", specdict
     return specdict
 
 def augmentitspec(specdict, spectype="item"):
     basicdict={}
-    print "INSPECDICT", specdict
+    #print "INSPECDICT", specdict
     specdict=musthavekeys(specdict,['creator', 'name'])
     if spectype=='item' or spectype=='tag':
         basicdict['creator']=specdict['creator']

@@ -84,10 +84,10 @@ abort=codeabort
 
 def doabort(codestring, reason):
     x=sys.exc_info()
-    print '==============================='
-    print x
-    print traceback.print_tb(x[2])
-    print '==============================='
+    # print '==============================='
+    # print x
+    # print traceback.print_tb(x[2])
+    # print '==============================='
     # if WEBMODE:
     #     webabort(ERRGUT[codestring], {'reason':reason})
     # else:
