@@ -1472,7 +1472,7 @@ def initialize_testing(db_session):
 
 
     import simplejson as sj
-    papers=sj.loads(open("fixtures/file.json").read())
+    papers=sj.loads(open("../fixtures/file.json").read())
     users=[rahuldave, jayluker]
     import random
     thedict={}
