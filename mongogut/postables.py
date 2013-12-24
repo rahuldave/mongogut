@@ -870,4 +870,4 @@ def initialize_testing(db_session):
 if __name__=="__main__":
     db_session=connect("adsgut")
     initialize_application(db_session)
-    initialize_testing(db_session)
+    #initialize_testing(db_session)
