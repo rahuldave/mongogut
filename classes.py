@@ -35,7 +35,7 @@ class TagType(Document):
     postabletype = StringField(required=True)
     #if tagmode=true for this tagtype, then tagging an item published to a group does not
     #result in the tag being published to the group. This is true of notes.
-    tagmode = BooleanField(default=False, required=True)
+    tagmode = StringField(default='0', required=True)
     #singleton mode, if true, means that a new instance of this tag must be created each time
     #once again example is note, which is created with a uuid as name
     singletonmode = BooleanField(default=False, required=True)
@@ -393,25 +393,25 @@ class Tagging(Post):
     tagtype=StringField(default="ads/tag", required=True)
     tagname=StringField(required=True)
     tagdescription=StringField(default="", required=True)
-    tagmode = IntField(default=0, required=True)
+    tagmode = StringField(default='0', required=True)
     singletonmode = BooleanField(default=False, required=True)
 
 
 class PostingDocument(Document):
     classname="postingdocument"
     meta = {
-        'indexes': ['thething.postfqin', 'thething.posttype', 'thething.whenposted', 'thething.postedby', 'thething.thingtoposttype'],
-        'ordering': ['-thething.whenposted']
+        'indexes': ['posting.postfqin', 'posting.posttype', 'posting.whenposted', 'posting.postedby', 'posting.thingtoposttype'],
+        'ordering': ['-posting.whenposted']
     }
-    thething=EmbeddedDocumentField(Post)
+    posting=EmbeddedDocumentField(Post)
 
 class TaggingDocument(Document):
     classname="taggingdocument"
     meta = {
-        'indexes': ['thething.postfqin', 'thething.posttype', 'thething.whenposted', 'thething.postedby', 'thething.thingtoposttype', 'thething.tagname', 'thething.tagtype'],
-        'ordering': ['-thething.whenposted']
+        'indexes': ['posting.postfqin', 'posting.posttype', 'posting.whenposted', 'posting.postedby', 'posting.thingtoposttype', 'posting.tagname', 'posting.tagtype'],
+        'ordering': ['-posting.whenposted']
     }
-    thething=EmbeddedDocumentField(Tagging)
+    posting=EmbeddedDocumentField(Tagging)
     #pingrps = ListField(EmbeddedDocumentField(Post))
     #pinapps = ListField(EmbeddedDocumentField(Post))
     #pinlibs = ListField(EmbeddedDocumentField(Post))

@@ -26,8 +26,8 @@ class Database():
     #this one is completely UNPROTECTED
     def getUserForNick(self, currentuser, nick):
         "gets user for nick"
-        #print "ingetuser", [e.nick for e in User.objects]
-        print "nick", nick
+        ##print "ingetuser", [e.nick for e in User.objects]
+        #print "nick", nick
         try:
             user=User.objects(nick=nick).get()
         except:
@@ -36,23 +36,23 @@ class Database():
 
     def getUserForAdsid(self, currentuser, adsid):
         "gets user for adsid"
-        #print "ingetuser", [e.nick for e in User.objects]
-        #print "nick", nick
+        ##print "ingetuser", [e.nick for e in User.objects]
+        ##print "nick", nick
         try:
             user=User.objects(adsid=adsid).get()
         except:
-            print "JJJJ", sys.exc_info()
+            #print "JJJJ", sys.exc_info()
             doabort('NOT_FND', "User %s not found" % adsid)
         return user
 
     def getUserForCookieid(self, currentuser, cookieid):
         "gets user for adsid"
-        #print "ingetuser", [e.nick for e in User.objects]
-        #print "nick", nick
+        ##print "ingetuser", [e.nick for e in User.objects]
+        ##print "nick", nick
         try:
             user=User.objects(cookieid=cookieid).get()
         except:
-            print "JJJJ", sys.exc_info()
+            #print "JJJJ", sys.exc_info()
             doabort('NOT_FND', "User %s not found" % cookieid)
         return user
 
@@ -112,9 +112,9 @@ class Database():
         "gets postable only if you are member of the postable"
         postable=self.getPostable(currentuser, fqpn)
         #BUG:this should work for a user member of postable as well as a memberable member of postable
-        print "AUTHING", currentuser.nick, memberable.nick
+        #print "AUTHING", currentuser.nick, memberable.nick
         authorize_postable_member(MEMBER_OF_POSTABLE, self, currentuser, memberable, postable)
-        print "GOT HERE"
+        #print "GOT HERE"
         owner = self.getUserForFqin(currentuser, postable.owner)
         creator = self.getUserForFqin(currentuser, postable.basic.creator)
         return postable, owner, creator
@@ -149,12 +149,12 @@ class Database():
         if self.isOwnerOfPostable(currentuser, memberable, postable):
             return True
         rws=postable.get_member_rws()
-        print "P", postable.basic.fqin, "M", memberable.basic.fqin
+        #print "P", postable.basic.fqin, "M", memberable.basic.fqin
         start=False
         if memberable.basic.fqin in rws.keys():
-            print "here", rws.keys()
+            #print "here", rws.keys()
             start = start or rws[memberable.basic.fqin][1]
-        print "there", rws.keys()
+        #print "there", rws.keys()
         #goes down membership list here
         for mem in rws.keys():
             ptype=gettype(mem)
@@ -169,7 +169,7 @@ class Database():
     #this one is unprotected
     def isOwnerOfOwnable(self, currentuser, memberable, ownable):
         "is memberable the owner of ownerable? ownerable is postable plus others"
-        print "in IOOO", currentuser.basic.fqin, memberable.basic.fqin, ownable.basic.fqin, ownable.owner
+        #print "in IOOO", currentuser.basic.fqin, memberable.basic.fqin, ownable.basic.fqin, ownable.owner
         if memberable.basic.fqin==ownable.owner:
             return True
         else:        
@@ -181,7 +181,7 @@ class Database():
 
     #invitations only work for users for now, even tho we have a memberable. unprotected
     def isInvitedToMembable(self, currentuser, memberable, membable):
-        print "MEMBERABLE", memberable.to_json(), "MEMBABLE", membable.to_json()
+        #print "MEMBERABLE", memberable.to_json(), "MEMBABLE", membable.to_json()
         if memberable.basic.fqin in [m.fqmn for m in membable.inviteds]:
             return True
         else:
@@ -261,9 +261,9 @@ class Database():
         #i need to have access to this if i come in through being a member of a memberable which is a member
         #authorize_postable member takes care of this. That memberable is NOT the same memberable in the arguments here
         authorize_postable_member(False, self, currentuser, memberable, postable)
-        print "CU", currentuser.nick, memberable.nick
+        #print "CU", currentuser.nick, memberable.nick
         if self.isOwnerOfPostable(currentuser, memberable, postable):
-            print "IS OWNER"
+            #print "IS OWNER"
             perms=postable.get_member_rws()
         else:
             perms=postable.get_member_rws()
@@ -306,7 +306,7 @@ class Database():
             newuser=User(**userspec)
             newuser.save(safe=True)
         except:
-            print sys.exc_info()
+            #print sys.exc_info()
             doabort('BAD_REQ', "Failed adding user %s" % userspec['adsid'])
 
         #BUG: more leakage here in bootstrap
@@ -316,7 +316,7 @@ class Database():
         #Also add user to private default group and public group
 
         #currentuser adds this as newuser
-        #print adding default personal group
+        ##print adding default personal group
 
         #BUG:CHANGED: is this ok?
         # self.addPostable(currentuser, newuser, "group", dict(name='default', creator=newuser.basic.fqin,
@@ -357,12 +357,12 @@ class Database():
         postablespec=augmentspec(postablespec, ptypestr)
         ptype=gettype(postablespec['basic'].fqin)
         try:
-            print "do we exist",postablespec['basic'].fqin
+            #print "do we exist",postablespec['basic'].fqin
             p=ptype.objects.get(basic__fqin=postablespec['basic'].fqin)
-            print "postable exists", p.basic.fqin
+            #print "postable exists", p.basic.fqin
             return useras, p
         except:            
-            print "In addPostable", ptypestr, ptype
+            #print "In addPostable", ptypestr, ptype
             try:
                 newpostable=ptype(**postablespec)
                 newpostable.save(safe=True)
@@ -371,13 +371,13 @@ class Database():
                 user=userq.get()
                 newpe=PostableEmbedded(ptype=ptypestr,fqpn=newpostable.basic.fqin, owner=user.adsid, pname = newpostable.presentable_name(), readwrite=True, description=newpostable.basic.description)
                 res=userq.update(safe_update=True, push__postablesowned=newpe)
-                #print "result", res, currentuser.groupsowned, currentuser.to_json()
+                ##print "result", res, currentuser.groupsowned, currentuser.to_json()
                 
             except:
                 doabort('BAD_REQ', "Failed adding postable %s %s" % (ptype.__name__, postablespec['basic'].fqin))
             #BUG changerw must be appropriate here!
             self.addMemberableToPostable(currentuser, useras, newpostable.basic.fqin, newpostable.basic.creator, changerw=False, ownermode=True)
-            #print "autoRELOAD?", userq.get().to_json()
+            ##print "autoRELOAD?", userq.get().to_json()
             newpostable.reload()
             return user, newpostable
 
@@ -407,7 +407,7 @@ class Database():
         "add a user, group, or app to a postable=group, app, or library"
         ptype=gettype(fqpn)
         mtype=gettype(memberablefqin)
-        print "types in AMTP", fqpn, ptype, memberablefqin,mtype
+        #print "types in AMTP", fqpn, ptype, memberablefqin,mtype
         postableq=ptype.objects(basic__fqin=fqpn)
         memberableq= mtype.objects(basic__fqin=memberablefqin)
         #BUG currently restricted admission. Later we will want groups and apps proxying for users.
@@ -422,7 +422,7 @@ class Database():
             doabort('BAD_REQ', "No such memberable %s %s" %  (mtype.__name__,memberablefqin))
 
         if fqpn!='adsgut/group:public':
-            print "Adding to POSTABLE ", memberable.basic.fqin, postable.basic.fqin, currentuser.basic.fqin, useras.basic.fqin
+            #print "Adding to POSTABLE ", memberable.basic.fqin, postable.basic.fqin, currentuser.basic.fqin, useras.basic.fqin
             #special case so any user can add themselves to public group
             #permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
             authorize_postable_owner(False, self, currentuser, useras, postable)
@@ -449,7 +449,7 @@ class Database():
         ptype=gettype(fqpn)
         memberablefqin=memberable.basic.fqin
         mtype=gettype(memberablefqin)
-        print "types", fqpn, ptype, memberablefqin,mtype
+        #print "types", fqpn, ptype, memberablefqin,mtype
         postableq=ptype.objects(basic__fqin=fqpn)
         #memberableq=mtype.objects(basic__fqin=memberablefqin)
         
@@ -569,13 +569,13 @@ class Database():
             user.update(safe_update=True, push__postablesinvitedto=pe)
             memb=MembableEmbedded(mtype=User.classname, fqmn=usertobeaddedfqin, readwrite=rw, pname = user.presentable_name())
             #BUG: ok to use fqin here instead of getting from oblect?
-            print "LLL", pe.to_json(), memb.to_json(), "+++++++++++++"
-            print postable.to_json()
+            #print "LLL", pe.to_json(), memb.to_json(), "+++++++++++++"
+            #print postable.to_json()
             postable.update(safe_update=True, push__inviteds=memb)
-            #print "userq", userq.to_json()
+            ##print "userq", userq.to_json()
         except:
             doabort('BAD_REQ', "Failed inviting user %s to postable %s" % (usertobeaddedfqin, fqpn))
-        #print "IIIII", userq.get().groupsinvitedto
+        ##print "IIIII", userq.get().groupsinvitedto
         postable.reload()
         user.reload()
         return user, postable
@@ -792,27 +792,27 @@ class Database():
         return self.getPostable(currentuser, fqln)
 
 def initialize_application(db_session):
-    print Group
+    #print Group
     currentuser=None
     whosdb=Database(db_session)
     adsgutuser=whosdb.addUser(currentuser, dict(nick='adsgut', adsid='adsgut'))
     currentuser=adsgutuser
-    print "11111 Added Initial User, this should have added private group too"
+    #print "11111 Added Initial User, this should have added private group too"
     igspec=dict(personalgroup=False, name="public", description="Public Group")
     adsgutuser, publicgrp=whosdb.addGroup(adsgutuser, adsgutuser, igspec)
-    print "22222 Added Initial Public group"
+    #print "22222 Added Initial Public group"
     adsgutuser, adsgutapp=whosdb.addApp(adsgutuser, adsgutuser, dict(name='adsgut', description="The MotherShip App"))
-    print "33333 Added Mothership app"
+    #print "33333 Added Mothership app"
     anonymouseuser=whosdb.addUser(adsgutuser, dict(nick='anonymouse', adsid='anonymouse'))
     adsuser=whosdb.addUser(adsgutuser, dict(nick='ads', adsid='ads'))
-    print "44444 Added ADS user", adsuser.to_json()
+    #print "44444 Added ADS user", adsuser.to_json()
     currentuser=adsuser
     adsuser, adspubsapp=whosdb.addApp(adsuser, adsuser, dict(name='publications', description="ADS's flagship publication app"))
-    print "55555 ADS user added publications app"
+    #print "55555 ADS user added publications app"
 
 
 def initialize_testing(db_session):
-    print "INIT TEST"
+    #print "INIT TEST"
     whosdb=Database(db_session)
     currentuser=None
     adsgutuser=whosdb.getUserForNick(currentuser, "adsgut")
@@ -826,13 +826,13 @@ def initialize_testing(db_session):
     rahuldave, adspubapp=whosdb.addUserToPostable(adsuser, 'ads/app:publications', 'rahuldave')
     #rahuldave.applicationsin.append(adspubsapp)
     
-    print "currentuser", currentuser.nick
+    #print "currentuser", currentuser.nick
     jayluker=whosdb.addUser(currentuser, dict(nick='jayluker', adsid="jayluker@gmail.com"))
     jayluker, adspubapp=whosdb.addUserToPostable(adsuser, 'ads/app:publications', 'jayluker')
     #jayluker.applicationsin.append(adspubsapp)
-    print "GAGAGAGAGAGA", adspubapp.to_json()
+    #print "GAGAGAGAGAGA", adspubapp.to_json()
     jayluker, mlg=whosdb.inviteUserToPostableUsingNick(rahuldave, 'rahuldave/group:ml', 'jayluker')
-    print "invited", jayluker.to_json()
+    #print "invited", jayluker.to_json()
 
     jayluker, mlg = whosdb.acceptInviteToPostable(jayluker, 'rahuldave/group:ml', jayluker)
     jayluker, spg=whosdb.addGroup(jayluker, jayluker, dict(name='sp', description="Solr Programming Group"))
@@ -843,7 +843,7 @@ def initialize_testing(db_session):
     rahuldave, gpg=whosdb.inviteUserToPostableUsingNick(jayluker, 'jayluker/group:gp', 'rahuldave')
     rahuldave, spg=whosdb.addUserToPostable(jayluker, 'jayluker/group:sp', 'rahuldave')
     u, p =whosdb.addMemberableToPostable(jayluker, jayluker, 'jayluker/library:spl', 'rahuldave/group:ml', True)
-    print "GEEEE", u, p
+    #print "GEEEE", u, p
     import random
     for i in range(20):
         r=random.choice([1,2])
@@ -853,19 +853,19 @@ def initialize_testing(db_session):
 
         if r==1:
             user, mlg=whosdb.inviteUserToPostableUsingNick(rahuldave, 'rahuldave/group:ml', user.nick)
-            print "==================================================================================================="
+            #print "==================================================================================================="
         else:
             user, spg=whosdb.inviteUserToPostableUsingNick(jayluker, 'jayluker/group:sp', user.nick)
     #whosdb.addGroupToApp(currentuser, 'ads@adslabs.org/app:publications', 'adsgut@adslabs.org/group:public', None )
     #public.applicationsin.append(adspubsapp)
     #rahuldavedefault.applicationsin.append(adspubsapp)
 
-    print "ending init", whosdb.ownerOfPostables(rahuldave, rahuldave), whosdb.ownerOfPostables(rahuldave, rahuldave, "group")
-    print "=============================="
-    print rahuldave.to_json(), mlg.to_json()
-    print "=============================="
-    print adsuser.to_json()
-    print "=============================="
+    #print "ending init", whosdb.ownerOfPostables(rahuldave, rahuldave), whosdb.ownerOfPostables(rahuldave, rahuldave, "group")
+    #print "=============================="
+    #print rahuldave.to_json(), mlg.to_json()
+    #print "=============================="
+    #print adsuser.to_json()
+    #print "=============================="
 
 if __name__=="__main__":
     db_session=connect("adsgut")
