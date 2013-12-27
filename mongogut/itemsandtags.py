@@ -1562,6 +1562,13 @@ def initialize_testing(db_session):
 
 
 if __name__=="__main__":
-    db_session=connect("adsgut")
+    import sys
+    if len(sys.argv)==1:
+        db_session=connect("adsgut")
+    elif len(sys.argv)==3:
+        db_session=connect("adsgut", username=sys.argv[1], password=sys.argv[2])
+    else:
+        print "Not right number of arguments. Exiting"
+        sys.exit(-1)
     initialize_application(db_session)
     #initialize_testing(db_session)
