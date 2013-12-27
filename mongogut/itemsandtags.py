@@ -1288,8 +1288,9 @@ class Postdb():
     #the users items consistent with the user's access.
 
     #BUG: DO WE NOT WANT ANY SINGLETON MODE HERE?
-    def getTaggingsForSpec(self, currentuser, useras, itemfqinlist, ptypestring=None, sort=None):
+    def getTaggingsForSpec(self, currentuser, useras, itemfqinlist, ptypestring=None, sort=None, fqpn=None):
         result={}
+        resultfqpn={}
         query={}
         #below could have been done through qproc too BUG: perhaps refactor?
         #pfu=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
@@ -1308,6 +1309,9 @@ class Postdb():
                         'posting.tagname',
                         'posting.tagmode',
                         'posting.tagdescription']
+        SHOWNFIELDS2 = [
+            'pinpostables'
+        ]                
         for fqin in itemfqinlist:
             criteria=[]
             #construct a query consistent with the users access
@@ -1321,16 +1325,29 @@ class Postdb():
                 {'field':'posting__thingtopostfqin', 'op':'eq', 'value':fqin}
             ])
             result[fqin]=self._getTaggingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, False, criteria, sort, None, True)
-        return result
+            resultfqpn[fqin]=[]
+            refqpn=self._getTaggingdocsForQuery(SHOWNFIELDS2, currentuser, useras, query, False, criteria, sort, None, True)
+            #print fqin, result[fqin][0]
+            resultfqpn[fqin]=[]
+            for r in list(refqpn[1]):
+                res=False
+                for p in r.pinpostables:
+                    #print "GEE",fqpn, p.postfqin
+                    if fqpn == p.postfqin:
+                        res = (res or True)
+                resultfqpn[fqin].append(res)
 
-    def getTaggingsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None):
-        result=self.getTaggingsForSpec(currentuser, useras, itemfqinlist, None,  sort)
+            #print fqin, fqpn, result[fqin][0], resultfqpn[fqin]
+        return result, resultfqpn
+
+    def getTaggingsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None, fqpn=None):
+        result, resultfqpn=self.getTaggingsForSpec(currentuser, useras, itemfqinlist, None,  sort, fqpn)
         ##print "RESULT", result
-        return result
+        return result, resultfqpn
 
     #probably dont have a context to use the following
     def getTagsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None):
-        result=self.getTaggingsConsistentWithUserAndItems(currentuser, useras, itemfqinlist, sort)
+        result, resultfqpn=self.getTaggingsConsistentWithUserAndItems(currentuser, useras, itemfqinlist, sort)
         #print result
         fqtns=[]
         for fqin in result:
