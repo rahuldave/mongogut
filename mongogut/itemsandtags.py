@@ -502,7 +502,7 @@ class Postdb():
         #itemtobetagged=self._getItem(currentuser, fullyQualifiedItemName)
         itemtobetagged=item
 
-        print "TAGSPEC IS", tagspec
+        #print "TAGSPEC IS", tagspec
         if tagspec.has_key('tagmode'):
             tagmode = tagspec['tagmode']
             del tagspec['tagmode']
@@ -1015,6 +1015,7 @@ class Postdb():
         userfqin=usernick
         if usernick:
             userfqin='adsgut/user:'+usernick
+            userfqin=useras.adsid
         return tagquery, tagquerytype, postablequery, userfqin
 
     #gets frpm groups, apps and libraries..ie items in them, not tags posted in them
@@ -1059,7 +1060,7 @@ class Postdb():
                                         {'field':'postedby', 'op':'eq', 'value':userfqin}
                     ]}
             )
-        ##print "?OUTCRITERIA",criteria,  sort, pagtuple
+        #print "?OUTCRITERIA",criteria,  sort, pagtuple
         result=self._makeQuery(klass, currentuser, useras, criteria, None, sort, shownfields, pagtuple)
         return result
 
@@ -1102,7 +1103,7 @@ class Postdb():
                                         {'field':'postedby', 'op':'eq', 'value':userfqin}
                     ]}
             )
-        #print "?OUTCRITERIA",criteria,  sort, pagtuple
+        #print "?OUTCRITERIAtdocs",criteria,  sort, pagtuple
         result=self._makeQuery(klass, currentuser, useras, criteria, None, sort, shownfields, pagtuple)
         return result
 
@@ -1215,6 +1216,7 @@ class Postdb():
                         'posting.thingtopostfqin',
                         'posting.tagname',
                         'posting.whenposted',
+                        'posting.tagmode',
                         'posting.postedby']
         result=self._getTaggingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, usernick, criteria, sort, pagtuple)
         return result
@@ -1304,6 +1306,7 @@ class Postdb():
                         'posting.postedby',
                         'posting.tagtype',
                         'posting.tagname',
+                        'posting.tagmode',
                         'posting.tagdescription']
         for fqin in itemfqinlist:
             criteria=[]
@@ -1321,7 +1324,7 @@ class Postdb():
         return result
 
     def getTaggingsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None):
-        result=self.getTaggingsForSpec(currentuser, useras, itemfqinlist, "group",  sort)
+        result=self.getTaggingsForSpec(currentuser, useras, itemfqinlist, None,  sort)
         ##print "RESULT", result
         return result
 
