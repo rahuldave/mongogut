@@ -1566,7 +1566,7 @@ if __name__=="__main__":
     if len(sys.argv)==1:
         db_session=connect("adsgut")
     elif len(sys.argv)==3:
-        db_session=connect("adsgut", username=sys.argv[1], password=sys.argv[2])
+        db_session=connect("adsgut", host="mongodb://%s:%s@localhost/adsgut" % (sys.argv[1], sys.argv[2]))
     else:
         print "Not right number of arguments. Exiting"
         sys.exit(-1)
