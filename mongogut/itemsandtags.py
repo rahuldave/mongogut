@@ -1438,6 +1438,8 @@ class Postdb():
 
 import datetime
 def getlibs(libs, json):
+    if not json.has_key('libraries'):
+        return libs
     for l in json['libraries']:
         if not libs.has_key(l['name']):
             if l.has_key('lastmod'):
