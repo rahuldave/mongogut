@@ -10,7 +10,7 @@ def main(dbhost, auth=False, dropdb=True):
     if auth==False:
         db_session=connect(dbname)
     else:
-        db_session=connect(dbname, dbhost)
+        db_session=connect(dbname, host=dbhost)
     if dropdb:
         db_session.drop_database(dbname)
     postables.initialize_application(db_session)
