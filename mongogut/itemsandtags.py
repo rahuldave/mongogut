@@ -807,6 +807,7 @@ class Postdb():
         #CHECK we merge RAW criteria so this is always an AND. I believe this is ok.
         dcriteria={}
         numdict=0
+        #print '======================================================================='
         #print "CRITTERS", criteria
         for l in criteria:
             if type(l)==types.ListType:
@@ -842,7 +843,8 @@ class Postdb():
         else:
             qclause = reduce(lambda q1, q2: q1.__and__(q2), qterms)
             itemqset=klass.objects.filter(qclause)
-        
+
+        #print "EXPLAIN", itemqset.explain()
         #BUG: if criteria are of type pinpostables, we need to merge criteria and context, otherwise
         #we land up doing an or. The simplest way to do this would be to use context to only filter
         #by user: even user default group goes into criteria (with external wrapper), and 
@@ -1310,32 +1312,59 @@ class Postdb():
                         'posting.tagmode',
                         'posting.tagdescription']
         SHOWNFIELDS2 = [
-            'pinpostables'
+            'pinpostables',
+            'posting.thingtopostfqin'
         ]                
-        for fqin in itemfqinlist:
-            criteria=[]
-            #construct a query consistent with the users access
-            #this includes the users personal group and the public group
-            #should op be in?
-            #BUG:understand how restricting to a particular kind of postable, or all postable affects this
-            #QUESTION: should there be any libraries here?
-            #Here we have in instead of all as now we want stuff consistent with any group we are in, not all
-            criteria.append([
+        # for fqin in itemfqinlist:
+        #     criteria=[]
+        #     #construct a query consistent with the users access
+        #     #this includes the users personal group and the public group
+        #     #should op be in?
+        #     #BUG:understand how restricting to a particular kind of postable, or all postable affects this
+        #     #QUESTION: should there be any libraries here?
+        #     #Here we have in instead of all as now we want stuff consistent with any group we are in, not all
+        #     criteria.append([
+        #         {'field':'pinpostables__postfqin', 'op':'in', 'value':postablesforuser},
+        #         {'field':'posting__thingtopostfqin', 'op':'eq', 'value':fqin}
+        #     ])
+        #     result[fqin]=self._getTaggingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, False, criteria, sort, None, True)
+        #     resultfqpn[fqin]=[]
+        #     refqpn=self._getTaggingdocsForQuery(SHOWNFIELDS2, currentuser, useras, query, False, criteria, sort, None, True)
+        #     #print fqin, result[fqin][0]
+        #     resultfqpn[fqin]=[]
+        #     for r in list(refqpn[1]):
+        #         res=False
+        #         for p in r.pinpostables:
+        #             #print "GEE",fqpn, p.postfqin
+        #             if fqpn == p.postfqin:
+        #                 res = (res or True)
+        #         resultfqpn[fqin].append(res)
+
+        criteria=[]
+        criteria.append([
                 {'field':'pinpostables__postfqin', 'op':'in', 'value':postablesforuser},
-                {'field':'posting__thingtopostfqin', 'op':'eq', 'value':fqin}
-            ])
-            result[fqin]=self._getTaggingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, False, criteria, sort, None, True)
-            resultfqpn[fqin]=[]
-            refqpn=self._getTaggingdocsForQuery(SHOWNFIELDS2, currentuser, useras, query, False, criteria, sort, None, True)
-            #print fqin, result[fqin][0]
-            resultfqpn[fqin]=[]
-            for r in list(refqpn[1]):
-                res=False
-                for p in r.pinpostables:
-                    #print "GEE",fqpn, p.postfqin
-                    if fqpn == p.postfqin:
-                        res = (res or True)
-                resultfqpn[fqin].append(res)
+                {'field':'posting__thingtopostfqin', 'op':'in', 'value':itemfqinlist}
+        ])
+        result1=self._getTaggingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, False, criteria, sort, None, True)
+        result2={}
+        for i in itemfqinlist:
+            result2[i]=[]
+            resultfqpn[i]=[]
+        for td in result1[1]:
+            ifqin = td.posting.thingtopostfqin
+            result2[ifqin].append(td)
+        for k in result2.keys():
+            result[k] = (len(result2[k]),result2[k])
+        #print "RESULT", itemfqinlist, result
+        refqpn=self._getTaggingdocsForQuery(SHOWNFIELDS2, currentuser, useras, query, False, criteria, sort, None, True)
+        for rtd in refqpn[1]:
+            #print "RTD",rtd
+            res=False
+            for p in rtd.pinpostables:
+                #print "GEE",fqpn, p.postfqin
+                if fqpn == p.postfqin:
+                    res = (res or True)
+            resultfqpn[rtd.posting.thingtopostfqin].append(res)
 
             #print fqin, fqpn, result[fqin][0], resultfqpn[fqin]
         return result, resultfqpn
@@ -1382,20 +1411,35 @@ class Postdb():
                         'posting.postedby']
 
         klass=PostingDocument
-        for fqin in itemfqinlist:
-            criteria=[]
-            #construct a query consistent with the users access
-            #this includes the users personal group and the public group
-            #should op be in?
-            #BUG:understand how restricting to a particular kind of postable, or all postable affects this
-            #QUESTION: should there be any libraries here?
-            #QUESTION: should there be any libraries here?
-            criteria.append([
-                            {'field':'posting__postfqin', 'op':'in', 'value':postablesforuser},
-                            {'field':'posting__thingtopostfqin', 'op':'eq', 'value':fqin}
-                        ])
-            #print "=============================CRITERIA", criteria
-            result[fqin]=self._getPostingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, False, criteria, sort, None, True)
+        # for fqin in itemfqinlist:
+        #     criteria=[]
+        #     #construct a query consistent with the users access
+        #     #this includes the users personal group and the public group
+        #     #should op be in?
+        #     #BUG:understand how restricting to a particular kind of postable, or all postable affects this
+        #     #QUESTION: should there be any libraries here?
+        #     #QUESTION: should there be any libraries here?
+        #     criteria.append([
+        #                     {'field':'posting__postfqin', 'op':'in', 'value':postablesforuser},
+        #                     {'field':'posting__thingtopostfqin', 'op':'eq', 'value':fqin}
+        #                 ])
+        #     #print "=============================CRITERIA", criteria
+        #     result[fqin]=self._getPostingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, False, criteria, sort, None, True)
+        criteria=[]
+        criteria.append([
+            {'field':'posting__postfqin', 'op':'in', 'value':postablesforuser},
+            {'field':'posting__thingtopostfqin', 'op':'in', 'value':itemfqinlist}
+        ])
+        result1=self._getPostingdocsForQuery(SHOWNFIELDS, currentuser, useras, query, False, criteria, sort, None, True)
+        result2={}
+        for i in itemfqinlist:
+            result2[i]=[]
+        for pd in result1[1]:
+            ifqin = pd.posting.thingtopostfqin
+            result2[ifqin].append(pd)
+        for k in result2.keys():
+            result[k] = (len(result2[k]),result2[k])
+        #print "RESULT", result
         return result
 
     #This should be whittled down further

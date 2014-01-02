@@ -400,7 +400,7 @@ class Tagging(Post):
 class PostingDocument(Document):
     classname="postingdocument"
     meta = {
-        'indexes': ['posting.postfqin', 'posting.posttype', 'posting.whenposted', 'posting.postedby', 'posting.thingtoposttype'],
+        'indexes': ['posting.postfqin', 'posting.posttype', 'posting.whenposted', 'posting.postedby', 'posting.thingtoposttype', 'posting.thingtopostfqin', ('posting.postfqin', 'posting.thingtopostfqin')],
         'ordering': ['-posting.whenposted']
     }
     posting=EmbeddedDocumentField(Post)
@@ -408,7 +408,7 @@ class PostingDocument(Document):
 class TaggingDocument(Document):
     classname="taggingdocument"
     meta = {
-        'indexes': ['posting.postfqin', 'posting.posttype', 'posting.whenposted', 'posting.postedby', 'posting.thingtoposttype', 'posting.tagname', 'posting.tagtype'],
+        'indexes': ['posting.postfqin', 'posting.posttype', 'posting.whenposted', 'posting.postedby', 'posting.thingtoposttype', 'posting.tagname', 'posting.tagtype', 'posting.thingtopostfqin', ('posting.postfqin', 'posting.thingtopostfqin')],
         'ordering': ['-posting.whenposted']
     }
     posting=EmbeddedDocumentField(Tagging)
