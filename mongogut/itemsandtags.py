@@ -1427,7 +1427,7 @@ class Postdb():
                     bibdict[bib]=theitem
                 self.postItemIntoLibrary(useras, useras, library.basic.fqin, bibdict[bib])
                 if note != "":
-                    i,t,it, td=self.tagItem(useras, useras, bibdict[bib], dict(tagtype="ads/tagtype:note", content=note))
+                    i,t,it, td=self.tagItem(useras, useras, bibdict[bib], dict(tagtype="ads/tagtype:note", content=note, tagmode=library.basic.fqin))
                     #if i could override the non-routed tagging i use for notes, below is not needed
                     #however, lower should be faster
                     self.postTaggingIntoLibrary(useras, useras, library.basic.fqin, td)
