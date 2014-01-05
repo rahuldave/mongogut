@@ -404,7 +404,7 @@ class Postdb():
     def isOwnerOfTag(self, currentuser, useras, tag):
         if useras.basic.fqin==tag.owner:
             return True
-        else
+        else:
             return False
 
     def canUseThisTag(self, currentuser, useras, tag):
