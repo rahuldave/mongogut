@@ -400,10 +400,17 @@ class Postdb():
         return self.canUseThisTag(currentuser, useras, tag)
 
     #BUG when will we make these useras other memberables? like a group
+
+    def isOwnerOfTag(self, currentuser, useras, tag):
+        if useras.basic.fqin==tag.owner:
+            return True
+        else
+            return False
+
     def canUseThisTag(self, currentuser, useras, tag):
         "return true is this user can use this tag from access to tagtype, namespace, etc"
         #If you OWN this tag
-        if useras.basic.fqin==tag.owner:
+        if self.isOwnerOfTag(currentuser, useras, tag):
             return True
         #if you could have created this tag
         if not self.canCreateThisTag(currentuser, useras, tag.tagtype):
@@ -464,7 +471,7 @@ class Postdb():
                 
                 tag=Tag(**tagspec)
                 tag.save(safe=True)
-                memb=MembableEmbedded(mtype=User.classname, fqmn=useras.basic.fqin, readwrite=True)
+                memb=MembableEmbedded(mtype=User.classname, fqmn=useras.basic.fqin, readwrite=True, pname=useras.presentable_name())
                 #tag.update(safe_update=True, push__members=postable.basic.fqin)
                 tag.update(safe_update=True, push__members=memb)
                 tag.reload()
@@ -565,11 +572,33 @@ class Postdb():
         itemtobetagged.reload()
         return itemtobetagged, tag, itemtag, taggingdoc
 
+    #So this is the removal of the tagging doc associated with the userAS
+    #only that taggingdoc will be removed.
     def untagItem(self, currentuser, useras, fullyQualifiedTagName, fullyQualifiedItemName):
         #Do not remove item, do not remove tag, do not remove tagging
         #just remove the tag from the personal group
         authorize(False, self, currentuser, useras)
         #BUG POSTPONE until we have refcounting implementation
+        tag=self._getTag(currentuser, fullyQualifiedTagName)
+        item=self._getItem(currentuser, fullyQualifiedItemName)
+        if not self.isOwnerOfTag(currentuser, useras, tag):
+            doabort('NOT_AUT', "Not authorized for tag %s" % tag.basic.fqin)
+        taggingdoc=self._getTaggingDoc(currentuser, itemd.basic.fqin, tag.basic.fqin, useras.adsid)
+        #removing the taggingdoc will remove pinpostables will thus 
+        #remove it from all the places the tagging was spread too
+        taggingdoc.delete(safe=True)
+        #Now we must deal with tag's membership.
+        #note that tags are namespaced, so others never use the same tag, they may just use the same name.
+        #but that tag might have been used here in another context.
+        #if we add a counter for membeble embedded in tags we could count how many times
+        #a tag was used in a group(this would be a specific tag, so this would be the users usage)
+        #then isf only one user used this tag, on disusing it, group wouldnt see it any more.
+        #but why? just let the tag be accessible to these groups.
+        #Now if it is a note, then we dont want this to be the case, but wre are deleting all
+        #singletomode tags anyways, so this sluttiness can continue to be there, and that tagname
+        #will be forever seen in this group
+        if tag.singletonmode==True:
+            tag.delete(safe=True)
         return OK
 
     #Note that the following provide a model for the uniqueness of posting and tagging docs.
@@ -720,7 +749,7 @@ class Postdb():
                 rw=True
             else:
                 rw=RWDEFMAP[ptype]
-            memb=MembableEmbedded(mtype=postable.classname, fqmn=postable.basic.fqin, readwrite=rw)
+            memb=MembableEmbedded(mtype=postable.classname, fqmn=postable.basic.fqin, readwrite=rw, pname=postable.presentable_name())
             #tag.update(safe_update=True, push__members=postable.basic.fqin)
             tag.update(safe_update=True, push__members=memb)
             tag.reload()
@@ -732,20 +761,20 @@ class Postdb():
 
         return item, tag, taggingdoc.posting, newposting
 
-    #BUG: currently not sure what the logic for everyone should be on this, or if it should even be supported
-    #as other users have now seen stuff in the group. What happens to tagging. Leave alone for now.
-    def removeTaggingFromPostable(self, currentuser, useras, fqpn, fqin, fqtn):
+    # #BUG: currently not sure what the logic for everyone should be on this, or if it should even be supported
+    # #as other users have now seen stuff in the group. What happens to tagging. Leave alone for now.
+    # def removeTaggingFromPostable(self, currentuser, useras, fqpn, fqin, fqtn):
 
-        grp=self.whosdb.getGPostable(currentuser, fqpn)
+    #     grp=self.whosdb.getGPostable(currentuser, fqpn)
 
-        authorize_postable_member(False, self, currentuser, useras, grp)
-        #BUG: no other auths. But the model for this must be figured out.
-        #The itemtag must exist at first
-        # itemtag=self._getTagging(currentuser, tag, item)
-        # itgtoberemoved=self.getGroupTagging(currentuser, itemtag, grp)
-        # self.session.remove(itgtoberemoved)
-        # Removed for now handle via refcounting.
-        return OK
+    #     authorize_postable_member(False, self, currentuser, useras, grp)
+    #     #BUG: no other auths. But the model for this must be figured out.
+    #     #The itemtag must exist at first
+    #     # itemtag=self._getTagging(currentuser, tag, item)
+    #     # itgtoberemoved=self.getGroupTagging(currentuser, itemtag, grp)
+    #     # self.session.remove(itgtoberemoved)
+    #     # Removed for now handle via refcounting.
+    #     return OK
 
 
     def postTaggingIntoGroup(self, currentuser, useras, fqgn, taggingdoc):
@@ -767,14 +796,14 @@ class Postdb():
         itemtag=self.postTaggingIntoPostable(currentuser, useras, fqln, taggingdoc)
         return itemtag
 
-    def removeTaggingFromGroup(self, currentuser, useras, fqgn, itemfqin, tagfqin):
-        removeTaggingFromPostable(self, currentuser, useras, fqgn, itemfqin, tagfqin)
+    # def removeTaggingFromGroup(self, currentuser, useras, fqgn, itemfqin, tagfqin):
+    #     removeTaggingFromPostable(self, currentuser, useras, fqgn, itemfqin, tagfqin)
 
-    def removeItemFromApp(self, currentuser, useras, fqan, itemfqin):
-        removeTaggingFromPostable(self, currentuser, useras, fqan, itemfqin, tagfqin)
+    # def removeItemFromApp(self, currentuser, useras, fqan, itemfqin):
+    #     removeTaggingFromPostable(self, currentuser, useras, fqan, itemfqin, tagfqin)
 
-    def removeItemFromLibrary(self, currentuser, useras, fqln, itemfqin):
-        removeTaggingFromPostable(self, currentuser, useras, fqln, itemfqin, tagfqin)
+    # def removeItemFromLibrary(self, currentuser, useras, fqln, itemfqin):
+    #     removeTaggingFromPostable(self, currentuser, useras, fqln, itemfqin, tagfqin)
 
     # SO HERE WE LIST THE SEARCHES
     #
@@ -1485,7 +1514,10 @@ def getlibs(libs, json):
     if not json.has_key('libraries'):
         return libs
     for l in json['libraries']:
-        if not libs.has_key(l['name']):
+        lname = l['name']
+        #change to not allow : and /, replace both by -
+        lname=lname.replace(':', '-').replace("/", '-')
+        if not libs.has_key(lname):
             if l.has_key('lastmod'):
                 try:
                     tstr=l['lastmod']
@@ -1494,13 +1526,13 @@ def getlibs(libs, json):
                     t=datetime.datetime.now()
             else:
                 t=datetime.datetime.now()
-            libs[l['name']]=[l['name'],  l.get('desc',""), t, [e['bibcode'] for e in l['entries']], [e.get('note',"") for e in l['entries']]]
+            libs[lname]=[lname,  l.get('desc',""), t, [e['bibcode'] for e in l['entries']], [e.get('note',"") for e in l['entries']]]
         else:
-            daset=set(libs[l['name']][2])
+            daset=set(libs[lname][2])
             newe=[e['bibcode'] for e in l['entries']]
             for e in newe:
                 daset.add(e)
-            libs[l['name']][2]=list(daset)
+            libs[lname][2]=list(daset)
     return libs
 
 def initialize_application(sess):

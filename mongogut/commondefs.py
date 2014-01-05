@@ -86,7 +86,7 @@ def gettype(fqin):
 
 def parseTag(fqtn):
     #jayluker/ads/tagtype:tag:asexy
-    tagname=fqtn.split(':')[-1]
+    tagname=fqtn.split('tagtype:tag:')[-1]
     spl=fqtn.split('/',1)
     taguser=spl[0]
     n=spl[1].find(tagname)

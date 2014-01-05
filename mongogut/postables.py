@@ -355,6 +355,10 @@ class Database():
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         postablespec['creator']=useras.basic.fqin
         postablespec=augmentspec(postablespec, ptypestr)
+        a = postablespec['basic'].name.find(':')
+        b = postablespec['basic'].name.find('/')
+        if a!=-1 or b!=-1:
+            doabort('BAD_REQ', "Failed adding postable due to presence of : or /  %s" % (postablespec['basic'].name))
         ptype=gettype(postablespec['basic'].fqin)
         try:
             #print "do we exist",postablespec['basic'].fqin
