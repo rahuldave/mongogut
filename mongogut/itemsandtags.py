@@ -131,7 +131,7 @@ class Postdb():
 
 
         SIGNALS={
-            "saved-item":[receiver(self.recv_postItemIntoPersonal), receiver(self.recv_postItemIntoItemtypesApp)],
+            "saved-item":[receiver(self.recv_postItemIntoPersonal)],
             "added-to-group":[receiver(self.recv_spreadOwnedTaggingIntoPostable)],
             "save-to-personal-group-if-not":[receiver(self.recv_postItemIntoPersonal)],
             "tagged-item":[
@@ -577,16 +577,21 @@ class Postdb():
     def untagItem(self, currentuser, useras, fullyQualifiedTagName, fullyQualifiedItemName):
         #Do not remove item, do not remove tag, do not remove tagging
         #just remove the tag from the personal group
+        #print "here"
         authorize(False, self, currentuser, useras)
+        #print "there", fullyQualifiedTagName, fullyQualifiedItemName
         #BUG POSTPONE until we have refcounting implementation
         tag=self._getTag(currentuser, fullyQualifiedTagName)
         item=self._getItem(currentuser, fullyQualifiedItemName)
+        #print "where"
         if not self.isOwnerOfTag(currentuser, useras, tag):
+            #print "Not Aut"
             doabort('NOT_AUT', "Not authorized for tag %s" % tag.basic.fqin)
-        taggingdoc=self._getTaggingDoc(currentuser, itemd.basic.fqin, tag.basic.fqin, useras.adsid)
+        taggingdoc=self._getTaggingDoc(currentuser, item.basic.fqin, tag.basic.fqin, useras.adsid)
         #removing the taggingdoc will remove pinpostables will thus 
         #remove it from all the places the tagging was spread too
         taggingdoc.delete(safe=True)
+        #print "deleted", tag.singletonmode
         #Now we must deal with tag's membership.
         #note that tags are namespaced, so others never use the same tag, they may just use the same name.
         #but that tag might have been used here in another context.
