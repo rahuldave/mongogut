@@ -322,10 +322,9 @@ class Postdb():
         postable=self.whosdb.getPostable(currentuser, fqpn)
         item=self._getItem(currentuser, itemfqin)
         #BUG posting must somehow be got from item
-        postingtoremove=item
-        permit(useras==postingtoremove.user and self.isMemberOfPostable(useras, postable),
-            "Only member of group %s who posted this item can remove it from the app" % grp.basic.fqin)
-        #NO CODE HERE YET
+        permit(self.isMemberOfPostable(currentuser, useras, postable),
+            "Only member of postable %s who posted this item can remove it" % postable.basic.fqin)
+        item.update(safe_update=True, pull__pinpostables={'postfqin':postable.basic.fqin, 'postedby':useras.adsid})
         return OK
 
     def removeItemFromGroup(self, currentuser, useras, fqgn, itemfqin):
@@ -591,6 +590,7 @@ class Postdb():
         #removing the taggingdoc will remove pinpostables will thus 
         #remove it from all the places the tagging was spread too
         taggingdoc.delete(safe=True)
+
         #print "deleted", tag.singletonmode
         #Now we must deal with tag's membership.
         #note that tags are namespaced, so others never use the same tag, they may just use the same name.
@@ -604,6 +604,8 @@ class Postdb():
         #will be forever seen in this group
         if tag.singletonmode==True:
             tag.delete(safe=True)
+        else:
+            item.update(safe_update=True, pull__stags__postfqin=tag.basic.fqin)
         return OK
 
     #Note that the following provide a model for the uniqueness of posting and tagging docs.
