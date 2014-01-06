@@ -267,7 +267,7 @@ class Postdb():
         #ALREADY POSTED IDEMPOTENCY. REVISIT
         #DONT RETURN POSTINGDOC currently as how to search. THUS return newposting
         for p in item.pinpostables:
-            if p.postfqin==fqpn:
+            if p.postfqin==fqpn and p.postedby==useras.adsid:
                 return item, p
         # if fqpn in postablefqpns:
         #     return item
