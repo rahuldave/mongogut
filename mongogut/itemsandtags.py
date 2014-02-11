@@ -445,6 +445,7 @@ class Postdb():
         postable=self.whosdb.getPostable(currentuser, typeobj.postable)
         if self.isMemberOfPostable(currentuser, useras, postable):
                 return True
+        #print "BLA", typeobj.postable
         return False
 
     def canCreateThisTag(self, currentuser, useras, tagtype):
@@ -839,7 +840,7 @@ class Postdb():
         qterms=[]
         #make sure we are atleast logged in and useras or superuser
 
-        authorize(False, self, currentuser, useras)
+        #authorize(False, self, currentuser, useras)
         #CHECK we merge RAW criteria so this is always an AND. I believe this is ok.
         dcriteria={}
         numdict=0
@@ -1054,6 +1055,7 @@ class Postdb():
         if usernick:
             userfqin='adsgut/user:'+usernick
             userfqin=useras.adsid
+        #print "HERE", userfqin
         return tagquery, tagquerytype, postablequery, userfqin
 
     #gets frpm groups, apps and libraries..ie items in them, not tags posted in them
@@ -1276,7 +1278,7 @@ class Postdb():
         SHOWNFIELDS=[ 'stags']
         specmode=False #we start with false but if we are in a postable we should be fine
         count, items=self._getTaggingdocsForQuery2(SHOWNFIELDS, currentuser, useras, query, usernick, criteria, specmode)
-        #print "TAGGINGS", count, items
+        #print "TAGGINGS", count, items, usernick
         fqtns=[]
         for i in items:
             ltns=[e.postfqin for e in i.stags if not e.singletonmode]

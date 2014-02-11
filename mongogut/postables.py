@@ -8,6 +8,18 @@ import types
 import sys
 from commondefs import *
 
+def is_pe_in_mble(pble, mblesub):
+    fqpnhash={e.fqpn:e for e in mblesub}
+    print "1", fqpnhash.keys()
+    if pble.basic.fqin in fqpnhash.keys():
+        return fqpnhash[pble.basic.fqin]
+    return False
+
+def is_me_in_pble(mble, pblesub):
+    fqmnhash={e.fqmn:e for e in pblesub}
+    if mble.basic.fqin in fqmnhash.keys():
+        return fqmnhash[mble.basic.fqin]
+    return False
 
 class Database():
 
@@ -208,7 +220,7 @@ class Database():
     #BUG just for user currently. Dosent work for other memberables
     def postablesForUser(self, currentuser, useras, ptypestr=None):
         "return the postables the user is a member of"
-        authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
+        #authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         allpostables=useras.postablesin
         if ptypestr:
             postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables if e['ptype']==ptypestr]
@@ -218,7 +230,7 @@ class Database():
 
     def postablesUserCanAccess(self, currentuser, useras, ptypestr=None):
         "return the postables the user is a member of"
-        authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
+        #authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         nlibpostables = useras.postablesnotlibrary()
         otherpostables = useras.postableslibrary()
         allpostables = nlibpostables + otherpostables
@@ -230,7 +242,7 @@ class Database():
 
     def postablesUserCanWriteTo(self, currentuser, useras, ptypestr=None):
         "return the postables the user is a member of"
-        authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
+        #authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         nlibpostables = useras.postablesnotlibrary()
         otherpostables = useras.postableslibrary()
         allpostables = nlibpostables + otherpostables
@@ -373,8 +385,12 @@ class Database():
                 #how to save it together?
                 userq= User.objects(basic__fqin=newpostable.owner)
                 user=userq.get()
-                newpe=PostableEmbedded(ptype=ptypestr,fqpn=newpostable.basic.fqin, owner=user.adsid, pname = newpostable.presentable_name(), readwrite=True, description=newpostable.basic.description)
-                res=userq.update(safe_update=True, push__postablesowned=newpe)
+                newpe = is_pe_in_mble(newpostable, user.postablesowned)
+                #memb = is_me_in_pble(memberable, postable.members)
+                #this would be added a second time but we are protected by this line above!
+                if newpe == False:
+                    newpe=PostableEmbedded(ptype=ptypestr,fqpn=newpostable.basic.fqin, owner=user.adsid, pname = newpostable.presentable_name(), readwrite=True, description=newpostable.basic.description)
+                    res=userq.update(safe_update=True, push__postablesowned=newpe)
                 ##print "result", res, currentuser.groupsowned, currentuser.to_json()
                 
             except:
@@ -438,10 +454,21 @@ class Database():
                     rw=RWDEFMAP[ptype]
                 else:
                     rw= (not RWDEFMAP[ptype])
-            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=useras.adsid, pname = postable.presentable_name(), readwrite=rw, description=postable.basic.description)
+
+            #BUG: weneed to check here that this is unique
+            
+
+            pe = is_pe_in_mble(postable, memberable.postablesin)
+            #memb = is_me_in_pble(memberable, postable.members)
+            #this would be added a second time but we are protected by this line above!
+            if pe == False:
+                pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=useras.adsid, pname = postable.presentable_name(), readwrite=rw, description=postable.basic.description)
             memberableq.update(safe_update=True, push__postablesin=pe)
-            memb=MembableEmbedded(mtype=mtype.classname, fqmn=memberablefqin, readwrite=rw, pname = memberable.presentable_name())
-            postableq.update(safe_update=True, push__members=memb)
+            memb = is_me_in_pble(memberable, postable.members)
+            if memb == False:
+                memb=MembableEmbedded(mtype=mtype.classname, fqmn=memberablefqin, readwrite=rw, pname = memberable.presentable_name())
+                #if we are already there this happened and do nothing.clearly we need to be careful
+                postableq.update(safe_update=True, push__members=memb)
         except:
             doabort('BAD_REQ', "Failed adding memberable %s %s to postable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
         memberable.reload()
@@ -468,6 +495,13 @@ class Database():
         postables=memberable.postablesin
         #BUG make faster by using a mongo search
         #REAL BIG BUG: need to flip on both
+        if memberablefqin=="adsgut/user:anonymouse":
+            #you are guaranteed (sort of) that public group is also member.
+            memberable2 = Group.objects(basic__fqin="adsgut/group:public").get()
+            memberablefqin = memberable2.basic.fqin
+            postables = memberable2.postablesin
+        if memberablefqin=="adsgut/group:public":
+            memberable2=memberable
         for me in members:
             if me.fqmn==memberablefqin:
                 me.readwrite = (not me.readwrite)
@@ -479,6 +513,8 @@ class Database():
         #memberableq.update(safe_update=True)
         postable.save(safe=True)
         memberable.save(safe=True)
+        if memberablefqin=="adsgut/group:public":
+            memberable2.save(safe=True)
         return memberable, postable
 
     def addUserToPostable(self, currentuser, fqpn, nick):
@@ -516,6 +552,10 @@ class Database():
         mtype=gettype(memberablefqin)
         #BUG: need exception handling here, also want to make sure no strange fqins are accepted
         membableq=ptype.objects(basic__fqin=fqpn)
+        try:
+            membable=membableq.get()
+        except:
+            doabort('BAD_REQ', "No such membable(tag) %s" % fqpn)
         memberableq= mtype.objects(basic__fqin=memberablefqin)
         memberable = memberableq.get()
         try:
@@ -523,8 +563,11 @@ class Database():
                 rw=RWDEFMAP[ptype]
             else:
                 rw= (not RWDEFMAP[ptype])
-            memb=MembableEmbedded(mtype=mtype.classname, fqmn=memberablefqin, readwrite=rw, pname = memberable.presentable_name())
-            membableq.update(safe_update=True, push__members=memb)
+
+            memb = is_me_in_pble(memberable, membable.members)
+            if memb==False:
+                memb=MembableEmbedded(mtype=mtype.classname, fqmn=memberablefqin, readwrite=rw, pname = memberable.presentable_name())
+                membableq.update(safe_update=True, push__members=memb)
         except:
             doabort('BAD_REQ', "Failed adding memberable %s %s to membable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
         return memberableq.get(), membableq.get()
@@ -569,13 +612,20 @@ class Database():
                 rw=RWDEFMAP[ptype]
             else:
                 rw= (not RWDEFMAP[ptype])
-            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=useras.adsid, pname = postable.presentable_name(), readwrite=rw, description=postable.basic.description)
-            user.update(safe_update=True, push__postablesinvitedto=pe)
-            memb=MembableEmbedded(mtype=User.classname, fqmn=usertobeaddedfqin, readwrite=rw, pname = user.presentable_name())
+
+            pe = is_pe_in_mble(postable, user.postablesinvitedto)
+            #memb = is_me_in_pble(memberable, postable.members)
+            if pe == False:
+                pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=useras.adsid, pname = postable.presentable_name(), readwrite=rw, description=postable.basic.description)
+                user.update(safe_update=True, push__postablesinvitedto=pe)
+
+            memb = is_me_in_pble(memberable, postable.inviteds)
+            if memb==False:
+                memb=MembableEmbedded(mtype=User.classname, fqmn=usertobeaddedfqin, readwrite=rw, pname = user.presentable_name())
             #BUG: ok to use fqin here instead of getting from oblect?
             #print "LLL", pe.to_json(), memb.to_json(), "+++++++++++++"
             #print postable.to_json()
-            postable.update(safe_update=True, push__inviteds=memb)
+                postable.update(safe_update=True, push__inviteds=memb)
             ##print "userq", userq.to_json()
         except:
             doabort('BAD_REQ', "Failed inviting user %s to postable %s" % (usertobeaddedfqin, fqpn))
@@ -675,14 +725,20 @@ class Database():
         #we have removed the possibility of group ownership of postables. CHECK. I've removed the push right now as i assume new owner
         #must be a member of postable. How does this affect tag ownership if at all?
         try:
+            #we dont need to be that protective here as we have checked for ownership
+            #and only owners can do this
             oldownerfqpn=postable.owner
             members=postable.members
-            memb=MembableEmbedded(mtype=User.classname, fqmn=newowner.basic.fqin, readwrite=True, pname = newowner.presentable_name())
-            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=newowner.adsid, pname = postable.presentable_name(), readwrite=True, description=postable.basic.description)
+            #get new user me
+            #memb=MembableEmbedded(mtype=User.classname, fqmn=newowner.basic.fqin, readwrite=True, pname = newowner.presentable_name())
+            memb = is_me_in_pble(newowner, postable.members)
+            #get postable pe
+            #If owner the pe must already be there.
+            pe = is_pe_in_mble(postable, user.postablesowned)
+            #pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=newowner.adsid, pname = postable.presentable_name(), readwrite=True, description=postable.basic.description)
             #find new owner as member, locate in postable his membership, update it with readwrite if needed, and make him owner
             #add embedded postable to his ownership and his membership
-            postableq.filter(members__fqmn=newowner.basic.fqin).update_one(safe_update=True, set__owner = newowner.basic.fqin, set__members_S=memb)
-            newownerq.filter(postablesin__fqpn==fqpn).update_one(safe_update=True, set__postablesin_S=pe)
+            postable.update(safe_update=True, set__owner = newowner.basic.fqin)
             newowner.update(safe_update=True, push__postablesowned=pe)
             #for old owner we have removed ownership by changing owner, now remove ownership from him
             owner.update(safe_update=True, pull__postablesowned__fqpn=fqpn)
@@ -757,9 +813,10 @@ class Database():
             " Possible new owner %s %s must be member of ownable %s %s" % (newownertype.__name__, newownerfqin, ptype.__name__, fqpn))
         try:
             oldownerfqpn=ownable.owner
-            memb=MembableEmbedded(mtype=User.classname, fqmn=newowner.basic.fqin, readwrite=True, pname = newowner.presentable_name())
-            oq.filter(members__fqmn=newowner.basic.fqin).update_one(safe_update=True, set__owner = newowner.basic.fqin, set__members_S=memb)
-            #ownable.update(safe_update=True, set__owner = newowner.basic.fqin)
+            #memb=MembableEmbedded(mtype=User.classname, fqmn=newowner.basic.fqin, readwrite=True, pname = newowner.presentable_name())
+            memb = is_me_in_pble(newowner, ownable.members)
+            #oq.filter(members__fqmn=newowner.basic.fqin).update_one(safe_update=True, set__owner = newowner.basic.fqin, set__members_S=memb)
+            ownable.update(safe_update=True, set__owner = newowner.basic.fqin)
         except:
             doabort('BAD_REQ', "Failed changing owner from %s to %s for ownable %s %s" % (oldownerfqpn, newowner.basic.fqin, otype.__name__, fqon))
         newowner.reload()
@@ -812,6 +869,7 @@ def initialize_application(db_session):
     #print "44444 Added ADS user", adsuser.to_json()
     currentuser=adsuser
     adsuser, adspubsapp=whosdb.addApp(adsuser, adsuser, dict(name='publications', description="ADS's flagship publication app"))
+    anonymouseuser, adspubapp=whosdb.addUserToPostable(adsuser, 'ads/app:publications', 'anonymouse')
     #print "55555 ADS user added publications app"
 
 

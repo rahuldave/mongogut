@@ -92,7 +92,7 @@ def classtype(instance):
 def authorize_membable_member(authstart, db, currentuser, memberable, cobj):
     #print "<<<",currentuser.basic.fqin, memberable.basic.fqin, cobj.basic.fqin
     #print currentuser.basic.fqin, memberable.basic.fqin, cobj.basic.fqin
-    permit(currentuser.nick!='anonymouse', "must be logged in")
+    #permit(currentuser.nick!='anonymouse', "must be logged in")
     #clause = (currentuser==useras, "User %s not authorized" % currentuser.nick)
     if classtype(memberable)==User:
         clause=(currentuser==memberable, "User %s not authorized" % currentuser.nick)
