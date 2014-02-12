@@ -9,14 +9,14 @@ import sys
 from commondefs import *
 
 def is_pe_in_mble(pble, mblesub):
-    fqpnhash={e.fqpn:e for e in mblesub}
+    fqpnhash = dict([(e.fqpn, e) for e in mblesub])
     print "1", fqpnhash.keys()
     if pble.basic.fqin in fqpnhash.keys():
         return fqpnhash[pble.basic.fqin]
     return False
 
 def is_me_in_pble(mble, pblesub):
-    fqmnhash={e.fqmn:e for e in pblesub}
+    fqmnhash = dict([(e.fqmn, e) for e in pblesub])
     if mble.basic.fqin in fqmnhash.keys():
         return fqmnhash[mble.basic.fqin]
     return False
