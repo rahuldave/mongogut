@@ -10,7 +10,6 @@ from commondefs import *
 
 def is_pe_in_mble(pble, mblesub):
     fqpnhash = dict([(e.fqpn, e) for e in mblesub])
-    print "1", fqpnhash.keys()
     if pble.basic.fqin in fqpnhash.keys():
         return fqpnhash[pble.basic.fqin]
     return False
@@ -533,7 +532,7 @@ class Database():
         try:
             postable=postableq.get()
         except:
-            doabort('BAD_REQ', "No such group %s" % fqgn)
+            doabort('BAD_REQ', "No such group %s" % fqpn)
         #Bug shouldnt this have memberable?
         authorize_ownable_owner(False, self, currentuser, None, postable)
         try:
@@ -619,12 +618,12 @@ class Database():
                 pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=useras.adsid, pname = postable.presentable_name(), readwrite=rw, description=postable.basic.description)
                 user.update(safe_update=True, push__postablesinvitedto=pe)
 
-            memb = is_me_in_pble(memberable, postable.inviteds)
+            memb = is_me_in_pble(user, postable.inviteds)
             if memb==False:
                 memb=MembableEmbedded(mtype=User.classname, fqmn=usertobeaddedfqin, readwrite=rw, pname = user.presentable_name())
-            #BUG: ok to use fqin here instead of getting from oblect?
-            #print "LLL", pe.to_json(), memb.to_json(), "+++++++++++++"
-            #print postable.to_json()
+                #BUG: ok to use fqin here instead of getting from oblect?
+                #print "LLL", pe.to_json(), memb.to_json(), "+++++++++++++"
+                #print postable.to_json()
                 postable.update(safe_update=True, push__inviteds=memb)
             ##print "userq", userq.to_json()
         except:
@@ -720,7 +719,7 @@ class Database():
 
         #newowner must be member of the postable (group cant own itself)
         permit(self.isMemberOfPostable(currentuser, newowner, postable), 
-            " Possible new owner %s %s must be member of postable %s %s" % (newownertype.__name__, newownerfqin, ptype.__name__, fqpn))
+            " Possible new owner %s must be member of postable %s %s" % ( newownerfqin, ptype.__name__, fqpn))
         #BUG new orners rwmode must be  true!
         #we have removed the possibility of group ownership of postables. CHECK. I've removed the push right now as i assume new owner
         #must be a member of postable. How does this affect tag ownership if at all?
@@ -734,7 +733,7 @@ class Database():
             memb = is_me_in_pble(newowner, postable.members)
             #get postable pe
             #If owner the pe must already be there.
-            pe = is_pe_in_mble(postable, user.postablesowned)
+            pe = is_pe_in_mble(postable, owner.postablesowned)
             #pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=newowner.adsid, pname = postable.presentable_name(), readwrite=True, description=postable.basic.description)
             #find new owner as member, locate in postable his membership, update it with readwrite if needed, and make him owner
             #add embedded postable to his ownership and his membership
@@ -810,7 +809,7 @@ class Database():
         #     doabort('BAD_REQ', "No such newowner %s" % newownerfqin)
         newownerfqin=newowner.basic.fqin
         permit(self.isMemberOfMembable(currentuser, newowner, ownable), 
-            " Possible new owner %s %s must be member of ownable %s %s" % (newownertype.__name__, newownerfqin, ptype.__name__, fqpn))
+            " Possible new owner %s must be member of ownable %s %s" % (newownerfqin, ptype.__name__, fqpn))
         try:
             oldownerfqpn=ownable.owner
             #memb=MembableEmbedded(mtype=User.classname, fqmn=newowner.basic.fqin, readwrite=True, pname = newowner.presentable_name())
