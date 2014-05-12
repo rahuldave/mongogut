@@ -32,10 +32,10 @@ def receiver(f):
     return realreceiver
 
 # Agent.objects.filter(
-#     name='ashraf',  
+#     name='ashraf',
 #     __raw__={"skills": {
 #         "$elemMatch": {
-#             "level": {"$gt": 5}, 
+#             "level": {"$gt": 5},
 #             "name": "Computer Skills"
 #         }
 #     }}
@@ -113,7 +113,7 @@ def elematchmaker2(ed, clauseargs):
 #consistent with user from his groups, not libs, so what does it mean to get tags posted to a lib?
 #BUG:is there conflict between spreadOwnedTaggingIntoPostable and postTaggingIntoItemtypesApp
 class Postdb():
-    
+
     def __init__(self, db_session):
         self.session=db_session
         self.whosdb=Database(db_session)
@@ -124,7 +124,7 @@ class Postdb():
         self.canIPostToPostable=self.whosdb.canIPostToPostable
         self.isMemberOfMembable=self.whosdb.isMemberOfMembable
         self.signals={}
-        #CHECK taking out  receiver(self.recv_postTaggingIntoItemtypesApp) 
+        #CHECK taking out  receiver(self.recv_postTaggingIntoItemtypesApp)
         # , from tagged items as will happen by appr.
         #postables. General BUG tho that we can post taggings multiple times. Add check
         #"added-to-group":[receiver(self.recv_postItemIntoPersonal), receiver(self.recv_spreadOwnedTaggingIntoPostable)],
@@ -274,8 +274,8 @@ class Postdb():
         try:#BUG:what if its already there? Now fixed?
             #BUG: what if someone else had also posted it into a group, should we do it again or not?
             #or do a unique on the query later in postings...
-            newposting=Post(postfqin=postable.basic.fqin, posttype=getNSTypeName(fqpn), 
-                postedby=useras.adsid, thingtopostfqin=item.basic.fqin, 
+            newposting=Post(postfqin=postable.basic.fqin, posttype=getNSTypeName(fqpn),
+                postedby=useras.adsid, thingtopostfqin=item.basic.fqin,
                 thingtoposttype=item.itemtype)
             postingdoc=PostingDocument(posting=newposting)
             postingdoc.save(safe=True)
@@ -354,7 +354,7 @@ class Postdb():
         #print "ITEMSPEC", itemspec, itemspec['basic'].to_json()
         try:
             #print "was the item found?"
-            #this does idempotency for us. 
+            #this does idempotency for us.
             newitem=self._getItem(currentuser, itemspec['basic'].fqin)
             #TODO: do we want to handle an updated saving date here by making an array
             #this way we could count how many times 'saved'
@@ -460,7 +460,7 @@ class Postdb():
             #print "was tha tag found"
             #this gets the tag regardless of if you are allowed to.
             tag=self._getTag(currentuser, tagspec['basic'].fqin)
-                  
+
         except:
             #it wasnt, make it
             try:
@@ -468,7 +468,7 @@ class Postdb():
                 #not needed for now tags dont have members tagspec['push__members']=useras.nick
                 if not self.canCreateThisTag(currentuser, useras, tagspec['tagtype']):
                     doabort('NOT_AUT', "Not authorized for tag %s" % tagspec['basic'].fqin)
-                
+
                 tag=Tag(**tagspec)
                 tag.save(safe=True)
                 memb=MembableEmbedded(mtype=User.classname, fqmn=useras.basic.fqin, readwrite=True, pname=useras.presentable_name())
@@ -489,7 +489,7 @@ class Postdb():
         pass
 
     #tagspec here needs to have name and tagtype, this gives, given the useras, the fqtn and allows
-    #us to create a new tag or tag an item with an existing tag. If you want to use someone elses tag, 
+    #us to create a new tag or tag an item with an existing tag. If you want to use someone elses tag,
     #on the assumption u are allowed to (as code in makeTag..BUG..refactor), add a creator into the tagspec
     def tagItem(self, currentuser, useras, item, tagspec):
         tagspec=musthavekeys(tagspec, ['tagtype'])
@@ -562,11 +562,11 @@ class Postdb():
             except:
                 doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s" % (itemtobetagged.basic.fqin, tag.basic.fqin))
             ##print "adding to %s" % personalfqgn
-            self.signals['save-to-personal-group-if-not'].send(self, obj=self, currentuser=currentuser, useras=useras, 
+            self.signals['save-to-personal-group-if-not'].send(self, obj=self, currentuser=currentuser, useras=useras,
                 item=itemtobetagged)
             #now since in personal group, appropriate postables will pick it up
             #tagmode here must be from taggingdoc, not from tag
-            self.signals['tagged-item'].send(self, obj=self, currentuser=currentuser, useras=useras, 
+            self.signals['tagged-item'].send(self, obj=self, currentuser=currentuser, useras=useras,
                 taggingdoc=taggingdoc, tagmode=tagmode, item=itemtobetagged)
         #if itemtag found just return it, else create, add to group, return
         itemtobetagged.reload()
@@ -588,7 +588,7 @@ class Postdb():
             #print "Not Aut"
             doabort('NOT_AUT', "Not authorized for tag %s" % tag.basic.fqin)
         taggingdoc=self._getTaggingDoc(currentuser, item.basic.fqin, tag.basic.fqin, useras.adsid)
-        #removing the taggingdoc will remove pinpostables will thus 
+        #removing the taggingdoc will remove pinpostables will thus
         #remove it from all the places the tagging was spread too
         taggingdoc.delete(safe=True)
 
@@ -611,7 +611,10 @@ class Postdb():
 
     #Note that the following provide a model for the uniqueness of posting and tagging docs.
     def _getTaggingDoc(self, currentuser, fqin, fqtn, adsid):
-        taggingdoc=elematchsimple(TaggingDocument.objects, "posting", thingtopostfqin=fqin, postfqin=fqtn, postedby=adsid).get()
+        try:
+          taggingdoc=elematchsimple(TaggingDocument.objects, "posting", thingtopostfqin=fqin, postfqin=fqtn, postedby=adsid).get()
+        except:
+          doabort('NOT_FND', "Taggingdoc for tag %s not found" % fqtn)
         return taggingdoc
 
     #expose this one outside. currently just a simple authorize currentuser to useras.
@@ -628,7 +631,7 @@ class Postdb():
         taggingdoc.reload()
         #Ok to assume here that item exists? Check
         itemtobetagged=self._getItem(currentuser, fqin)
-        self.signals['tagmode-changed'].send(self, obj=self, currentuser=currentuser, useras=useras, 
+        self.signals['tagmode-changed'].send(self, obj=self, currentuser=currentuser, useras=useras,
                 taggingdoc=taggingdoc, tagmode=tomode, item=itemtobetagged)
         return taggingdoc
 
@@ -665,6 +668,7 @@ class Postdb():
         tagmode=kwargs['tagmode']
         #item=self._getItem(currentuser, itemfqin)
         personalfqgn=useras.nick+"/group:default"
+        print "TAGMODE", tagmode
         if tagmode=='0':
             postablesin=[]
             for ptt in item.pinpostables:
@@ -696,8 +700,8 @@ class Postdb():
         for tagging in taggingstopost:
             #BUG:not sure this will work, searching on a full embedded doc, at the least it would be horribly slow
             #so we shall map instead on some posting properties
-            taggingdoc=elematchsimple(TaggingDocument.objects, "posting", postfqin=tagging.postfqin, 
-                    thingtopostfqin=tagging.thingtopostfqin, 
+            taggingdoc=elematchsimple(TaggingDocument.objects, "posting", postfqin=tagging.postfqin,
+                    thingtopostfqin=tagging.thingtopostfqin,
                     postedby=tagging.postedby).get()
             #if tagmode allows us to post it, then we post it. This could be made faster later
             #tagmode = self._getTagType(currentuser, tagging.tagtype).tagmode
@@ -729,7 +733,7 @@ class Postdb():
         itemsfqpns =[ele.postfqin for ele in item.pinpostables]
         if not fqpn in itemsfqpns:
             doabort('NOT_AUT', "Cant post tag %s in postable %s if item %s is not there" % (tag.basic.fqin, fqpn, item.basic.fqin))
-        
+
 
         if not self.canUseThisTag(currentuser, useras, tag):
             doabort('NOT_AUT', "Not authorized for tag %s" % tag.basic.fqin)
@@ -750,7 +754,7 @@ class Postdb():
             newposting=Post(postfqin=postable.basic.fqin, posttype=getNSTypeNameFromInstance(postable),
                 postedby=useras.adsid, thingtopostfqin=itemtag.postfqin, thingtoposttype=itemtag.tagtype)
             taggingdoc.update(safe_update=True, push__pinpostables=newposting)
-            
+
             #BUG:postables will be pushed multiple times here. How to unique? i think we ought to have this
             #happen at mongoengine/mongodb level
             if postable.basic.fqin==useras.nick+"/group:default":
@@ -771,18 +775,30 @@ class Postdb():
 
     # #BUG: currently not sure what the logic for everyone should be on this, or if it should even be supported
     # #as other users have now seen stuff in the group. What happens to tagging. Leave alone for now.
-    # def removeTaggingFromPostable(self, currentuser, useras, fqpn, fqin, fqtn):
+    # ptype=gettype(fqpn)
+    # postable=self.whosdb.getPostable(currentuser, fqpn)
+    # item=self._getItem(currentuser, itemfqin)
+    # #BUG posting must somehow be got from item
+    # permit(self.isMemberOfPostable(currentuser, useras, postable),
+    #     "Only member of postable %s who posted this item can remove it" % postable.basic.fqin)
+    # item.update(safe_update=True, pull__pinpostables={'postfqin':postable.basic.fqin, 'postedby':useras.adsid})
+    # return OK
+    def removeTaggingFromPostable(self, currentuser, useras, fqpn, fqin, fqtn):
+        #no thoughts of any routing to be affected etc over here. or consequences to other users. Just do it.
+        ptype=gettype(fqpn)
+        postable=self.whosdb.getPostable(currentuser, fqpn)
+        item=self._getItem(currentuser, fqin)
+        tag=self._getTag(currentuser, fqtn)
+        authorize_postable_member(False, self, currentuser, useras, postable)
+        #we'll throw an error here if this user did not post it.
+        try:
+          taggingdoc=self._getTaggingDoc(currentuser, item.basic.fqin, tag.basic.fqin, useras.adsid)
+        except:
+          doabort('BAD_REQ', "Wasnt a tagging on item %s with tag %s in postable %s for user %s" % (item.basic.fqin, tag.basic.fqin, postable.basic.fqin, useras.adsid))
+        taggingdoc.update(safe_update=True, pull__pinpostables={'postfqin':postable.basic.fqin, 'postedby':useras.adsid})
 
-    #     grp=self.whosdb.getGPostable(currentuser, fqpn)
-
-    #     authorize_postable_member(False, self, currentuser, useras, grp)
-    #     #BUG: no other auths. But the model for this must be figured out.
-    #     #The itemtag must exist at first
-    #     # itemtag=self._getTagging(currentuser, tag, item)
-    #     # itgtoberemoved=self.getGroupTagging(currentuser, itemtag, grp)
-    #     # self.session.remove(itgtoberemoved)
-    #     # Removed for now handle via refcounting.
-    #     return OK
+        #TODO: what are the removal ideas here: do we handle via refcounting.
+        return OK
 
 
     def postTaggingIntoGroup(self, currentuser, useras, fqgn, taggingdoc):
@@ -830,7 +846,7 @@ class Postdb():
     #   criteria=[{field:fieldname, op:operator, value:val}...]
     #   CURRENTLY we use AND outside. To do OR use an op:in query
     #   Finally we need to handle pagination/offsets
-    #CRITTERS [{'field': 'owner', 'value': u'adsgut/user:rahuldave', 'op': 'eq'}, 
+    #CRITTERS [{'field': 'owner', 'value': u'adsgut/user:rahuldave', 'op': 'eq'},
     #{'field': 'singleton', 'value': False, 'op': 'eq'}]
     #PREK field owner {'field': 'owner', 'value': u'adsgut/user:rahuldave', 'op': 'eq'
     def _makeQuery(self, klass, currentuser, useras, criteria, postablecontext=None, sort=None, shownfields=None, pagtuple=None):
@@ -868,9 +884,9 @@ class Postdb():
         if numdict > 0:
             qterms.append(Q(__raw__=dcriteria))
         #print "qterms are", qterms
-        
 
-        
+
+
         if len(qterms) == 0:
             #print "NO CRITERIA"
             itemqset=klass.objects
@@ -884,7 +900,7 @@ class Postdb():
         #print "EXPLAIN", itemqset.explain()
         #BUG: if criteria are of type pinpostables, we need to merge criteria and context, otherwise
         #we land up doing an or. The simplest way to do this would be to use context to only filter
-        #by user: even user default group goes into criteria (with external wrapper), and 
+        #by user: even user default group goes into criteria (with external wrapper), and
         #merge that onto pinpostable criteria, is any. might have to combing raw with $all.
         userthere=False
         #CONTEXTS ONLY MAKE SENSE WHEN WE DONT USE pinpostables in the criteria.
@@ -1024,7 +1040,7 @@ class Postdb():
         elif query.has_key('tagname'):
             tagquery=query.get("tagname",{})
             tagquerytype="tagname"
-        
+
         postablequery=query.get("postables",[])
         #if postablequey is empty, then default is used
         #BYPASS THIS BY SETTING POSTABLEQUERY FOR SPEC FUNCS
@@ -1060,7 +1076,7 @@ class Postdb():
 
     #gets frpm groups, apps and libraries..ie items in them, not tags posted in them
 
-    #TODO: add userthere in here so that requests are symmetric rather 
+    #TODO: add userthere in here so that requests are symmetric rather
     #than having overriding context in which all this operates
     #BUG: do we need a context. context only provides a background thing to operate on now.
     #The actual stuff is done in here.
@@ -1287,7 +1303,7 @@ class Postdb():
         tags=[parseTag(f) for f in fqtns if self.canUseThisFqtn(currentuser, useras, f)]
         tagdict=defaultdict(list)
         for k in tags:
-            tagdict[k[2]].append(k) 
+            tagdict[k[2]].append(k)
         return len(tags), tagdict
     #one can use this to query the tag pingrps and pinapps
     #BUG we dont deal with stuff in the apps for now. Not sure
@@ -1314,7 +1330,7 @@ class Postdb():
     #but what about for libraries? There is no pinlibs in Taggingdocuments
     #so the context search will fail. I do want to restrict the search to be
     #to the subset of documents in a group or something which are tagged with the library
-    
+
     #furthermore notice that in the main search too, the context only allows one thing
     #so if i want group and library how do i do it?
 
@@ -1352,7 +1368,7 @@ class Postdb():
         SHOWNFIELDS2 = [
             'pinpostables',
             'posting.thingtopostfqin'
-        ]                
+        ]
         # for fqin in itemfqinlist:
         #     criteria=[]
         #     #construct a query consistent with the users access
@@ -1424,7 +1440,7 @@ class Postdb():
         fqtns=set(fqtns)
         return len(fqtns), fqtns
     #and this us the postings consistent with items  to show a groups list
-    #for all these items to further filter them down. 
+    #for all these items to further filter them down.
     #No context here as PostingDocument has none. This is purely items
 
     #BUGHoever context can be useful here if all i want is the items in a group. But perhaps that ought to be another
@@ -1487,7 +1503,7 @@ class Postdb():
         else:
             result=self.getPostingsForSpec(currentuser, useras, itemfqinlist, ptypestring,  sort)
         return result
-   
+
     #issues: what if you run this twice? BUG: make sure libs has your current libraries
     #or blow away existing libraries
     def populateLibraries(self, currentuser, useras, libjson):
@@ -1515,7 +1531,7 @@ class Postdb():
                     self.postTaggingIntoLibrary(useras, useras, library.basic.fqin, td)
         return 1
 
-        
+
 
 
 import datetime
@@ -1557,7 +1573,7 @@ def initialize_application(sess):
     postdb.addItemType(adsuser, dict(name="pub", postable="ads/app:publications"))
     postdb.addItemType(adsuser, dict(name="search", postable="ads/app:publications"))
     postdb.addTagType(adsuser, dict(name="tag",  postable="ads/app:publications"))
-    postdb.addTagType(adsuser, dict(name="note", 
+    postdb.addTagType(adsuser, dict(name="note",
         postable="ads/app:publications", tagmode='1', singletonmode=True))
 
 
