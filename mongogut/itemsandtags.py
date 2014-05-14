@@ -1347,6 +1347,7 @@ class Postdb():
     def getTaggingsForSpec(self, currentuser, useras, itemfqinlist, ptypestring=None, sort=None, fqpn=None):
         result={}
         resultfqpn={}
+        resultdefault={}
         query={}
         #below could have been done through qproc too BUG: perhaps refactor?
         #pfu=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
@@ -1404,6 +1405,7 @@ class Postdb():
         for i in itemfqinlist:
             result2[i]=[]
             resultfqpn[i]=[]
+            resultdefault[i]=[]
         for td in result1[1]:
             ifqin = td.posting.thingtopostfqin
             result2[ifqin].append(td)
@@ -1411,26 +1413,31 @@ class Postdb():
             result[k] = (len(result2[k]),result2[k])
         #print "RESULT", itemfqinlist, result
         refqpn=self._getTaggingdocsForQuery(SHOWNFIELDS2, currentuser, useras, query, False, criteria, sort, None, True)
+        udg=useras.nick+"/group:default"
         for rtd in refqpn[1]:
             #print "RTD",rtd
             res=False
+            resd=False
             for p in rtd.pinpostables:
                 #print "GEE",fqpn, p.postfqin
                 if fqpn == p.postfqin:
                     res = (res or True)
+                if p.postfqin == udg:
+                    resd = (resd or True)
             resultfqpn[rtd.posting.thingtopostfqin].append(res)
+            resultdefault[rtd.posting.thingtopostfqin].append(resd)
 
             #print fqin, fqpn, result[fqin][0], resultfqpn[fqin]
-        return result, resultfqpn
+        return result, resultfqpn, resultdefault
 
     def getTaggingsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None, fqpn=None):
-        result, resultfqpn=self.getTaggingsForSpec(currentuser, useras, itemfqinlist, None,  sort, fqpn)
+        result, resultfqpn, resultdefault=self.getTaggingsForSpec(currentuser, useras, itemfqinlist, None,  sort, fqpn)
         ##print "RESULT", result
-        return result, resultfqpn
+        return result, resultfqpn, resultdefault
 
     #probably dont have a context to use the following
     def getTagsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None):
-        result, resultfqpn=self.getTaggingsConsistentWithUserAndItems(currentuser, useras, itemfqinlist, sort)
+        result, resultfqpn, resultdefault=self.getTaggingsConsistentWithUserAndItems(currentuser, useras, itemfqinlist, sort)
         #print result
         fqtns=[]
         for fqin in result:
