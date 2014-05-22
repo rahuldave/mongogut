@@ -1,5 +1,11 @@
-Critical point:
+#Architecture
 
-there is an interface called postable, and this includes groups, apps. and libraries, and is used for posting items and tags to things.
+## The users
 
-then there is an interface called taggable, and this includes tags, libraries, groups, and apps, and the idea there is that the tags can be used for reference counting on deletion.
+### The system user
+
+## Membables, or things that can be members
+
+## Postables: now wrongly named, but means: things that have members
+
+##Actual Postables: things that can be posted into: currently only libraries
