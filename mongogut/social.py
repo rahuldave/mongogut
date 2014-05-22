@@ -94,20 +94,20 @@ class Database():
         return user
 
 
-    def _getMemberable(self, currentuser, fqmn):
-        "gets the memberable corresponding to the fqmn"
+    def _getEntity(self, currentuser, fqmn):
+        "gets the entity corresponding to the fqmn"
         mtype=gettype(fqmn)
         try:
-            membable=mtype.objects(basic__fqin=fqmn).get()
+            entity=mtype.objects(basic__fqin=fqmn).get()
         except:
             doabort('NOT_FND', "%s %s not found" % (classname(mtype), fqmn))
-        return membable
+        return entity
 
     #this one is unprotected
     #BUG make sure ptype is in MEMBABLES.
     def _getPostable(self, currentuser, fqpn):
         "gets the postable corresponding to the fqpn"
-        return self._getMembable(currentuser, fqpn)
+        return self._getEntity(currentuser, fqpn)
 
     #this one is protected
     def getPostableInfo(self, currentuser, memberable, fqpn):
@@ -121,50 +121,49 @@ class Database():
         creator = self._getUserForFqin(currentuser, postable.basic.creator)
         return postable, owner, creator
 
-    #using MEMBERABLE interface. this one is unprotected
-    #also returns true if a user is a member of a postable(say a group), which is a member
-    #of this postable. Also works if the memberable is a postable itself, through the memberable.basic.fqin interface
 
-    #BUG other membable things need to be added, as needed
 
-    def isMemberOfMembable(self, currentuser, memberable, membable, memclass=MEMBABLES):
+    def isMemberOfMembable(self, currentuser, memberable, membable, memclass=MEMBERABLES_NOT_USER):
         "is the memberable a member of membable"
-        #this is the slow way to do it. BUG.
-        members=membable.get_member_fqins()
-        if memberable.basic.fqin in members:
+        #this is the slow way to do it. 
+        #First get the members, if our memberable is directly there, return true (direct user membership)
+        memberfqins=membable.get_member_fqins()
+        if memberable.basic.fqin in memberfqins:
             return True
-        for mem in members:
-            ptype=gettype(mem)
-            if  ptype in memclass:
-                pos=self._getMembable(currentuser, mem)
-                if memberable.basic.fqin in pos.get_member_fqins():
+        #Otherwise go through the members, one by one. If they are
+        #of a class that has members, go through the members of that class and see if we are there.
+        for memfqin in memberfqins:
+            memberabletype=gettype(memfqin)
+            if  memberabletype in memclass:#by restricting to memclass we get no users
+                loopmemberable=self._getEntity(currentuser, memfqin)
+                if memberable.basic.fqin in loopmemberable.get_member_fqins():
                     return True
         return False
 
     def isMemberOfPostable(self, currentuser, memberable, postable):
         "is the memberable a member of postable"
-        return self.isMemberOfMembable(currentuser, memberable, postable, POSTABLES)
+        return self.isMemberOfMembable(currentuser, memberable, postable)
 
     #Also checks for membership!
-    def canIPostToPostable(self, currentuser, memberable, postable, memclass=MEMBABLES):
-        "is the memberable a member of postable"
+    def canIPostToPostable(self, currentuser, memberable, postable, memclass=MEMBERABLES_NOT_USER):
+        "am i allowed to post to a postable, either through user or through a memberable"
+        #if i own the library let me post.
         if self.isOwnerOfPostable(currentuser, memberable, postable):
             return True
+        #otherwise get member read-write ability
         rws=postable.get_member_rws()
-        #print "P", postable.basic.fqin, "M", memberable.basic.fqin
         start=False
+        #now check iam a member AND have the ability to write
         if memberable.basic.fqin in rws.keys():
-            #print "here", rws.keys()
             start = start or rws[memberable.basic.fqin][1]
-        #print "there", rws.keys()
+        #if i am not a user, i will be in some memclass
         #goes down membership list here
-        for mem in rws.keys():
-            ptype=gettype(mem)
-            if  ptype in memclass:
-                pos=self._getMembable(currentuser, mem)
-                posmembers=pos.get_member_fqins()
-                if memberable.basic.fqin in posmembers:
-                    start = start or rws[mem][1]
+        for memfqin in rws.keys():
+            memberabletype=gettype(mem)
+            if  memberabletype in memclass:
+                loopmemberable=self._getEntity(currentuser, memfqin)
+                if memberable.basic.fqin in loopmemberable.get_member_fqins():
+                    start = start or rws[memfqin][1]
         return start
 
     #using MEMBERABLE/OWNABLE:this can let a group be owner of the ownable, as long as its 'fqin' is in the owner field.
@@ -379,7 +378,7 @@ class Database():
                 #memb = is_me_in_pble(memberable, postable.members)
                 #this would be added a second time but we are protected by this line above!
                 if newpe == False:
-                    newpe=PostableEmbedded(ptype=ptypestr,fqpn=newpostable.basic.fqin, owner=user.adsid, pname = newpostable.presentable_name(), readwrite=True, description=newpostable.basic.description)
+                    newpe=MembableEmbedded(ptype=ptypestr,fqpn=newpostable.basic.fqin, owner=user.adsid, pname = newpostable.presentable_name(), readwrite=True, description=newpostable.basic.description)
                     res=userq.update(safe_update=True, push__postablesowned=newpe)
                 ##print "result", res, currentuser.groupsowned, currentuser.to_json()
 
@@ -451,11 +450,11 @@ class Database():
             #memb = is_me_in_pble(memberable, postable.members)
             #this would be added a second time but we are protected by this line above!
             if pe == False:
-                pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=useras.adsid, pname = postable.presentable_name(), readwrite=rw, description=postable.basic.description)
+                pe=MembableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=useras.adsid, pname = postable.presentable_name(), readwrite=rw, description=postable.basic.description)
             memberableq.update(safe_update=True, push__postablesin=pe)
             memb = is_me_in_pble(memberable, postable.members)
             if memb == False:
-                memb=MembableEmbedded(mtype=mtype.classname, fqmn=memberablefqin, readwrite=rw, pname = memberable.presentable_name())
+                memb=MemberableEmbedded(mtype=mtype.classname, fqmn=memberablefqin, readwrite=rw, pname = memberable.presentable_name())
                 #if we are already there this happened and do nothing.clearly we need to be careful
                 postableq.update(safe_update=True, push__members=memb)
         except:
@@ -555,7 +554,7 @@ class Database():
 
             memb = is_me_in_pble(memberable, membable.members)
             if memb==False:
-                memb=MembableEmbedded(mtype=mtype.classname, fqmn=memberablefqin, readwrite=rw, pname = memberable.presentable_name())
+                memb=MemberableEmbedded(mtype=mtype.classname, fqmn=memberablefqin, readwrite=rw, pname = memberable.presentable_name())
                 membableq.update(safe_update=True, push__members=memb)
         except:
             doabort('BAD_REQ', "Failed adding memberable %s %s to membable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
@@ -605,12 +604,12 @@ class Database():
             pe = is_pe_in_mble(postable, user.postablesinvitedto)
             #memb = is_me_in_pble(memberable, postable.members)
             if pe == False:
-                pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=useras.adsid, pname = postable.presentable_name(), readwrite=rw, description=postable.basic.description)
+                pe=MembableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=useras.adsid, pname = postable.presentable_name(), readwrite=rw, description=postable.basic.description)
                 user.update(safe_update=True, push__postablesinvitedto=pe)
 
             memb = is_me_in_pble(user, postable.inviteds)
             if memb==False:
-                memb=MembableEmbedded(mtype=User.classname, fqmn=usertobeaddedfqin, readwrite=rw, pname = user.presentable_name())
+                memb=MemberableEmbedded(mtype=User.classname, fqmn=usertobeaddedfqin, readwrite=rw, pname = user.presentable_name())
                 #BUG: ok to use fqin here instead of getting from oblect?
                 #print "LLL", pe.to_json(), memb.to_json(), "+++++++++++++"
                 #print postable.to_json()
@@ -719,12 +718,12 @@ class Database():
             oldownerfqpn=postable.owner
             members=postable.members
             #get new user me
-            #memb=MembableEmbedded(mtype=User.classname, fqmn=newowner.basic.fqin, readwrite=True, pname = newowner.presentable_name())
+            #memb=MemberableEmbedded(mtype=User.classname, fqmn=newowner.basic.fqin, readwrite=True, pname = newowner.presentable_name())
             memb = is_me_in_pble(newowner, postable.members)
             #get postable pe
             #If owner the pe must already be there.
             pe = is_pe_in_mble(postable, owner.postablesowned)
-            #pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=newowner.adsid, pname = postable.presentable_name(), readwrite=True, description=postable.basic.description)
+            #pe=MembableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=newowner.adsid, pname = postable.presentable_name(), readwrite=True, description=postable.basic.description)
             #find new owner as member, locate in postable his membership, update it with readwrite if needed, and make him owner
             #add embedded postable to his ownership and his membership
             postable.update(safe_update=True, set__owner = newowner.basic.fqin)
@@ -759,7 +758,7 @@ class Database():
 
 
         try:
-            pe=PostableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=owner.adsid, pname = postable.presentable_name(), readwrite=True, description=description)
+            pe=MembableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=owner.adsid, pname = postable.presentable_name(), readwrite=True, description=description)
             #find new owner as member, locate in postable his membership, update it with readwrite if needed, and make him owner
             #add embedded postable to his ownership and his membership
             postableq.update_one(safe_update=True, set__basic__description=description)
@@ -802,7 +801,7 @@ class Database():
             " Possible new owner %s must be member of ownable %s %s" % (newownerfqin, ptype.__name__, fqpn))
         try:
             oldownerfqpn=ownable.owner
-            #memb=MembableEmbedded(mtype=User.classname, fqmn=newowner.basic.fqin, readwrite=True, pname = newowner.presentable_name())
+            #memb=MemberableEmbedded(mtype=User.classname, fqmn=newowner.basic.fqin, readwrite=True, pname = newowner.presentable_name())
             memb = is_me_in_pble(newowner, ownable.members)
             #oq.filter(members__fqmn=newowner.basic.fqin).update_one(safe_update=True, set__owner = newowner.basic.fqin, set__members_S=memb)
             ownable.update(safe_update=True, set__owner = newowner.basic.fqin)

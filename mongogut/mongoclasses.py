@@ -2,10 +2,12 @@ from mongoengine import *
 import datetime
 
 #TODO: perhaps build in counters co collections
+#membable-embedded->memberable-embedded; postable-embedded->membable-embedded
 
 POSTABLES=[Library]#things that can be posted to
 #Postables are both membable and ownable
 MEMBERABLES=[Group, App, User]#things that can be members
+MEMBERABLES_NOT_USER=[Group, App]
 MEMBABLES=[Group, App, Library, Tag]#things you can be a member of
 #above all use nicks
 OWNABLES=[Group, App, Library, ItemType, TagType, Tag]#things that can be owned
@@ -18,9 +20,11 @@ MMMAP={
     Library:{Group:True, App:True, User:True},
     Tag:{Group:True, App:True, User:True}
 }
-#The RWDEFMAP tells you about your membership mode. If you are a member of a group, ir says u can read everything in
+
+#THIS NEEDS TO BE CHANGED. It has to refer to libraries
+#The RWDEFMAP tells you about your membership mode. If you are a member of a group, it says u can read everything in
 #the group and write to it, but for a library, you may read everything, but not necessarily write to it.
-#What if you dont want to even be able to read everything.
+#(ie True maeans both read and write, false means read-only)
 #i think App=True is a bug for now and we should use masquerading instead to get things into apps
 #users ought not to add to apps directly.
 RWDEFMAP={
@@ -30,20 +34,21 @@ RWDEFMAP={
     Tag:False
 }
 
-#Critically, the fact that you cannot read all items in an app is done in _qproc
-#not sure that is right place.
-READDEFMAP={
-    Group:{Group:False, App:False, User:True},
-    App:{Group:False, App:False, User:True},
-    Library:{Group:False, App:False, User:True},
-    Tag:{Group:False, App:False, User:True}
-}
-WRITEDEFMAP={
-    Group:{Group:False, App:False, User:True},
-    App:{Group:False, App:False, User:True},
-    Library:{Group:False, App:False, User:True},
-    Tag:{Group:False, App:False, User:True}
-}
+#Should above be more detailed, such as below?
+# #Critically, the fact that you cannot read all items in an app is done in _qproc
+# #not sure that is right place.
+# READDEFMAP={
+#     Group:{Group:False, App:False, User:True},
+#     App:{Group:False, App:False, User:True},
+#     Library:{Group:False, App:False, User:True},
+#     Tag:{Group:False, App:False, User:True}
+# }
+# WRITEDEFMAP={
+#     Group:{Group:False, App:False, User:True},
+#     App:{Group:False, App:False, User:True},
+#     Library:{Group:False, App:False, User:True},
+#     Tag:{Group:False, App:False, User:True}
+# }
 
 #The BASIC interface: its utilized by almost everything else
 class Basic(EmbeddedDocument):

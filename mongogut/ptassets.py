@@ -469,7 +469,7 @@ class Postdb():
 
                 tag=Tag(**tagspec)
                 tag.save(safe=True)
-                memb=MembableEmbedded(mtype=User.classname, fqmn=useras.basic.fqin, readwrite=True, pname=useras.presentable_name())
+                memb=MemberableEmbedded(mtype=User.classname, fqmn=useras.basic.fqin, readwrite=True, pname=useras.presentable_name())
                 #tag.update(safe_update=True, push__members=postable.basic.fqin)
                 tag.update(safe_update=True, push__members=memb)
                 tag.reload()
@@ -759,7 +759,7 @@ class Postdb():
                 rw=True
             else:
                 rw=RWDEFMAP[ptype]
-            memb=MembableEmbedded(mtype=postable.classname, fqmn=postable.basic.fqin, readwrite=rw, pname=postable.presentable_name())
+            memb=MemberableEmbedded(mtype=postable.classname, fqmn=postable.basic.fqin, readwrite=rw, pname=postable.presentable_name())
             #tag.update(safe_update=True, push__members=postable.basic.fqin)
             tag.update(safe_update=True, push__members=memb)
             tag.reload()
