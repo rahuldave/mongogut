@@ -50,6 +50,12 @@ RWDEFMAP={
 #     Tag:{Group:False, App:False, User:True}
 # }
 
+#Some notes
+
+#(a) for reasons of historical accident, owner variables must be user fqin
+#(earlier we wanted to allow groups/apps to own things)
+
+
 #The BASIC interface: its utilized by almost everything else
 class Basic(EmbeddedDocument):
     name = StringField(required=True)
@@ -64,14 +70,14 @@ class Basic(EmbeddedDocument):
 class ItemType(Document):
     classname="itemtype"
     basic = EmbeddedDocumentField(Basic)
-    owner = StringField(required=True)
+    owner = StringField(required=True)#must be fqin of user
     postable = StringField(default="adsgut/adsgut", required=True)
     postabletype = StringField(required=True)
 
 class TagType(Document):
     classname="tagtype"
     basic = EmbeddedDocumentField(Basic)
-    owner = StringField(required=True)
+    owner = StringField(required=True)#must be fqin of user
     postable = StringField(required=True)
     postabletype = StringField(required=True)
     #Document tagmode 0/1 here
@@ -86,7 +92,7 @@ class MembableEmbedded(EmbeddedDocument):
     fqpn = StringField(required=True)
     ptype = StringField(required=True)
     pname = StringField(required=True)
-    owner = StringField(required=True)
+    owner = StringField(required=True)#must be fqin of user
     readwrite = BooleanField(required=True, default=False)
     description = StringField(default="")
 

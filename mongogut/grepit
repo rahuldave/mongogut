@@ -1,4 +1,4 @@
 #!/bin/sh
 grep -in $1 ptassets.py social.py mongoclasses.py exc.py perms.py utilities.py
 grep -in $1 /Users/rahul/Projects/ads/adsabs/adsabs/modules/adsgut/webservices.py
-grep -in $1 /Users/rahul/Projects/ads/adsabs/adsabs/modules/adsgut/views.py
+#grep -in $1 /Users/rahul/Projects/ads/adsabs/adsabs/modules/adsgut/views.py

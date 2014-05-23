@@ -125,7 +125,7 @@ class Database():
 
     def isMemberOfMembable(self, currentuser, memberable, membable, memclass=MEMBERABLES_NOT_USER):
         "is the memberable a member of membable"
-        #this is the slow way to do it. 
+        #this is the slow way to do it.
         #First get the members, if our memberable is directly there, return true (direct user membership)
         memberfqins=membable.get_member_fqins()
         if memberable.basic.fqin in memberfqins:
@@ -152,6 +152,7 @@ class Database():
             return True
         #otherwise get member read-write ability
         rws=postable.get_member_rws()
+        #if not returned already start with false
         start=False
         #now check iam a member AND have the ability to write
         if memberable.basic.fqin in rws.keys():
@@ -159,19 +160,18 @@ class Database():
         #if i am not a user, i will be in some memclass
         #goes down membership list here
         for memfqin in rws.keys():
-            memberabletype=gettype(mem)
+            memberabletype=gettype(memfqin)
             if  memberabletype in memclass:
                 loopmemberable=self._getEntity(currentuser, memfqin)
                 if memberable.basic.fqin in loopmemberable.get_member_fqins():
                     start = start or rws[memfqin][1]
         return start
 
-    #using MEMBERABLE/OWNABLE:this can let a group be owner of the ownable, as long as its 'fqin' is in the owner field.
-    #this one is unprotected
-    def isOwnerOfOwnable(self, currentuser, memberable, ownable):
-        "is memberable the owner of ownerable? ownerable is postable plus others"
-        #print "in IOOO", currentuser.basic.fqin, memberable.basic.fqin, ownable.basic.fqin, ownable.owner
-        if memberable.basic.fqin==ownable.owner:
+    #OWNABLES=[Group, App, Library, ItemType, TagType, Tag]
+    #Note that the owner is set to the fqin, not the nick
+    def isOwnerOfOwnable(self, currentuser, useras, ownable):
+        "is user the owner of ownable?"
+        if useras.basic.fqin==ownable.owner:
             return True
         else:
             return False
@@ -180,10 +180,10 @@ class Database():
     def isOwnerOfPostable(self, currentuser, memberable, postable):
         return self.isOwnerOfOwnable(currentuser, memberable, postable)
 
-    #invitations only work for users for now, even tho we have a memberable. unprotected
-    def isInvitedToMembable(self, currentuser, memberable, membable):
+    #invitations for users. invitation to a tag is undefined, as yet. unprotected
+    def isInvitedToMembable(self, currentuser, useras, membable):
         #print "MEMBERABLE", memberable.to_json(), "MEMBABLE", membable.to_json()
-        if memberable.basic.fqin in [m.fqmn for m in membable.inviteds]:
+        if useras.basic.fqin in [m.fqmn for m in membable.inviteds]:
             return True
         else:
             return False
@@ -192,17 +192,15 @@ class Database():
         "is the user invited to the postable?"
         return self.isInvitedToMembable(currentuser, memberable, postable)
 
-    #unprotected
-    #BUG just for user currently. Dosent work for other memberables. Is not transitive
-    #so that a postable is listed for the owner of the memberable
     def ownerOfPostables(self, currentuser, useras, ptypestr=None):
         "return the postables the user is an owner of"
-        authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
+        #TODO:currently suppressiong protection. revisit.
+        #authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         allpostables=useras.postablesowned
         if ptypestr:
-            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables if e['ptype']==ptypestr]
+            postables=[e for e in allpostables if e['ptype']==ptypestr]
         else:
-            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables]
+            postables=allpostables
         return postables
 
     #unprotected
@@ -212,9 +210,9 @@ class Database():
         #authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         allpostables=useras.postablesin
         if ptypestr:
-            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables if e['ptype']==ptypestr]
+            postables=[e for e in allpostables if e['ptype']==ptypestr]
         else:
-            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables]
+            postables=allpostables
         return postables
 
     def postablesUserCanAccess(self, currentuser, useras, ptypestr=None):
@@ -224,9 +222,9 @@ class Database():
         otherpostables = useras.postableslibrary()
         allpostables = nlibpostables + otherpostables
         if ptypestr:
-            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables if e['ptype']==ptypestr]
+            postables=[e for e in allpostables if e['ptype']==ptypestr]
         else:
-            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables]
+            postables=allpostables
         return postables
 
     def postablesUserCanWriteTo(self, currentuser, useras, ptypestr=None):
@@ -236,9 +234,9 @@ class Database():
         otherpostables = useras.postableslibrary()
         allpostables = nlibpostables + otherpostables
         if ptypestr:
-            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables if (e['ptype']==ptypestr and e['readwrite']==True)]
+            postables=[e for e in allpostables if (e['ptype']==ptypestr and e['readwrite']==True)]
         else:
-            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables if e['readwrite']==True]
+            postables=[e for e in allpostables if e['readwrite']==True]
         return postables
 
 
@@ -249,9 +247,9 @@ class Database():
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         allpostables=useras.postablesinvitedto
         if ptypestr:
-            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables if e['ptype']==ptypestr]
+            postables=[e for e in allpostables if e['ptype']==ptypestr]
         else:
-            postables=[{'fqpn':e['fqpn'],'ptype':e['ptype']} for e in allpostables]
+            postables=allpostables
         return postables
 
     #unprotected
