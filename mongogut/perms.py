@@ -97,9 +97,9 @@ def authorize_membable_member(authstart, db, currentuser, memberable, cobj):
     if classtype(memberable)==User:
         clause=(currentuser==memberable, "User %s not authorized" % currentuser.nick)
         clause=(True,'') #BUG: corrently allow these to be different
-    elif classtype(memberable) in [Group, App]:
+    elif classtype(memberable) in [Group, App]:#is the memberable a membable
         #CHOICE:if you are testing membership, is it enough to be member? or should you be owner of memberable
-        clause = (db.isMemberOfPostable(currentuser, currentuser, memberable), "%s must be member of postable %s %s" % (currentuser.adsid, classname(memberable), memberable.basic.fqin))
+        clause = (db.isMemberOfMembable(currentuser, currentuser, memberable), "%s must be member of membable %s %s" % (currentuser.adsid, classname(memberable), memberable.basic.fqin))
     else:
         clause=False
     permit(*clause)

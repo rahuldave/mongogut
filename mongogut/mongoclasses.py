@@ -58,53 +58,53 @@ RWDEFMAP={
 
 #The BASIC interface: its utilized by almost everything else
 class Basic(EmbeddedDocument):
-    name = StringField(required=True)
-    uri = StringField(default="", required=True)
-    creator=StringField(required=True)
-    whencreated=DateTimeField(required=True, default=datetime.datetime.now)
-    lastmodified=DateTimeField(required=True, default=datetime.datetime.now)
-    #Below is a combination of namespace and name
-    fqin = StringField(required=True, unique=True)
-    description = StringField(default="")
+  name = StringField(required=True)
+  uri = StringField(default="", required=True)
+  creator=StringField(required=True)
+  whencreated=DateTimeField(required=True, default=datetime.datetime.now)
+  lastmodified=DateTimeField(required=True, default=datetime.datetime.now)
+  #Below is a combination of namespace and name
+  fqin = StringField(required=True, unique=True)
+  description = StringField(default="")
 
 class ItemType(Document):
-    classname="itemtype"
-    basic = EmbeddedDocumentField(Basic)
-    owner = StringField(required=True)#must be fqin of user
-    postable = StringField(default="adsgut/adsgut", required=True)
-    postabletype = StringField(required=True)
+  classname="itemtype"
+  basic = EmbeddedDocumentField(Basic)
+  owner = StringField(required=True)#must be fqin of user
+  postable = StringField(default="adsgut/adsgut", required=True)
+  postabletype = StringField(required=True)
 
 class TagType(Document):
-    classname="tagtype"
-    basic = EmbeddedDocumentField(Basic)
-    owner = StringField(required=True)#must be fqin of user
-    postable = StringField(required=True)
-    postabletype = StringField(required=True)
-    #Document tagmode 0/1 here
-    tagmode = StringField(default='0', required=True)
-    #singleton mode, if true, means that a new instance of this tag must be created each time
-    #once again example is note, which is created with a uuid as name
-    singletonmode = BooleanField(default=False, required=True)
+  classname="tagtype"
+  basic = EmbeddedDocumentField(Basic)
+  owner = StringField(required=True)#must be fqin of user
+  postable = StringField(required=True)
+  postabletype = StringField(required=True)
+  #Document tagmode 0/1 here
+  tagmode = StringField(default='0', required=True)
+  #singleton mode, if true, means that a new instance of this tag must be created each time
+  #once again example is note, which is created with a uuid as name
+  singletonmode = BooleanField(default=False, required=True)
 
 #We are calling it PostablEmbedded, but this is now a misnomer. We might change this name.
 #This is anything that "CAN HAVE" a member. ie the memberable interface
 class MembableEmbedded(EmbeddedDocument):
-    fqpn = StringField(required=True)
-    ptype = StringField(required=True)
-    pname = StringField(required=True)
-    owner = StringField(required=True)#must be fqin of user
-    readwrite = BooleanField(required=True, default=False)
-    description = StringField(default="")
+  fqpn = StringField(required=True)
+  ptype = StringField(required=True)
+  pname = StringField(required=True)
+  owner = StringField(required=True)#must be fqin of user
+  readwrite = BooleanField(required=True, default=False)
+  description = StringField(default="")
 
 #The MemberableEmbedded represents a unit that is a member (MEMBER-IN), for example a user,
 #group or app that is member of a library or tag, or a user or group that is member
 #of an app, or a user who is a member of a group
 
 class MemberableEmbedded(EmbeddedDocument):
-    fqmn = StringField(required=True)
-    mtype = StringField(required=True)
-    pname = StringField(required=True)
-    readwrite = BooleanField(required=True, default=False)
+  fqmn = StringField(required=True)
+  mtype = StringField(required=True)
+  pname = StringField(required=True)
+  readwrite = BooleanField(required=True, default=False)
 
 def Gget_member_fqins(memb):
     return [ele.fqmn for ele in memb.members]
@@ -132,54 +132,55 @@ def Gget_invited_rws(memb):
 
 
 class Tag(Document):
-    classname="tag"
-    meta = {
-        'indexes': ['owner', 'basic.name', 'tagtype','basic.whencreated'],
-        'ordering': ['-basic.whencreated']
-    }
-    basic = EmbeddedDocumentField(Basic)
-    tagtype = StringField(required=True)
-    singletonmode = BooleanField(required=True)#default is false but must come from tagtype
-    #The owner of a tag can be a user, group, or app
-    #This is different from creator as ownership can be transferred. You
-    #see this in groups and apps too. Its like a duck.
-    owner = StringField(required=True)
-    #Seems like this was needed for change ownership
+  classname="tag"
+  meta = {
+      'indexes': ['owner', 'basic.name', 'tagtype','basic.whencreated'],
+      'ordering': ['-basic.whencreated']
+  }
+  basic = EmbeddedDocumentField(Basic)
+  tagtype = StringField(required=True)
+  singletonmode = BooleanField(required=True)#default is false but must come from tagtype
+  #The owner of a tag can be a user, group, or app
+  #This is different from creator as ownership can be transferred. You
+  #see this in groups and apps too. Its like a duck.
+  owner = StringField(required=True)
+  #Seems like this was needed for change ownership
 
-    #@interface=MEMBERS
-    members = ListField(EmbeddedDocumentField(MemberableEmbedded))
-    inviteds = ListField(EmbeddedDocumentField(MemberableEmbedded))
+  #@interface=MEMBERS
+  members = ListField(EmbeddedDocumentField(MemberableEmbedded))
+  inviteds = ListField(EmbeddedDocumentField(MemberableEmbedded))
 
-    #METHODS
-    def presentable_name(self):
-        return self.basic.name
+  #METHODS
+  def presentable_name(self):
+      return self.basic.name
 
-    def get_member_fqins(self):
-        return Gget_member_fqins(self)
+  def get_member_fqins(self):
+      return Gget_member_fqins(self)
 
-    def get_member_pnames(memb):
-        return Gget_member_pnames(memb)
+  def get_member_pnames(memb):
+      return Gget_member_pnames(memb)
 
-    def get_member_rws(self):
-        return Gget_member_rws(self)
+  def get_member_rws(self):
+      return Gget_member_rws(self)
 
-    def get_invited_fqins(self):
-        return Gget_invited_fqins(self)
+  def get_invited_fqins(self):
+      return Gget_invited_fqins(self)
 
-    def get_invited_pnames(memb):
-        return Gget_invited_pnames(memb)
+  def get_invited_pnames(memb):
+      return Gget_invited_pnames(memb)
 
-    def get_invited_rws(self):
-        return Gget_invited_rws(self)
+  def get_invited_rws(self):
+      return Gget_invited_rws(self)
 
 
 
 
 class User(Document):
+    "the adsgut user object in mongodn. distinct from the giovanni user object"
     classname="user"
     meta = {
-        'indexes': ['nick', 'basic.name', 'adsid', 'basic.whencreated'],
-        'ordering': ['-basic.whencreated']
+      'indexes': ['nick', 'basic.name', 'adsid', 'basic.whencreated'],
+      'ordering': ['-basic.whencreated']
     }
     adsid = StringField(required=True, unique=True)
     cookieid = StringField(required=True, unique=True)
@@ -197,94 +198,63 @@ class User(Document):
     postablesowned=ListField(EmbeddedDocumentField(MembableEmbedded))
     postablesinvitedto=ListField(EmbeddedDocumentField(MembableEmbedded))
 
-    #for this one i care to blame where we came from
-    def postablesother_blame(self):
+    def membableslibrary(self, pathinclude_p=False):
+        "get a list of libraries for user, with indirect membership included"
         plist=[]
         libs=[]
+        lfqpns=[]
+        pathincludes=defaultdict(list)
+        #first get the libraries etc we are directly members of
         for ele in self.postablesin:
             if ele.ptype == 'library':
                 libs.append(ele)
-        lfqpns=[l.fqpn for l in libs]
-        names={}
-        for l in lfqpns:
-            names[l] = ""
+                lfqpns.append(ele.fqpn)
+                pathincludes[ele.fqpn].append((ele.ptype, ele.pname, ele.fqpn))
+        #TODO:the below is removed for an array. Any code which depends on this in the JS should be changed.
+        # for l in lfqpns:
+        #     pathincludes[l] = ""
+        #ok now lets target the non-directs
         for ele in self.postablesin:
             if ele.ptype != 'library':
                 p = MAPDICT[ele.ptype].objects(basic__fqin=ele.fqpn).get()
+                #this is a group or app so get the postables it is in
                 ls = p.postablesin
                 for e in ls:
-                    if e.fqpn not in lfqpns:
-                        if not names.has_key(e.fqpn):
-                            names[e.fqpn]=[]
-                        names[e.fqpn].append((ele.ptype, ele.pname))
-                    plist.append(e)
-
+                    #dont pick up anything else than libraries that the groups and apps are in
+                    if e.ptype=='library':
+                        pathincludes[e.fqpn].append((ele.ptype, ele.pname, ele.fqpn))
+                        plist.append(e)
+        #put all the libraries together. there might be dupes
         libs = libs + plist
         pdict={}
         rw={}
         for l in libs:
+            #this does the set like behaviour so that we have the library only once
             if not pdict.has_key(l.fqpn):
                 pdict[l.fqpn] = l
                 rw[l.fqpn] = l.readwrite
             else:
+                #this ensures that we get the most permissive permission of the library
                 rw[l.fqpn] = rw[l.fqpn] or l.readwrite
+
+        #This is a hack. We never save in mongodb so to be cheap we just overwrite the reference we saved
+        #to the library with the most general read-write
         for k in pdict.keys():
             pdict[k].readwrite = rw[k]
-        return pdict.values(), names
 
-    def postablesnotlibrary(self):
+        #see if we want dictionary as well as values.
+        if pathinclude_p:
+            return pdict.values(), pathincludes
+        else:
+            return pdict.values()
+
+    def membablesnotlibrary(self):
         plist=[]
         for ele in self.postablesin:
-            if ele.ptype != 'library':
-                plist.append(ele)
+          if ele.ptype != 'library':
+              plist.append(ele)
         return plist
-    #for this one i want one per library, dont care where the library perms came from
-    def postableslibrary(self):
-        plist=[]
-        libs=[]
-        for ele in self.postablesin:
-            if ele.ptype != 'library':
-                p = MAPDICT[ele.ptype].objects(basic__fqin=ele.fqpn).get()
-                ls = p.postablesin
-                for e in ls:
-                    plist.append(e)
-            else:
-                libs.append(ele)
-        libs = libs + plist
-        pdict={}
-        rw={}
-        for l in libs:
-            if not pdict.has_key(l.fqpn):
-                pdict[l.fqpn] = l
-                rw[l.fqpn] = l.readwrite
-            else:
-                rw[l.fqpn] = rw[l.fqpn] or l.readwrite
-        for k in pdict.keys():
-            pdict[k].readwrite = rw[k]
-        return pdict.values()
 
-
-
-
-    #this below is wrong as we dont take into account multiple groups that can be in a library
-    # def postablesall_rws(self):
-    #     perms2={}
-    #     perms={}
-    #     for ele in self.postablesin:
-    #         if ele.ptype == 'library':
-    #             perms[ele.fqpn]=[ele.pname, ele.readwrite]
-    #         else:#in a group or app which can be members.
-    #             perms[ele.fqpn]=[ele.pname, ele.readwrite]
-    #             p = MAPDICT[ele.ptype].objects(basic__fqin=ele.fqpn).get()
-    #             perms2[ele.fqpn] = p.get_postablesin_rws()
-    #     #BUG: we dont distinguish group and app hierarchies. Currently only assuming groups.
-    #     for k in perms2.keys():
-    #         pdict = perms2[k]
-    #         for l in pdict.keys():
-    #             #if we are already member of library directly get perms from there
-    #             if not perms.has_key(l):
-    #                 perms[l] = pdict[l]
-    #     return perms
 
     def presentable_name(self):
         return self.adsid

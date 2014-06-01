@@ -3,6 +3,7 @@ from errors import *
 OK=200
 LOGGEDIN_A_SUPERUSER_O_USERAS=False
 MEMBER_OF_POSTABLE=False
+MEMBER_OF_MEMBABLE=False
 
 #if the default for tag is false, and we actually do land up checking this, then we have to find a way to let other use tags.
 #that i'd want is for it to be true for group and user members of tags, but not for apps.

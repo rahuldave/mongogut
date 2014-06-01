@@ -187,7 +187,7 @@ class Postdb():
         typespec=augmenttypespec(typespec)
         useras=currentuser
         authorize(False, self, currentuser, useras)
-        postable=self.whosdb._getPostable(currentuser, typespec['postable'])
+        postable=self.whosdb._getMembable(currentuser, typespec['postable'])
         #To add a new itemtype you must be owner!
         authorize_ownable_owner(False, self, currentuser, useras, postable)
         try:
@@ -217,7 +217,7 @@ class Postdb():
         typespec=augmenttypespec(typespec, "tagtype")
         useras=currentuser
         authorize(False, self, currentuser, useras)
-        postable=self.whosdb._getPostable(currentuser, typespec['postable'])
+        postable=self.whosdb._getMembable(currentuser, typespec['postable'])
         #BUG CHECK: do we want anyone to be able to add stuff to an app? or only groups and libraries?
         #or should we revert to only owners having tagtypes
         #also what are implications for personal and public groups and all that, either way.
@@ -254,7 +254,7 @@ class Postdb():
     def postItemIntoPostable(self, currentuser, useras, fqpn, item):
         #print "FQPN=======", fqpn
         ptype=gettype(fqpn)
-        postable=self.whosdb._getPostable(currentuser, fqpn)
+        postable=self.whosdb._getMembable(currentuser, fqpn)
         typename=getNSTypeNameFromInstance(postable)
         #item=self._getItem(currentuser, itemfqin)
         #Does the False have something to do with this being ok if it fails?BUG
@@ -318,7 +318,7 @@ class Postdb():
 
     def removeItemFromPostable(self, currentuser, useras, fqpn, itemfqin):
         ptype=gettype(fqpn)
-        postable=self.whosdb._getPostable(currentuser, fqpn)
+        postable=self.whosdb._getMembable(currentuser, fqpn)
         item=self._getItem(currentuser, itemfqin)
         #BUG posting must somehow be got from item
         permit(self.isMemberOfPostable(currentuser, useras, postable),
@@ -416,7 +416,7 @@ class Postdb():
         #you are member of a group.app/library which owns this tag
         #CHECK this means owner is member of tag
         # if tagownertype in POSTABLES:
-        #     tagowner=self._getPostable(currentuser,tag.owner)
+        #     tagowner=self._getMembable(currentuser,tag.owner)
         #     if self.isMemberOfPostable(currentuser, useras, tagowner):
         #         return True
         #finally when a tagging is posted to a group, the group becomes a member of the tag
@@ -440,7 +440,7 @@ class Postdb():
             typeobj=self._getItemType(currentuser, thetype)
         else:
             typeobj=self._getTagType(currentuser, thetype)
-        postable=self.whosdb._getPostable(currentuser, typeobj.postable)
+        postable=self.whosdb._getMembable(currentuser, typeobj.postable)
         if self.isMemberOfPostable(currentuser, useras, postable):
                 return True
         #print "BLA", typeobj.postable
@@ -672,14 +672,14 @@ class Postdb():
             for ptt in item.pinpostables:
                 pttfqin=ptt.postfqin
                 #BUG: many database hits. perhaps cached? if not do it or query better.
-                postable=self.whosdb._getPostable(currentuser, pttfqin)
+                postable=self.whosdb._getMembable(currentuser, pttfqin)
                 if pttfqin!=personalfqgn and self.isMemberOfPostable(currentuser, useras, postable) and self.canIPostToPostable(currentuser, useras, postable):
                     postablesin.append(postable)
             for postable in postablesin:
                 self.postTaggingIntoPostable(currentuser, useras, postable.basic.fqin, taggingdoc)
         if tagmode not in ['0','1']:
             fqpn=tagmode
-            postable=self.whosdb._getPostable(currentuser, fqpn)
+            postable=self.whosdb._getMembable(currentuser, fqpn)
             if fqpn!=personalfqgn and self.isMemberOfPostable(currentuser, useras, postable) and self.canIPostToPostable(currentuser, useras, postable):
                 self.postTaggingIntoPostable(currentuser, useras, postable.basic.fqin, taggingdoc)
     #this one reacts to the posted-to-postable kind of signal. It takes the taggings on the item that I made and
@@ -713,7 +713,7 @@ class Postdb():
     #reply to routing so we should be ok using _getItem. CHECK
     def postTaggingIntoPostable(self, currentuser, useras, fqpn, taggingdoc):
         itemtag=taggingdoc.posting
-        postable=self.whosdb._getPostable(currentuser, fqpn)
+        postable=self.whosdb._getMembable(currentuser, fqpn)
         ptype=classtype(postable)
         #why did we have this before?
         #authorize_postable_owner(False, self, currentuser, useras, postable)
@@ -774,7 +774,7 @@ class Postdb():
     # #BUG: currently not sure what the logic for everyone should be on this, or if it should even be supported
     # #as other users have now seen stuff in the group. What happens to tagging. Leave alone for now.
     # ptype=gettype(fqpn)
-    # postable=self.whosdb._getPostable(currentuser, fqpn)
+    # postable=self.whosdb._getMembable(currentuser, fqpn)
     # item=self._getItem(currentuser, itemfqin)
     # #BUG posting must somehow be got from item
     # permit(self.isMemberOfPostable(currentuser, useras, postable),
@@ -784,7 +784,7 @@ class Postdb():
     def removeTaggingFromPostable(self, currentuser, useras, fqpn, fqin, fqtn):
         #no thoughts of any routing to be affected etc over here. or consequences to other users. Just do it.
         ptype=gettype(fqpn)
-        postable=self.whosdb._getPostable(currentuser, fqpn)
+        postable=self.whosdb._getMembable(currentuser, fqpn)
         item=self._getItem(currentuser, fqin)
         tag=self._getTag(currentuser, fqtn)
         authorize_postable_member(False, self, currentuser, useras, postable)
@@ -912,7 +912,7 @@ class Postdb():
         #     userthere=postablecontext['user']
         #     ctype=postablecontext['type']
         #     ctarget=postablecontext['value']#a userfqin when needed
-        #     postable=self.whosdb._getPostable(currentuser, ctarget)
+        #     postable=self.whosdb._getMembable(currentuser, ctarget)
         #     #BUG cant have dups here in context That would require an anding with context?
         #     #BUG: None of this is currently protected it seems. Add protection here
         #     if userthere:
@@ -1006,7 +1006,7 @@ class Postdb():
     def getTagsAsMemberOnly(self, currentuser, useras, tagtype=None, singletonmode=False):
         #the postables for which user is a member
         #this is only for group so ok to use postablesForUser
-        postablesforuser=[e['fqpn'] for e in self.whosdb.postablesForUser(currentuser, useras, "group")]
+        postablesforuser=[e['fqpn'] for e in self.whosdb.membablesForUser(currentuser, useras, "group")]
         ##print "gtamo", postablesforuser
         #notice in op does OR not AND
         criteria=[
@@ -1049,13 +1049,13 @@ class Postdb():
                 elif default=="uag":
                     #BUG: should this have all libraries too?
                     #if its a group postablesForUSer is just fine, as there are no wierd access issues
-                    postablegroupsforuser=[e['fqpn'] for e in self.whosdb.postablesForUser(currentuser, useras, "group")]
+                    postablegroupsforuser=[e['fqpn'] for e in self.whosdb.membablesForUser(currentuser, useras, "group")]
                     ##print "pgfu", postablegroupsforuser
                     postablesforuser = postablegroupsforuser
                     #postablesforuser = postablegroupsforuser + postablelibrariesforuser
                     postablequery=[p.basic.fqin for p in postablesforuser]
         for ele in postablequery:
-            postable=self.whosdb._getPostable(currentuser, ele)
+            postable=self.whosdb._getMembable(currentuser, ele)
             #you must be a member of the library or the group
             authorize_postable_member(False, self, currentuser, useras, postable)
             #if you ask for atuff in apps, you better be an owner
@@ -1348,8 +1348,7 @@ class Postdb():
         resultdefault={}
         query={}
         #below could have been done through qproc too BUG: perhaps refactor?
-        #pfu=self.whosdb.postablesForUser(currentuser, useras, ptypestring)
-        pfu=self.whosdb.postablesUserCanAccess(currentuser, useras, ptypestring)
+        pfu=self.whosdb.membablesUserCanAccess(currentuser, useras, ptypestring)
         #print "PFU", pfu
         postablesforuser=[e['fqpn'] for e in pfu]
         #print "PFU2", postablesforuser
@@ -1453,14 +1452,11 @@ class Postdb():
     def getPostingsForSpec(self, currentuser, useras, itemfqinlist, ptypestring=None, sort=None):
         result={}
         query={}
-        # if ptypestring==None:
-        #     postablesforuser=[e['fqpn'] for e in self.whosdb.postablesForUser(currentuser, useras)]
-        # else:
-        #     postablesforuser=[e['fqpn'] for e in self.whosdb.postablesForUser(currentuser, useras, ptypestring)]
+
         if ptypestring==None:
-            postablesforuser=[e['fqpn'] for e in self.whosdb.postablesUserCanAccess(currentuser, useras)]
+            postablesforuser=[e['fqpn'] for e in self.whosdb.membablesUserCanAccess(currentuser, useras)]
         else:
-            postablesforuser=[e['fqpn'] for e in self.whosdb.postablesUserCanAccess(currentuser, useras, ptypestring)]
+            postablesforuser=[e['fqpn'] for e in self.whosdb.membablesUserCanAccess(currentuser, useras, ptypestring)]
         #print "gps", postablesforuser
         SHOWNFIELDS=[   'posting.postfqin',
                         'posting.posttype',
