@@ -34,6 +34,37 @@ RWDEFMAP={
     Tag:False
 }
 
+#tells you whether the defaulr is rw-true ow r-false
+
+RWDEF={
+    'group':True,
+    'app':True,#should apps use masquerading instead? BUG
+    'library':False,
+    'tag':False,
+    'udl':True,
+    'public':True
+}
+
+#tuple-1, type allowed. if None, any memberable
+#tuple-2
+#if true, then only the entity corresponding to the library or tag is allowed in
+#the library (bbesides the owner). otherwise, anyone is. If None, only the owner
+#For public, note that only the public group is allowed
+RESTR={
+    'group':(Group,True),
+    'app':(App, True),#should apps use masquerading instead? BUG
+    'library':(None,False),
+    'tag':(None, False),
+    'udl':(User, None),
+    'public':(Group, True)
+}
+
+MMMAP2={
+    Group:{Group:False, App:False, User:True},
+    App:{Group:True, App:False, User:True},
+    Library:{Group:True, App:True, User:True},
+    Tag:{Group:True, App:True, User:True}
+}
 #Should above be more detailed, such as below?
 # #Critically, the fact that you cannot read all items in an app is done in _qproc
 # #not sure that is right place.
@@ -54,7 +85,10 @@ RWDEFMAP={
 
 #(a) for reasons of historical accident, owner variables must be user fqin
 #(earlier we wanted to allow groups/apps to own things)
-
+PUBLICGROUP='adsgut/group:public'
+PUBLICLIBRARY='adsgut/group:public'
+MOTHERSHIPAPP='adsgut/app:adsgut'
+FLAGSHIPAPP='ads/app:publications'
 
 #The BASIC interface: its utilized by almost everything else
 class Basic(EmbeddedDocument):
@@ -71,15 +105,15 @@ class ItemType(Document):
   classname="itemtype"
   basic = EmbeddedDocumentField(Basic)
   owner = StringField(required=True)#must be fqin of user
-  postable = StringField(default="adsgut/adsgut", required=True)
-  postabletype = StringField(required=True)
+  membable = StringField(default="adsgut/adsgut", required=True)
+  membabletype = StringField(required=True)
 
 class TagType(Document):
   classname="tagtype"
   basic = EmbeddedDocumentField(Basic)
   owner = StringField(required=True)#must be fqin of user
-  postable = StringField(required=True)
-  postabletype = StringField(required=True)
+  membable = StringField(required=True)
+  membabletype = StringField(required=True)
   #Document tagmode 0/1 here
   tagmode = StringField(default='0', required=True)
   #singleton mode, if true, means that a new instance of this tag must be created each time
@@ -87,14 +121,16 @@ class TagType(Document):
   singletonmode = BooleanField(default=False, required=True)
 
 #We are calling it PostablEmbedded, but this is now a misnomer. We might change this name.
-#This is anything that "CAN HAVE" a member. ie the memberable interface
+#This is anything that "CAN HAVE" a member. ie the membable interface
 class MembableEmbedded(EmbeddedDocument):
   fqpn = StringField(required=True)
   ptype = StringField(required=True)
   pname = StringField(required=True)
   owner = StringField(required=True)#must be fqin of user
   readwrite = BooleanField(required=True, default=False)
+  islibrarypublic = BooleanField(default=False)
   description = StringField(default="")
+  librarykind = StringField(default="")#"" is for not library, otherwise its keys in RWDEF
 
 #The MemberableEmbedded represents a unit that is a member (MEMBER-IN), for example a user,
 #group or app that is member of a library or tag, or a user or group that is member
@@ -427,7 +463,7 @@ class Tagging(Post):
     tagtype=StringField(default="ads/tag", required=True)
     tagname=StringField(required=True)
     tagdescription=StringField(default="", required=True)
-    tagmode = StringField(default='0', required=True)
+    tagmode = StringField(default='0', required=True)#0/1/fqon=promiscuous/private/library-wide
     singletonmode = BooleanField(default=False, required=True)
 
 

@@ -930,18 +930,22 @@ class Postdb():
         #         if ctype in Postables:
         #             itemqset=itemqset.filter(pinpostables__postfqin=ctarget)
         #     #BUG: need to set up proper aborts here.
+        print "sorties", sort
         if sort:
             prefix=""
             if not sort['ascending']:
                 prefix='-'
             sorter=prefix+sort['field']
+            print "sorter", sorter
             itemqset=itemqset.order_by(sorter)
         #else:
         #print "NO SORT"
         if shownfields:
             itemqset=itemqset.only(*shownfields)
         count=itemqset.count()
-
+        # if sorter=="posting__thingtopostfqin":
+        #     print "itemqset", itemqset[0], itemqset[1]
+        print itemqset
         if pagtuple:
             pagoffset=pagtuple[0]
             pagsize=pagtuple[1]
@@ -1116,7 +1120,7 @@ class Postdb():
                                         {'field':'postedby', 'op':'eq', 'value':userfqin}
                     ]}
             )
-        #print "?OUTCRITERIA",criteria,  sort, pagtuple
+        print "?OUTCRITERIA",criteria,  sort, pagtuple
         result=self._makeQuery(klass, currentuser, useras, criteria, None, sort, shownfields, pagtuple)
         return result
 
@@ -1225,7 +1229,7 @@ class Postdb():
                      {'field':'posting__postedby', 'op':'eq', 'value':userfqin}
                     ]
             )
-        #print "?OUTCRITERIA",criteria,  sort, pagtuple
+        #print "?OUTCRITERIA",sort, pagtuple
         result=self._makeQuery(klass, currentuser, useras, criteria, None, sort, shownfields, pagtuple)
         return result
 
@@ -1239,7 +1243,7 @@ class Postdb():
 
     def getItemsForQuery(self, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
         SHOWNFIELDS=['itemtype', 'basic.fqin', 'basic.description', 'basic.name', 'basic.uri']
-        #print "USERNICK", usernick
+        print "USERNICK", usernick, sort
         result=self._getItemsForQuery(SHOWNFIELDS, currentuser, useras, query, usernick, criteria, sort, pagtuple)
         return result
 

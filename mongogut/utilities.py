@@ -53,6 +53,12 @@ def parseTag(fqtn):
     tagtype=spl[1][0:n-1]
     return fqtn, taguser, tagtype, tagname
 
+def getLibForMembable(fqin):
+    lst=fqin.split(':')
+    nslist=lst[-2].split('/')
+    nshead=nslist[0]
+    nstail=lst[-1]
+    return nshead+"/library:"+nstail
 #BUG: add a function musthave which can then be used to validate in augmentitspec
 #this function currently dosent throw an exception it should when not in flask mode
 def musthavekeys(indict, listofkeys):
@@ -71,7 +77,7 @@ def augmentspec(specdict, specstr="user"):
     spectype=MAPDICT[specstr]
     spectypestring = spectype.classname
 
-    if spectype in POSTABLES:
+    if spectype in MEMBABLES:
         specdict=musthavekeys(specdict, ['creator', 'name'])
         specdict['owner']=specdict['creator']
         basicdict['creator']=specdict['creator']
@@ -82,6 +88,9 @@ def augmentspec(specdict, specstr="user"):
         #specdict['nick']=basicdict['fqin']
         if not specdict.has_key('nick'):
             specdict['nick']=makeUuid()
+        if specstr=="library":#islibrarypublic set by default process
+            if not specdict.has_key("librarykind"):
+                specdict['librarykind']='library'
         del specdict['name']
     elif spectype==User:
         specdict=musthavekeys(specdict, ['adsid'])
@@ -101,6 +110,8 @@ def augmentspec(specdict, specstr="user"):
     if specdict.has_key('description'):
         del specdict['description']
     #print "OUTSPECDICT", specdict
+    if specstr!="library" and specdict.has_key("librarykind"):
+        del specdict['librarykind']
     return specdict
 
 def augmentitspec(specdict, spectype="item"):
@@ -144,9 +155,9 @@ def augmenttypespec(specdict, spectype="itemtype"):
     #BUG: validate the specdict
     #for itemtype, come in with an postabletype=app and a postable=appfqin
     #print "INSPECDICT", specdict
-    specdict=musthavekeys(specdict,['creator', 'name', 'postable'])
+    specdict=musthavekeys(specdict,['creator', 'name', 'membable'])
     #BUG validate its in the choices wanted ie app and grp (what about tagtypes in libs)
-    specdict['postabletype']=getNSVal(specdict['postable'])
+    specdict['membabletype']=getNSVal(specdict['membable'])
     basicdict['creator']=specdict['creator']
     specdict['owner']=specdict['creator']
     basicdict['name']=specdict['name']

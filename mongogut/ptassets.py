@@ -187,9 +187,9 @@ class Postdb():
         typespec=augmenttypespec(typespec)
         useras=currentuser
         authorize(False, self, currentuser, useras)
-        postable=self.whosdb._getMembable(currentuser, typespec['postable'])
+        membable=self.whosdb._getMembable(currentuser, typespec['membable'])
         #To add a new itemtype you must be owner!
-        authorize_ownable_owner(False, self, currentuser, useras, postable)
+        authorize_membableowner(False, self, currentuser, useras, membable)
         try:
             itemtype=ItemType(**typespec)
             itemtype.save(safe=True)
@@ -217,12 +217,12 @@ class Postdb():
         typespec=augmenttypespec(typespec, "tagtype")
         useras=currentuser
         authorize(False, self, currentuser, useras)
-        postable=self.whosdb._getMembable(currentuser, typespec['postable'])
+        membable=self.whosdb._getMembable(currentuser, typespec['membable'])
         #BUG CHECK: do we want anyone to be able to add stuff to an app? or only groups and libraries?
         #or should we revert to only owners having tagtypes
         #also what are implications for personal and public groups and all that, either way.
         #can you post a tag to a group if the tagtype is not in that groups scope?
-        authorize_postable_member(False, self, currentuser, useras, postable)
+        authorize_membable_member(False, self, currentuser, useras, membable)
         try:
             #print "TAGSPEC", typespec, typespec['basic'].to_json()
             tagtype=TagType(**typespec)
@@ -243,12 +243,12 @@ class Postdb():
 
     def changeOwnershipOfItemType(self, currentuser, owner, fqitype, fqno):
         #BUG put something here to make sure itype and such
-        newowner=self.changeOwnershipOfOwnableType(currentuser, owner, fqitype, fqno)
+        newowner=self.changeOwnershipOfOwnable(currentuser, owner, fqitype, fqno)
         return newowner
 
     def changeOwnershipOfTagType(self, currentuser, owner, fqttype, fqno):
         #BUG put something here to make sure itype and such
-        newowner=self.changeOwnershipOfOwnableType(currentuser, owner, fqttype, fqno)
+        newowner=self.changeOwnershipOfOwnable(currentuser, owner, fqttype, fqno)
         return newowner
 
     def postItemIntoPostable(self, currentuser, useras, fqpn, item):
@@ -286,30 +286,33 @@ class Postdb():
             #print sys.exc_info()
             doabort('BAD_REQ', "Failed adding newposting of item %s into %s %s." % (item.basic.fqin, typename, postable.basic.fqin))
         #BUG: now send to personal group via routing. Still have to add to datatypes app
-        personalfqgn=useras.nick+"/group:default"
+        personalfqln=useras.nick+"/library:default"
         #not sure below is needed. Being defensive CHECK
-        if postable.basic.fqin!=personalfqgn:
+        if postable.basic.fqin!=personalfqln:
             #print "RUNNING FOR", typename, postable.basic.fqin
             self.signals['added-to-'+typename].send(self, obj=self, currentuser=currentuser, useras=useras, item=item, fqpn=fqpn)
         item.reload()
         return item, newposting
 
-    def postItemIntoGroup(self, currentuser, useras, fqgn, item):
-        item=self.postItemIntoPostable(currentuser, useras, fqgn, item)
+    def postItemIntoGroupLibrary(self, currentuser, useras, fqgn, item):
+        fqnn=getLibForMembable(fqgn)
+        item=self.postItemIntoPostable(currentuser, useras, fqnn, item)
         return item
 
     def recv_postItemIntoPersonal(self, currentuser, useras, **kwargs):
         kwargs=musthavekeys(kwargs,['item'])
         #print "POST ITEM INTO PERSONAL", kwargs
         item=kwargs['item']
-        personalfqgn=useras.nick+"/group:default"
+        personalfqln=useras.nick+"/library:default"
         #item=self._getItem(currentuser, itemfqin)
-        if personalfqgn not in [ptt.postfqin for ptt in item.pinpostables]:
+        #add check for udl in TODO?
+        if personalfqln not in [ptt.postfqin for ptt in item.pinpostables]:
             #print "NOT IN PERSONAL GRP"
-            self.postItemIntoGroup(currentuser, useras, personalfqgn, item)
+            self.postItemIntoLibrary(currentuser, useras, personalfqln, item)
 
-    def postItemIntoApp(self, currentuser, useras, fqan, item):
-        item=self.postItemIntoPostable(currentuser, useras, fqan, item)
+    def postItemIntoAppLibrary(self, currentuser, useras, fqan, item):
+        fqnn=getLibForMembable(fqan)
+        item=self.postItemIntoPostable(currentuser, useras, fqnn, item)
         return item
 
     def postItemIntoLibrary(self, currentuser, useras, fqln, item):
@@ -326,11 +329,11 @@ class Postdb():
         item.update(safe_update=True, pull__pinpostables={'postfqin':postable.basic.fqin, 'postedby':useras.adsid})
         return OK
 
-    def removeItemFromGroup(self, currentuser, useras, fqgn, itemfqin):
-        removeItemFromPostable(self, currentuser, useras, fqgn, itemfqin)
-
-    def removeItemFromApp(self, currentuser, useras, fqan, itemfqin):
-        removeItemFromPostable(self, currentuser, useras, fqan, itemfqin)
+    # def removeItemFromGroup(self, currentuser, useras, fqgn, itemfqin):
+    #     removeItemFromPostable(self, currentuser, useras, fqgn, itemfqin)
+    #
+    # def removeItemFromApp(self, currentuser, useras, fqan, itemfqin):
+    #     removeItemFromPostable(self, currentuser, useras, fqan, itemfqin)
 
     def removeItemFromLibrary(self, currentuser, useras, fqln, itemfqin):
         removeItemFromPostable(self, currentuser, useras, fqln, itemfqin)
@@ -341,11 +344,10 @@ class Postdb():
         item=kwargs['item']
         #tem=self._getItem(currentuser, itemfqin)
         fqan=self._getItemType(currentuser, item.itemtype).postable
-        self.postItemIntoApp(currentuser, useras, fqan, item)
+        self.postItemIntoAppLibrary(currentuser, useras, fqan, item)
 
     def saveItem(self, currentuser, useras, itemspec):
         authorize(False, self, currentuser, useras)#sysadmin or any logged in user where but cu and ua must be same
-        personalfqgn=useras.nick+"/group:default"
         itemspec['creator']=useras.basic.fqin
         itemspec=augmentitspec(itemspec)
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
@@ -440,14 +442,13 @@ class Postdb():
             typeobj=self._getItemType(currentuser, thetype)
         else:
             typeobj=self._getTagType(currentuser, thetype)
-        postable=self.whosdb._getMembable(currentuser, typeobj.postable)
-        if self.isMemberOfPostable(currentuser, useras, postable):
+        membable=self.whosdb._getMembable(currentuser, typeobj.membable)
+        if self.isMemberOfMembable(currentuser, useras, membable):
                 return True
-        #print "BLA", typeobj.postable
         return False
 
     def canCreateThisTag(self, currentuser, useras, tagtype):
-        "return true is this user can use this tag from access to tagtype, namespace, etc"
+        "return true if this user can use this tag from access to tagtype, namespace, etc"
         return self.canAccessThisType(currentuser, useras, tagtype, False)
 
     #this is done for making a standalone tag, without tagging anything with it
@@ -654,7 +655,7 @@ class Postdb():
         if tagmode=='0':
             #item=self._getItem(currentuser, itemfqin)
             fqan=self._getItemType(currentuser, item.itemtype).postable
-            self.postTaggingIntoApp(currentuser, useras, fqan, taggingdoc)
+            self.postTaggingIntoAppLibrary(currentuser, useras, fqan, taggingdoc)
     #BUG how do things get into apps? Perhaps a bit solved
     #As it is now it will automatically post YOUR tags to apps, libraries, groups you are a member of
     #if tagmode allows it
@@ -665,7 +666,7 @@ class Postdb():
         taggingdoc=kwargs['taggingdoc']
         tagmode=kwargs['tagmode']
         #item=self._getItem(currentuser, itemfqin)
-        personalfqgn=useras.nick+"/group:default"
+        personalfqln=useras.nick+"/library:default"
         print "TAGMODE", tagmode
         if tagmode=='0':
             postablesin=[]
@@ -673,14 +674,14 @@ class Postdb():
                 pttfqin=ptt.postfqin
                 #BUG: many database hits. perhaps cached? if not do it or query better.
                 postable=self.whosdb._getMembable(currentuser, pttfqin)
-                if pttfqin!=personalfqgn and self.isMemberOfPostable(currentuser, useras, postable) and self.canIPostToPostable(currentuser, useras, postable):
+                if pttfqin!=personalfqln and self.isMemberOfPostable(currentuser, useras, postable) and self.canIPostToPostable(currentuser, useras, postable):
                     postablesin.append(postable)
             for postable in postablesin:
                 self.postTaggingIntoPostable(currentuser, useras, postable.basic.fqin, taggingdoc)
         if tagmode not in ['0','1']:
             fqpn=tagmode
             postable=self.whosdb._getMembable(currentuser, fqpn)
-            if fqpn!=personalfqgn and self.isMemberOfPostable(currentuser, useras, postable) and self.canIPostToPostable(currentuser, useras, postable):
+            if fqpn!=personalfqln and self.isMemberOfPostable(currentuser, useras, postable) and self.canIPostToPostable(currentuser, useras, postable):
                 self.postTaggingIntoPostable(currentuser, useras, postable.basic.fqin, taggingdoc)
     #this one reacts to the posted-to-postable kind of signal. It takes the taggings on the item that I made and
     def recv_spreadOwnedTaggingIntoPostable(self, currentuser, useras, **kwargs):
@@ -688,7 +689,6 @@ class Postdb():
         item=kwargs['item']
         fqpn=kwargs['fqpn']
         #item=self._getItem(currentuser, itemfqin)
-        personalfqgn=useras.nick+"/group:default"
         taggingstopost=[]
         #Now note this will NOT do libraries. BUG: have we changed model to group is member of libraries? i think so
         #print "ITEM.STAGS", item.stags
@@ -755,17 +755,17 @@ class Postdb():
 
             #BUG:postables will be pushed multiple times here. How to unique? i think we ought to have this
             #happen at mongoengine/mongodb level
-            if postable.basic.fqin==useras.nick+"/group:default":
+            if postable.basic.fqin==useras.nick+"/library:default":
                 rw=True
             else:
-                rw=RWDEFMAP[ptype]
+                rw=RWDEF[postable.librarykind]
             memb=MemberableEmbedded(mtype=postable.classname, fqmn=postable.basic.fqin, readwrite=rw, pname=postable.presentable_name())
             #tag.update(safe_update=True, push__members=postable.basic.fqin)
             tag.update(safe_update=True, push__members=memb)
             tag.reload()
             taggingdoc.reload()
         except:
-            import sys
+            #import sys
             #print sys.exc_info()
             doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in postable %s" % (itemtag.thingtopostfqin, itemtag.postfqin, postable.basic.fqin))
 
@@ -799,19 +799,21 @@ class Postdb():
         return OK
 
 
-    def postTaggingIntoGroup(self, currentuser, useras, fqgn, taggingdoc):
-        itemtag=self.postTaggingIntoPostable(currentuser, useras, fqgn, taggingdoc)
+    def postTaggingIntoGroupLibrary(self, currentuser, useras, fqgn, taggingdoc):
+        fqnn=getLibForMembable(fqan)
+        itemtag=self.postTaggingIntoPostable(currentuser, useras, fqnn, taggingdoc)
         return itemtag
 
     def recv_postTaggingIntoPersonal(self, currentuser, useras, **kwargs):
         kwargs=musthavekeys(kwargs,['taggingdoc'])
         taggingdoc=kwargs['taggingdoc']
-        personalfqgn=useras.nick+"/group:default"
-        if personalfqgn not in [ptt.postfqin for ptt in taggingdoc.pinpostables]:
-            self.postTaggingIntoGroup(currentuser, useras, personalfqgn, taggingdoc)
+        personalfqln=useras.nick+"/library:default"
+        if personalfqln not in [ptt.postfqin for ptt in taggingdoc.pinpostables]:
+            self.postTaggingIntoLibrary(currentuser, useras, personalfqln, taggingdoc)
 
-    def postTaggingIntoApp(self, currentuser, useras, fqan, taggingdoc):
-        itemtag=self.postTaggingIntoPostable(currentuser, useras, fqan, taggingdoc)
+    def postTaggingIntoAppLibrary(self, currentuser, useras, fqan, taggingdoc):
+        fqnn=getLibForMembable(fqan)
+        itemtag=self.postTaggingIntoPostable(currentuser, useras, fqnn, taggingdoc)
         return itemtag
 
     def postTaggingIntoLibrary(self, currentuser, useras, fqln, taggingdoc):
@@ -1571,11 +1573,10 @@ def initialize_application(sess):
     adsuser=whosdb._getUserForNick(adsgutuser, "ads")
     #adsapp=whosdb.getApp(adsuser, "ads@adslabs.org/app:publications")
     currentuser=adsuser
-    postdb.addItemType(adsuser, dict(name="pub", postable="ads/app:publications"))
-    postdb.addItemType(adsuser, dict(name="search", postable="ads/app:publications"))
-    postdb.addTagType(adsuser, dict(name="tag",  postable="ads/app:publications"))
-    postdb.addTagType(adsuser, dict(name="note",
-        postable="ads/app:publications", tagmode='1', singletonmode=True))
+    postdb.addItemType(adsuser, dict(name="pub", membable=FLAGSHIPAPP))
+    postdb.addItemType(adsuser, dict(name="search", membable=FLAGSHIPAPP))
+    postdb.addTagType(adsuser, dict(name="tag",  membable=FLAGSHIPAPP))
+    postdb.addTagType(adsuser, dict(name="note", membable=FLAGSHIPAPP, tagmode='1', singletonmode=True))
 
 
 def initialize_testing(db_session):
@@ -1610,7 +1611,7 @@ def initialize_testing(db_session):
         #print "========", paper
         item=postdb.saveItem(user, user, paper)
         #print "------------------------------"
-        item, posting = postdb.postItemIntoGroup(user,user, "rahuldave/group:ml", item)
+        item, posting = postdb.postItemIntoGroupLibrary(user,user, "rahuldave/group:ml", item)
         thedict[k]=item
 
     #BUG: we dont test here for someone else in the group to use my tag
@@ -1633,7 +1634,7 @@ def initialize_testing(db_session):
     for k in thedict.keys():
         r=random.choice([0,1])
         user=users[r]
-        postdb.postItemIntoGroup(user, user, 'jayluker/group:sp', thedict[k])
+        postdb.postItemIntoGroupLibrary(user, user, 'jayluker/group:sp', thedict[k])
 
     NOTES=["this paper is smart", "this paper is useless", "these authors are clueless"]
     notes={}
@@ -1653,8 +1654,8 @@ def initialize_testing(db_session):
 
     #2 different ways of doing things. First just adds to public group. Second adds to all appropriate groups
     tdoutside=postdb.getTaggingDoc(niw[0], niw[0], niw[1].basic.fqin, niw[2].basic.fqin)
-    postdb.postItemIntoGroup(niw[0], niw[0], "adsgut/group:public", niw[1])
-    postdb.postTaggingIntoGroup(niw[0], niw[0], "adsgut/group:public", tdoutside)
+    postdb.postItemIntoGroupLibrary(niw[0], niw[0], PUBLICGROUP, niw[1])
+    postdb.postTaggingIntoGroupLibrary(niw[0], niw[0], PUBLICGROUP, tdoutside)
     postdb.changeTagmodeOfTagging(niw[0], niw[0], niw[1].basic.fqin, niw[2].basic.fqin)
 
     LIBRARIES=["rahuldave/library:mll", "jayluker/library:spl"]

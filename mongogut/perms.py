@@ -135,4 +135,5 @@ def authorize_ownable_owner(authstart, db, currentuser, memberable, cobj):
     if not clausesys[0]:
         permit(*clause3)
 
+authorize_membable_owner=authorize_ownable_owner
 authorize_postable_owner=authorize_ownable_owner
