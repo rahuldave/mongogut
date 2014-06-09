@@ -450,22 +450,27 @@ class Library(Document):
 class Post(EmbeddedDocument):
 
     meta = {'allow_inheritance':True}
-    #this would be the fqin of the tag too.
+    #for item posts, this is the postable ingo, for tag posts this would be the fqin/type of the tag too.
     postfqin=StringField(required=True)
     posttype=StringField(required=True)
-    #below is the item and itemtype
+    #below is the item and itemtype foritem  posts, and stuff about the tag for posting a tagging
     thingtopostfqin=StringField(required=True)
     thingtoposttype=StringField(required=True)
+    thingtopostname=StringField(required=True)
+    thingtopostdescription=StringField(default="", required=True)
     whenposted=DateTimeField(required=True, default=datetime.datetime.now)
     postedby=StringField(required=True)
 
 class Tagging(Post):
-    tagtype=StringField(default="ads/tag", required=True)
+    #tagtype=StringField(default="ads/tag", required=True)
     tagname=StringField(required=True)
     tagdescription=StringField(default="", required=True)
     tagmode = StringField(default='0', required=True)#0/1/fqon=promiscuous/private/library-wide
     singletonmode = BooleanField(default=False, required=True)
 
+class TPHist(EmbeddedDocument):
+    whenposted=DateTimeField(required=True, default=datetime.datetime.now)
+    postedby=StringField(required=True)
 
 class PostingDocument(Document):
     classname="postingdocument"
@@ -473,8 +478,14 @@ class PostingDocument(Document):
         'indexes': ['posting.postfqin', 'posting.posttype', 'posting.whenposted', 'posting.postedby', 'posting.thingtoposttype', 'posting.thingtopostfqin', ('posting.postfqin', 'posting.thingtopostfqin')],
         'ordering': ['-posting.whenposted']
     }
+    #update information in posting below to latest whenposted and posted-by
     posting=EmbeddedDocumentField(Post)
+    hist=ListField(EmbeddedDocumentField(TPHist))
+    #we capture this here so we only ever need to search posting documents
+    stags = ListField(EmbeddedDocumentField(Tagging))
 
+#unlike postingdocument, no hist here, as its the individual tagging that gets posted in a library
+#in this sense the adsid is critical to identify the tagging document.
 class TaggingDocument(Document):
     classname="taggingdocument"
     meta = {
@@ -482,8 +493,10 @@ class TaggingDocument(Document):
         'ordering': ['-posting.whenposted']
     }
     posting=EmbeddedDocumentField(Tagging)
-    #In which libraries has this tagging has been posted
+    #In which libraries has this tagging has been posted. Do we not need some kind of hist for this?
     pinpostables = ListField(EmbeddedDocumentField(Post))
+
+
 
 
 #how to have indexes work within pinpostables abd stags? use those documents

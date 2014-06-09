@@ -494,7 +494,7 @@ class Database():
                 else:
                     librarykind=""
                     islibrarypublic=False
-                pe=MembableEmbedded(ptype=ptype.classname,fqpn=membable.basic.fqin, owner=useras.adsid, pname = membable.presentable_name(), readwrite=rw, description=membable.basic.description, librarykind=librarykind, islibrarypublic=False)
+                pe=MembableEmbedded(ptype=ptype.classname,fqpn=membable.basic.fqin, owner=useras.adsid, pname = membable.presentable_name(), readwrite=rw, description=membable.basic.description, librarykind=librarykind, islibrarypublic=islibrarypublic)
             memberableq.update(safe_update=True, push__postablesin=pe)
             member = is_memberable_embedded_in_membable(memberable, membable.members)
             if member == False:
@@ -734,7 +734,7 @@ class Database():
             me.update(safe_update=True, push__postablesin=pe, pull__postablesinvitedto__fqpn=pe.fqpn)
             membableq.update(safe_update=True, push__members=memb, pull__inviteds__fqmn=memb.fqmn)
         except:
-            doabort('BAD_REQ', "Failed in user %s accepting invite to gpostable %s %s" % (mefqin, ptype.__name__, fqpn))
+            doabort('BAD_REQ', "Failed in user %s accepting invite to postable %s %s" % (mefqin, ptype.__name__, fqpn))
         me.reload()
         return me, membableq.get()
 
