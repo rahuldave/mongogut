@@ -342,9 +342,12 @@ class Database():
         newuser.reload()
         return newuser
 
-    #BUG: we want to blacklist users and relist them
-    #currently only allow users to be removed through scripts
-    #BUG: does not remove their groups or anything. Thats ok: its just that they cant log-in any more.
+    #TODO: we want to blacklist users and relist them. add a dormant to user object
+    #TODO: what about removal of the user from tags: later we will hook this up to
+    #tags a user is a member of, but its not urgent
+    #TODO: THINK:What if they have create tagtypes? Then these may still be used but no-one can remove them.
+    #this should only be a systemuser thing.
+    #Generally we will never do this.
     def removeUser(self, currentuser, usertoberemovednick):
         "remove a user. only systemuser can do this"
         #Only sysuser can remove user.
@@ -352,6 +355,11 @@ class Database():
         authorize_systemuser(False, self, currentuser)
         remuser=self._getUserForNick(currentuser, usertoberemovednick)
         #CONSIDER: remove user from users collection, but not his name elsewhere.
+        #remove user from all ownables/membables that user is a member of
+        #BUG: what about tags
+        membablesin=[m.fqpn for m in remuser.postablesin]
+        for fqpn in membablesin:
+            self.removeMemberableFromMembable(currentuser, useras, fqpn, remuser.basic.fqin)
         remuser.delete(safe=True)
         return OK
 
@@ -416,15 +424,30 @@ class Database():
     def addLibrary(self, currentuser, useras, libraryspec):
         return self.addMembable(currentuser, useras, "library", libraryspec)
 
-    #BUG: why is there no useras here? perhaps too dangerous to let a useras delete?
     def removeMembable(self,currentuser, useras, fqpn):
         "currentuser removes a postable"
-        rempostable=self._getMembable(currentuser, fqpn)
-        authorize_ownable_owner(False, self, currentuser, None, rempostable)
-        #BUG: group deletion is very fraught. Once someone else is in there
-        #the semantics go crazy. Will have to work on refcounting here. And
-        #then get refcounting to come in
-        rempostable.delete(safe=True)
+        membable=self._getMembable(currentuser, fqpn)
+        authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
+        authorize_membable_owner(False, self, currentuser, useras, membable)
+        #ok, so must find all memberables, and for each memberable, delete this membable for it.
+        memberfqins=[m.fqmn for m in membable.members]
+        invitedfqins=[m.fqmn for m in membable.inviteds]
+        for fqin in memberfqins:
+            mtype=gettype(memberablefqin)
+            member=self._getMemberableForFqin(currentuser, mtype, fqin)
+            member.update(safe_update=True, pull__postablesin={'fqpn':fqpn})
+        for fqin in invitedfqins:
+            mtype=gettype(memberablefqin)
+            if mtype==User:
+                member=self._getMemberableForFqin(currentuser, mtype, fqin)
+                member.update(safe_update=True, pull__postablesinvitedto={'fqpn':fqpn})
+        useras.update(safe_update=True, pull_postablesowned={'fqpn':fqpn})
+
+        #TODO:then every item/tag/postingdoc/taggingdoc which has this membable, remove the membable from it
+        #we will do this later. we might use routing. Until then the items will show this group there. perhaps
+        #as we check which membables a user can access, and now this membable wont be there,
+        #so we may effectively never show it. We might have to deal with tag membership tho. This will be done later
+        membable.delete(safe=True)
         return OK
 
     def removeGroup(self, currentuser, useras, fqpn):
@@ -460,7 +483,7 @@ class Database():
         if fqpn!='adsgut/group:public':
             #print "Adding to POSTABLE ", memberable.basic.fqin, postable.basic.fqin, currentuser.basic.fqin, useras.basic.fqin
             #special case so any user can add themselves to public group
-            authorize_postable_owner(False, self, currentuser, useras, membable)
+            authorize_membable_owner(False, self, currentuser, useras, membable)
         try:
             if ptype==Library:
                 if ownermode:
@@ -570,76 +593,42 @@ class Database():
         return memberable, postable
 
 
-    #BUG: not really fleshed out as we need to handle refcounts and all that to see if objects ought to be removed.
-    #Completely falls over. need appropriate readwrites.
-    def removeMemberableFromMembable(self, currentuser, fqpn, memberablefqin):
+    #This should work for tags as well. you must be systemuser or tag owner to remove someone from tags
+    def removeMemberableFromMembable(self, currentuser, useras, fqpn, memberablefqin):
         "remove a u/g/a from a g/a/l"
         ptype=gettype(fqpn)
         mtype=gettype(memberablefqin)
-        postableq=ptype.objects(basic__fqin=fqpn)
+        membableq=ptype.objects(basic__fqin=fqpn)
         memberableq= mtype.objects(basic__fqin=memberablefqin)
-
+        authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         try:
-            postable=postableq.get()
+            membable=membableq.get()
         except:
-            doabort('BAD_REQ', "No such group %s" % fqpn)
-        #Bug shouldnt this have memberable?
-        authorize_ownable_owner(False, self, currentuser, None, postable)
+            doabort('BAD_REQ', "No such membable %s" % fqpn)
         try:
-            memberableq.update(safe_update=True, pull__postablesin__fqpn=postable.basic.fqin)
+            memberable=memberableq.get()
+        except:
+            doabort('BAD_REQ', "No such memberable %s" % memberablefqin)
+
+        if useras.basic.fqin==memberablefqin:
+            #if the user is removing herself, first make sure she is a member
+            authorize_membable_member(False, self, currentuser, useras, membable)
+            #now make sure she is not the owner
+            if self.isOwnerOfMembable(currentuser, useras, membable):
+                doabort('BAD_REQ', "Cannot remove owner %s of %s" % (useras.basic.fqin,fqpn))
+        else:
+            #otherwise you must be the owner of the membable or systemuser. this is independent
+            #of whether the memberable is a user or a group/app in a library
+            #or a user in a group/app
+            #system user will be allowed by below so we are good
+            authorize_membable_owner(False, self, currentuser, useras, membable)
+        try:
+            memberableq.update(safe_update=True, pull__postablesin__fqpn=membable.basic.fqin)
             #buf not sure how removing embedded doc works, if at all
-            postableq.update(safe_update=True, pull__members__fqmn=memberablefqin)
+            membableq.update(safe_update=True, pull__members__fqmn=memberablefqin)
         except:
-            doabort('BAD_REQ', "Failed removing memberable %s %s from postable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
+            doabort('BAD_REQ', "Failed removing memberable %s %s from membable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
         return OK
-
-    # #BUG: there is no restriction here of what can be added to what in memberables and postables
-    # #CHECK: why not use this generally? why separate for postables/ this seems to be used only for Tag. BUG: combine code is possible
-    # def addMemberableToMembable(self, currentuser, useras, fqpn, memberablefqin, changerw=False):
-    #     "add a user, group, or app to a postable=group, app, or library"
-    #     ptype=gettype(fqpn)
-    #     mtype=gettype(memberablefqin)
-    #     #BUG: need exception handling here, also want to make sure no strange fqins are accepted
-    #     membableq=ptype.objects(basic__fqin=fqpn)
-    #     try:
-    #         membable=membableq.get()
-    #     except:
-    #         doabort('BAD_REQ', "No such membable(tag) %s" % fqpn)
-    #     memberableq= mtype.objects(basic__fqin=memberablefqin)
-    #     memberable = memberableq.get()
-    #     try:
-    #         if not changerw:
-    #             rw=RWDEFMAP[ptype]
-    #         else:
-    #             rw= (not RWDEFMAP[ptype])
-    #
-    #         memb = is_memberable_embedded_in_membable(memberable, membable.members)
-    #         if memb==False:
-    #             memb=MemberableEmbedded(mtype=mtype.classname, fqmn=memberablefqin, readwrite=rw, pname = memberable.presentable_name())
-    #             membableq.update(safe_update=True, push__members=memb)
-    #     except:
-    #         doabort('BAD_REQ', "Failed adding memberable %s %s to membable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
-    #     return memberableq.get(), membableq.get()
-    #
-    # #BUG: not really fleshed out as we need to handle refcounts and all that to see if objects ought to be removed.
-    # def removeMemberableFromMembable(self, currentuser, fqpn, memberablefqin):
-    #     "remove a u/g/a from a g/a/l"
-    #     ptype=gettype(fqpn)
-    #     mtype=gettype(memberablefqin)
-    #     membableq=ptype.objects(basic__fqin=fqpn)
-    #     memberableq= mtype.objects(basic__fqin=memberablefqin)
-    #
-    #     try:
-    #         membable=membableq.get()
-    #     except:
-    #         doabort('BAD_REQ', "No such membable %s" % fqpn)
-    #     #Bug: this is currentuser for now
-    #     authorize_ownable_owner(False, self, currentuser, None, membable)
-    #     try:
-    #         membableq.update(safe_update=True, pull__members__fqmn=memberablefqin)
-    #     except:
-    #         doabort('BAD_REQ', "Failed removing memberable %s %s from postable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
-    #     return OK
 
 
     #do we want to use this for libraries? why not? Ca we invite other memberables?
@@ -862,8 +851,9 @@ class Database():
     #This is where we deal with TAG's. Check. BUG: also combine with above for non repeated code.
     #tags are membables, we dont check that here. Ought it be done with postables?
     #and do we have use cases for tag ownership changes, as opposed to tagtypes and itemtypes?
+    #TODO:THINK:this is not explicitly for tags
     def changeOwnershipOfOwnable(self, currentuser, owner, fqon, newowner):
-        "this is used for things like itentypes and tagtypes, not for g/a/l. Also for tags?"
+        "this is used for things like itentypes and tagtypes, not for g/a/l."
         otype=gettype(fqon)
         oq=otype.objects(basic__fqin=fqon)
         try:

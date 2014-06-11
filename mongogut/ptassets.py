@@ -14,6 +14,8 @@ from social import Database
 
 from blinker import signal
 
+import operator
+
 #BUG:replace obj by the sender
 def receiver(f):
     ##print "SETTING UP SIGNAL"
@@ -310,6 +312,15 @@ class Postdb():
         permit(self.isMemberOfPostable(currentuser, useras, postable),
             "Only member of postable %s who posted this item can remove it" % postable.basic.fqin)
         item.update(safe_update=True, pull__pinpostables={'postfqin':postable.basic.fqin, 'postedby':useras.adsid})
+        #now add stuff to remove from postingdoc
+        postingdoc=self._getPostingDoc(currentuser, itemfqin, fqpn)
+        postingdoc.update(safe_update=True, pull__hist={'postedby':useras.adsid})
+        postingdoc.reload()
+        hists=postingdoc.hist
+        maxdict=max(hists, key=lambda x:x['whenposted'])
+        postingdoc.whenposted=maxdict['whenposted']
+        postingdoc.postedby=maxdict['postedby']
+        postingdoc.save(safe=True)
         return OK
 
     def removeItemFromLibrary(self, currentuser, useras, fqln, itemfqin):
@@ -459,11 +470,6 @@ class Postdb():
             doabort('NOT_AUT', "Not authorized for tag %s" % tagspec['basic'].fqin)
         return tag
 
-    #BUG: not creating a delete tag until we know what it means
-    #
-    def deleteTag(self, currentuser, useras, fqtn):
-        pass
-
     #tagspec here needs to have name and tagtype, this gives, given the useras, the fqtn and allows
     #us to create a new tag or tag an item with an existing tag. If you want to use someone elses tag,
     #on the assumption u are allowed to (as code in makeTag..BUG..refactor), add a creator into the tagspec
@@ -540,7 +546,9 @@ class Postdb():
                 taggingdoc.save(safe=True)
                 taggingdoc.reload()
                 #print "LALALALALALALALA990"
-                itemtobetagged.update(safe_update=True, push__stags=itemtag)
+                #below used to not be there: how does it impact queries?
+                if not singletonmode:
+                    itemtobetagged.update(safe_update=True, push__stags=itemtag)
             except:
                 doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s" % (itemtobetagged.basic.fqin, tag.basic.fqin))
             ##print "adding to %s" % personalfqgn
@@ -566,29 +574,27 @@ class Postdb():
         tag=self._getTag(currentuser, fullyQualifiedTagName)
         item=self._getItem(currentuser, fullyQualifiedItemName)
         #print "where"
-        if not self.isOwnerOfTag(currentuser, useras, tag):
-            #print "Not Aut"
+        if not self.canUseThisTag(currentuser, useras, tag):
             doabort('NOT_AUT', "Not authorized for tag %s" % tag.basic.fqin)
         taggingdoc=self._getTaggingDoc(currentuser, item.basic.fqin, tag.basic.fqin, useras.adsid)
         #removing the taggingdoc will remove pinpostables will thus
         #remove it from all the places the tagging was spread too
-        taggingdoc.delete(safe=True)
 
-        #print "deleted", tag.singletonmode
-        #Now we must deal with tag's membership.
-        #note that tags are namespaced, so others never use the same tag, they may just use the same name.
-        #but that tag might have been used here in another context.
-        #if we add a counter for membeble embedded in tags we could count how many times
-        #a tag was used in a group(this would be a specific tag, so this would be the users usage)
-        #then isf only one user used this tag, on disusing it, group wouldnt see it any more.
-        #but why? just let the tag be accessible to these groups.
-        #Now if it is a note, then we dont want this to be the case, but wre are deleting all
-        #singletomode tags anyways, so this sluttiness can continue to be there, and that tagname
-        #will be forever seen in this group
+        #only those posts which u made which should be all as taggingdoc is specific to u
+        postablefqpns=[e.postfqin for e in taggingdoc.pinpostables if taggingdoc.postedby==useras.adsid]
+        for fqpn in postablefqpns:
+            #this does a bit of extra work with respect to the taggingdoc, we do nuke the taggingdoc below
+            self.removeTaggingFromPostable(currentuser, useras, fqpn, fullyQualifiedItemName, fullyQualifiedTagName)
         if tag.singletonmode==True:
+            #only delete tag if its a note: ie we are in singletonmode
+            if not self.isOwnerOfTag(currentuser, useras, tag):
+                doabort('NOT_AUT', "Not authorized for tag %s" % tag.basic.fqin)
             tag.delete(safe=True)
         else:
-            item.update(safe_update=True, pull__stags__postfqin=tag.basic.fqin)
+            item.update(safe_update=True, pull__stags={'postfqin':tag.basic.fqin, 'postedby':useras.adsid})
+
+        taggingdoc.delete(safe=True)
+        #we never delete tags from the system unless they are singletonmodes
         return OK
 
     #Note that the following provide a model for the uniqueness of posting and tagging docs.
@@ -749,12 +755,13 @@ class Postdb():
                 rw=True
             else:
                 rw=RWDEF[postable.librarykind]
+            #everytime you do this the same postable will be added again
             memb=MemberableEmbedded(mtype=postable.classname, fqmn=postable.basic.fqin, readwrite=rw, pname=postable.presentable_name())
             #tag.update(safe_update=True, push__members=postable.basic.fqin)
             tag.update(safe_update=True, push__members=memb)
             tag.reload()
             taggingdoc.reload()
-            #TODO: will there be one itemtag per item/tag/user combo in this list?
+            #TODO: Think:will there be one itemtag per item/tag/user combo in this list?
             pd.update(safe_update=True, push__stags=itemtag)
         except:
             #import sys
@@ -763,20 +770,15 @@ class Postdb():
 
         return item, tag, taggingdoc.posting, newposting
 
-    # #BUG: currently not sure what the logic for everyone should be on this, or if it should even be supported
-    # #as other users have now seen stuff in the group. What happens to tagging. Leave alone for now.
-    # ptype=gettype(fqpn)
-    # postable=self.whosdb._getMembable(currentuser, fqpn)
-    # item=self._getItem(currentuser, itemfqin)
-    # #BUG posting must somehow be got from item
-    # permit(self.isMemberOfPostable(currentuser, useras, postable),
-    #     "Only member of postable %s who posted this item can remove it" % postable.basic.fqin)
-    # item.update(safe_update=True, pull__pinpostables={'postfqin':postable.basic.fqin, 'postedby':useras.adsid})
-    # return OK
+
     def removeTaggingFromPostable(self, currentuser, useras, fqpn, fqin, fqtn):
         #no thoughts of any routing to be affected etc over here. or consequences to other users. Just do it.
         ptype=gettype(fqpn)
         postable=self.whosdb._getMembable(currentuser, fqpn)
+        if postable.basic.fqin==useras.nick+"/library:default":
+            rw=True
+        else:
+            rw=RWDEF[postable.librarykind]
         item=self._getItem(currentuser, fqin)
         tag=self._getTag(currentuser, fqtn)
         authorize_postable_member(False, self, currentuser, useras, postable)
@@ -785,9 +787,19 @@ class Postdb():
           taggingdoc=self._getTaggingDoc(currentuser, item.basic.fqin, tag.basic.fqin, useras.adsid)
         except:
           doabort('BAD_REQ', "Wasnt a tagging on item %s with tag %s in postable %s for user %s" % (item.basic.fqin, tag.basic.fqin, postable.basic.fqin, useras.adsid))
+        #if it is an stag, get it from postingdoc as well as from item
         taggingdoc.update(safe_update=True, pull__pinpostables={'postfqin':postable.basic.fqin, 'postedby':useras.adsid})
-
-        #TODO: what are the removal ideas here: do we handle via refcounting.
+        #NOTE: even if we remove this tagging, we continue to let the tag have this postable as a member. So there
+        #is no deletion of postable membership of tag. This allows the tag to be continued to be used in this library
+        if tag.singletonmode:
+            return OK
+        #only get here for stags (ie not singletonmodes)
+        try:
+          postingdoc=self._getPostingDoc(currentuser, item.basic.fqin, fqpn)
+        except:
+          doabort('BAD_REQ', "Wasnt a postingon item %s in postable %s" % (item.basic.fqin, fqpn))
+        #this removes the stag from the postingdoc
+        postingdoc.update(safe_update=True, pull__stags={'postfqin':taggingdoc.posting.postfqin, 'thingtopostfqin':item.basic.fqin, 'postedby':useras.adsid})
         return OK
 
 

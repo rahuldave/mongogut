@@ -149,7 +149,8 @@ class User(Document):
     #@interface=BASIC
     nick = StringField(required=True, unique=True)
     basic = EmbeddedDocumentField(Basic)
-
+    #use this to temporarily turn off a user
+    dormant=BooleanField(default=False)
     #@interface=MEMBERSHIP-IN (augmented by owned)
     #note the postables is now a misnomer, it is anything you
     #can be a member in
