@@ -1,5 +1,6 @@
 from mongoengine import *
 import datetime
+from collections import defaultdict
 
 
 
@@ -213,6 +214,7 @@ class User(Document):
         for ele in self.postablesin:
           if ele.ptype != 'library':
               plist.append(ele)
+        #print "membnotlib", [e.fqpn for e in plist]
         return plist
 
 
@@ -414,7 +416,7 @@ class PostingDocument(Document):
 class TaggingDocument(Document):
     classname="taggingdocument"
     meta = {
-        'indexes': ['posting.postfqin', 'posting.posttype', 'posting.whenposted', 'posting.postedby', 'posting.thingtoposttype', 'posting.tagname', 'posting.tagtype', 'posting.thingtopostfqin', ('posting.postfqin', 'posting.thingtopostfqin')],
+        'indexes': ['posting.postfqin', 'posting.posttype', 'posting.whenposted', 'posting.postedby', 'posting.thingtoposttype', 'posting.tagname', 'posting.thingtopostfqin', ('posting.postfqin', 'posting.thingtopostfqin')],
         'ordering': ['-posting.whenposted']
     }
     posting=EmbeddedDocumentField(Tagging)
@@ -480,10 +482,12 @@ RWDEFMAP={
 }
 
 #tells you whether the defaulr is rw-true ow r-false
+#TODO: not sure what this does for tag
 
+#the interpretation here is for any other group or app except the libraries group or app
 RWDEF={
-    'group':True,
-    'app':True,#should apps use masquerading instead? BUG
+    'group':False,
+    'app':False,#should apps use masquerading instead? BUG
     'library':False,
     'tag':False,
     'udl':True,
@@ -496,12 +500,12 @@ RWDEF={
 #the library (bbesides the owner). otherwise, anyone is. If None, only the owner
 #For public, note that only the public group is allowed
 RESTR={
-    'group':(Group,True),
-    'app':(App, True),#should apps use masquerading instead? BUG
+    'group':(None,True),
+    'app':(None, True),#should apps use masquerading instead? BUG
     'library':(None,False),
     'tag':(None, False),
     'udl':(User, None),
-    'public':(Group, True)
+    'public':(None, True)
 }
 
 MMMAP2={

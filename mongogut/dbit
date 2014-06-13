@@ -1,0 +1,5 @@
+use admin;
+db.addUser("admin","admin");
+db.auth("admin", "admin");
+use adsgut2;
+db.addUser("adsgut", "adsgut");

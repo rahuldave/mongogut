@@ -2,7 +2,7 @@ from mongoclasses import *
 import uuid
 import sys
 import config
-from perms import permit, authorize, authorize_systemuser, authorize_loggedin_or_systemuser
+from perms import permit, authorize, authorize_systemuser, authorize_loggedin_or_systemuser, authorize_membable_owner
 from perms import authorize_ownable_owner, authorize_postable_member, authorize_postable_owner, authorize_membable_member
 from exc import abort, doabort, ERRGUT
 import types
@@ -97,6 +97,8 @@ class Postdb():
         self.isMemberOfPostable=self.whosdb.isMemberOfPostable
         self.canIPostToPostable=self.whosdb.canIPostToPostable
         self.isMemberOfMembable=self.whosdb.isMemberOfMembable
+        self.isOwnerOfMembable=self.whosdb.isOwnerOfMembable
+        self.isSystemUser=self.whosdb.isSystemUser
         self.signals={}
         #CHECK taking out  receiver(self.recv_postTaggingIntoItemtypesApp)
         # , from tagged items as will happen by appr.
@@ -164,7 +166,7 @@ class Postdb():
         authorize(False, self, currentuser, useras)
         membable=self.whosdb._getMembable(currentuser, typespec['membable'])
         #To add a new itemtype you must be owner!
-        authorize_membableowner(False, self, currentuser, useras, membable)
+        authorize_membable_owner(False, self, currentuser, useras, membable)
         try:
             itemtype=ItemType(**typespec)
             itemtype.save(safe=True)
@@ -230,6 +232,7 @@ class Postdb():
         #print "FQPN=======", fqpn
         ptype=gettype(fqpn)
         postable=self.whosdb._getMembable(currentuser, fqpn)
+        print ">>>", useras.basic.fqin, postable.basic.fqin, [m.fqmn for m in postable.members]
         typename=getNSTypeNameFromInstance(postable)
         #item=self._getItem(currentuser, itemfqin)
         #Does the False have something to do with this being ok if it fails?BUG
@@ -281,6 +284,7 @@ class Postdb():
 
     def postItemIntoGroupLibrary(self, currentuser, useras, fqgn, item):
         fqnn=getLibForMembable(fqgn)
+        print "fqnn is", fqnn
         item=self.postItemIntoPostable(currentuser, useras, fqnn, item)
         return item
 
@@ -317,10 +321,13 @@ class Postdb():
         postingdoc.update(safe_update=True, pull__hist={'postedby':useras.adsid})
         postingdoc.reload()
         hists=postingdoc.hist
-        maxdict=max(hists, key=lambda x:x['whenposted'])
-        postingdoc.whenposted=maxdict['whenposted']
-        postingdoc.postedby=maxdict['postedby']
-        postingdoc.save(safe=True)
+        if len(hists) > 0:
+            maxdict=max(hists, key=lambda x:x['whenposted'])
+            postingdoc.whenposted=maxdict['whenposted']
+            postingdoc.postedby=maxdict['postedby']
+            postingdoc.save(safe=True)
+        else:#this was the only posting todo: chek if logic ok
+            postingdoc.delete(safe=True)
         return OK
 
     def removeItemFromLibrary(self, currentuser, useras, fqln, itemfqin):
@@ -804,7 +811,7 @@ class Postdb():
 
 
     def postTaggingIntoGroupLibrary(self, currentuser, useras, fqgn, taggingdoc):
-        fqnn=getLibForMembable(fqan)
+        fqnn=getLibForMembable(fqgn)
         itemtag=self.postTaggingIntoPostable(currentuser, useras, fqnn, taggingdoc)
         return itemtag
 
@@ -1164,10 +1171,10 @@ class Postdb():
         count, result=self._makeQuery(klass, currentuser, useras, criteria, None, sort, shownfields, pagtuple)
         tresult=[]
         for pd in result:
-            item={'basic':{'fqin':pd.thingtopostfqin,'name':pd.thingtopostname,'description':pd.thingtopostdescription},
-                'itemtype':pd.thingtoposttype, 'whenposted':pd.whenposted}
+            item={'basic':{'fqin':pd.posting.thingtopostfqin,'name':pd.posting.thingtopostname,'description':pd.posting.thingtopostdescription},
+                'itemtype':pd.posting.thingtoposttype, 'whenposted':pd.posting.whenposted, 'postedby':pd.posting.postedby}
             tresult.append(item)
-
+        #TODO:does postingby above leak?
         return count, tresult
 
     def getItemsForQuery(self, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
@@ -1217,8 +1224,10 @@ class Postdb():
                         'posting.thingtopostfqin',
                         'posting.thingtoposttype',
                         'posting.thingtopostname',
-                        'posting.whenposted']
+                        'posting.whenposted',
+                        'posting.postedby']
         #you dont want this as it leaks who posted it in the other library: 'posting.postedby']
+        #TODO: not sure of above. seems we need it, and if we are only in one fqpn we be ok as we get postingdocs for one fqpn only
 
         klass=PostingDocument
         criteria=[]
@@ -1482,7 +1491,7 @@ class Postdb():
         return result, resultfqpn, resultdefault
 
     def getTaggingsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None, fqpn=None):
-        result, resultfqpn, resultdefault=self.getTaggingsForSpec(currentuser, useras, itemfqinlist, None,  sort, fqpn)
+        result, resultfqpn, resultdefault=self.getTaggingsForSpec(currentuser, useras, itemfqinlist, sort, fqpn)
         return result, resultfqpn, resultdefault
 
     def getTagsConsistentWithUserAndItems(self, currentuser, useras, itemfqinlist, sort=None):
@@ -1599,7 +1608,7 @@ def initialize_testing(db_session):
         paper['itemtype']='ads/itemtype:pub'
         #print "========", paper
         item=postdb.saveItem(user, user, paper)
-        #print "------------------------------"
+        print "------------------------------", user.basic.fqin
         item, posting = postdb.postItemIntoGroupLibrary(user,user, "rahuldave/group:ml", item)
         thedict[k]=item
 
@@ -1658,11 +1667,11 @@ def initialize_testing(db_session):
 if __name__=="__main__":
     import sys
     if len(sys.argv)==1:
-        db_session=connect("adsgut")
+        db_session=connect("adsgut2")
     elif len(sys.argv)==3:
-        db_session=connect("adsgut", host="mongodb://%s:%s@localhost/adsgut" % (sys.argv[1], sys.argv[2]))
+        db_session=connect("adsgut2", host="mongodb://%s:%s@localhost/adsgut2" % (sys.argv[1], sys.argv[2]))
     else:
         print "Not right number of arguments. Exiting"
         sys.exit(-1)
     initialize_application(db_session)
-    #initialize_testing(db_session)
+    initialize_testing(db_session)

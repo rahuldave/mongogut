@@ -1,6 +1,6 @@
-from classes import *
+from mongoclasses import *
 import config
-from perms import permit, authorize, authorize_systemuser, authorize_loggedin_or_systemuser
+from perms import permit, authorize, authorize_systemuser, authorize_loggedin_or_systemuser, authorize_membable_owner
 from perms import authorize_ownable_owner, authorize_postable_member, authorize_postable_owner, authorize_membable_member
 from exc import abort, doabort, ERRGUT
 import types
@@ -181,7 +181,7 @@ class Database():
     def isOwnerOfPostable(self, currentuser, useras, postable):
         return self.isOwnerOfOwnable(currentuser, useras, postable)
 
-    def isOwnerOfMembable(self, currentuser, memberable, membable):
+    def isOwnerOfMembable(self, currentuser, useras, membable):
         return self.isOwnerOfOwnable(currentuser, useras, membable)
 
     #invitations for users. invitation to a tag is undefined, as yet. unprotected
@@ -312,7 +312,8 @@ class Database():
             newuser=User(**userspec)
             newuser.save(safe=True)
         except:
-            #print sys.exc_info()
+            import sys
+            print sys.exc_info()
             doabort('BAD_REQ', "Failed adding user %s" % userspec['adsid'])
 
         #A this point, if adding adsgut, set the currentuser to adsgut
@@ -403,14 +404,16 @@ class Database():
             except:
                 doabort('BAD_REQ', "Failed adding membable %s %s" % (ptype.__name__, membablespec['basic'].fqin))
             #BUG changerw must be appropriate here!
-            #owner must be a user
-            self.addUserToMembableUsingFqin(currentuser, useras, newmembable.basic.fqin, newmembable.basic.creator, changerw=False, ownermode=True)
+            #owner must be a user WHY DO WE USE CREATOR?
+            self.addMemberableToMembable(currentuser, useras, newmembable.basic.fqin, newmembable.basic.creator, changerw=False, ownermode=True)
             #now if this was a group or an app, add the corresponding library
             if ptypestr in ['group', 'app']:
                 membablespeclib_in=copy.deepcopy(membablespec_in)
                 if not membablespeclib_in.has_key('librarykind'):
                     membablespeclib_in['librarykind']=ptypestr
                 luser, mlib=self.addMembable(currentuser, useras, 'library', membablespeclib_in)
+                #now make sure group or app is in that library
+                self.addMemberableToMembable(currentuser, useras, mlib.basic.fqin, newmembable.basic.fqin, changerw=False, ownermode=False)
             ##print "autoRELOAD?", userq.get().to_json()
             newmembable.reload()
             return user, newmembable
@@ -465,7 +468,6 @@ class Database():
         "add a user, group, or app to a postable=group, app, or library"
         ptype=gettype(fqpn)
         mtype=gettype(memberablefqin)
-        #print "types in AMTP", fqpn, ptype, memberablefqin,mtype
         membableq=ptype.objects(basic__fqin=fqpn)
         memberableq= mtype.objects(basic__fqin=memberablefqin)
         #BUG currently restricted admission. Later we will want groups and apps proxying for users.
@@ -488,22 +490,22 @@ class Database():
             if ptype==Library:
                 if ownermode:
                     rw=True
-                else:
+                else:#RWDEF only used when not in ownermode
                     if not changerw:
                         rw=RWDEF[membable.librarykind]
                     else:
                         rw= (not RWDEF[membable.librarykind])
-
                 restriction=RESTR[membable.librarykind]
-                if restriction[0]!=None
+                #print "restriction is", restriction
+                if restriction[0]!=None:
                     if restriction[1]==None and ownermode==False:
                         doabort('BAD_REQ', "Only owner is allowed to be a member of %s" %  membable.librarykind)
-                    if ownermode==False#ownly the group/app/pub group entity is allowed to be a member of this library
+                    if ownermode==False:#ownly the group/app/pub group entity is allowed to be a member of this library
                         if mtype!=restriction[0]:
-                            doabort('BAD_REQ', Memberable %s not allowed as member of %s library" %  (mtype.__name__,membable.librarykind))
+                            doabort('BAD_REQ', "Memberable %s not allowed as member of %s library" %  (mtype.__name__,membable.librarykind))
                         if restriction[1]==True:
-                            if membable.basic.name!=memberable.basic.name and membable.creator!=memberable.creator:
-                                doabort('BAD_REQ', Memberable %s not allowed as member of %s library" %  (memberable.basic.fqin,membable.basic.fqin))
+                            if membable.basic.name!=memberable.basic.name and membable.owner!=memberable.owner:
+                                doabort('BAD_REQ', "Memberable %s not allowed as member of %s library" %  (memberable.basic.fqin,membable.basic.fqin))
 
             #if all of this passes, we are now ok to add
 
@@ -530,23 +532,20 @@ class Database():
         return memberable, membableq.get()
 
     def addUserToGroup(self, currentuser, useras, fqpn, memberablefqin, changerw=False, ownermode=False):
-        self.addMemberableToMembable(self, currentuser, useras, fqpn, memberablefqin, changerw, ownermode)
+        self.addMemberableToMembable(currentuser, useras, fqpn, memberablefqin, changerw, ownermode)
 
     def addUserToApp(self, currentuser, useras, fqpn, memberablefqin, changerw=False, ownermode=False):
-        self.addMemberableToMembable(self, currentuser, useras, fqpn, memberablefqin, changerw, ownermode)
+        self.addMemberableToMembable(currentuser, useras, fqpn, memberablefqin, changerw, ownermode)
 
     def addUserToLibrary(self, currentuser, useras, fqpn, memberablefqin, changerw=False, ownermode=False):
-        self.addMemberableToMembable(self, currentuser, useras, fqpn, memberablefqin, changerw, ownermode)
+        self.addMemberableToMembable(currentuser, useras, fqpn, memberablefqin, changerw, ownermode)
 
     def addGroupToLibrary(self, currentuser, useras, fqpn, memberablefqin, changerw=False, ownermode=False):
-        self.addMemberableToMembable(self, currentuser, useras, fqpn, memberablefqin, changerw, ownermode)
+        self.addMemberableToMembable(currentuser, useras, fqpn, memberablefqin, changerw, ownermode)
 
     def addUserToMembable(self, currentuser, fqpn, nick, changerw=False, ownermode=False):
-        user=self._getUserForNick(currentuser,nick)
+        user=self._getUserForNick(currentuser, nick)
         return self.addMemberableToMembable(currentuser, currentuser, fqpn, user.basic.fqin, changerw, ownermode)
-
-    def addUserToMembableUsingFqin(self, currentuser, fqpn, fqin, changerw=False, ownermode=False):
-        return self.addMemberableToMembable(currentuser, currentuser, fqpn, fqin, changerw, ownermode)
 
     #because this is used along with other membership apply/decline funcs, we will go with memberable
     #as opposed to memberablefqin
@@ -645,6 +644,7 @@ class Database():
         #     user=userq.get()
         # except:
         #     doabort('BAD_REQ', "No such user %s" % usertobeaddedfqin)
+        #print ">>>", membable.owner, useras.basic.fqin, currentuser.basic.fqin, user.basic.fqin
         authorize_membable_owner(False, self, currentuser, useras, membable)
         try:
             if ptype==Library:
@@ -665,7 +665,7 @@ class Database():
                 pe=MembableEmbedded(ptype=ptype.classname,fqpn=membable.basic.fqin, owner=useras.adsid, pname = membable.presentable_name(), readwrite=rw, description=membable.basic.description, librarykind=librarykind, islibrarypublic=islibrarypublic)
                 user.update(safe_update=True, push__postablesinvitedto=pe)
 
-            memb = is_memberable_embedded_in_membable(user, postable.inviteds)
+            memb = is_memberable_embedded_in_membable(user, membable.inviteds)
             if memb==False:
                 memb=MemberableEmbedded(mtype=User.classname, fqmn=usertobeaddedfqin, readwrite=rw, pname = user.presentable_name())
                 #BUG: ok to use fqin here instead of getting from oblect?
@@ -1004,4 +1004,4 @@ if __name__=="__main__":
         print "Not right number of arguments. Exiting"
         sys.exit(-1)
     initialize_application(db_session)
-    #initialize_testing(db_session)
+    initialize_testing(db_session)
