@@ -588,7 +588,7 @@ class Postdb():
         #remove it from all the places the tagging was spread too
 
         #only those posts which u made which should be all as taggingdoc is specific to u
-        postablefqpns=[e.postfqin for e in taggingdoc.pinpostables if taggingdoc.postedby==useras.adsid]
+        postablefqpns=[e.postfqin for e in taggingdoc.pinpostables if taggingdoc.posting.postedby==useras.adsid]
         for fqpn in postablefqpns:
             #this does a bit of extra work with respect to the taggingdoc, we do nuke the taggingdoc below
             self.removeTaggingFromPostable(currentuser, useras, fqpn, fullyQualifiedItemName, fullyQualifiedTagName)
