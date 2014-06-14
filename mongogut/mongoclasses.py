@@ -13,6 +13,7 @@ PUBLICGROUP='adsgut/group:public'
 PUBLICLIBRARY='adsgut/group:public'
 MOTHERSHIPAPP='adsgut/app:adsgut'
 FLAGSHIPAPP='ads/app:publications'
+ANONYMOUSE='adsgut/user:anonymouse'
 
 #The BASIC interface: its utilized by almost everything else
 class Basic(EmbeddedDocument):

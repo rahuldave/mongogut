@@ -1,8 +1,13 @@
+from mongoengine import *
+
 import sys
 import bson
-from mongoclasses import *
 import copy
 dumpdir=sys.argv[1]
+database=sys.argv[2]
+connect(database)
+from mongoclasses import *
+
 #open("/Users/rahul/mongodata/dump/adsgut/user.bson").read()
 
 def group_to_lib(fqin):
@@ -25,16 +30,16 @@ def getlist(tabletype):
     return table
 
 
-tables=["app",
-"group",
-"item",
-"item_type",
-"library",
-"posting_document",
-"tag",
-"tag_type",
-"tagging_document",
-"user"]
+tables=[
+    "app",
+    "group",
+    "item",
+    "library",
+    "posting_document",
+    "tag",
+    "tagging_document",
+    "user"
+]
 
 tabledict=dict(
     app=App,
@@ -47,16 +52,22 @@ tabledict=dict(
     user=User
 )
 
+
+
+##############################################################################
 datadict={}
 for t in tables:
     datadict[t]=getlist(t)
-
+finaldict={}
 #Now we clean the list of dictionaries of unwanted fields so that we can use each as a spec with no extra fields
 #adding new fields where appropriate
 
 #NOTE: Some names have changed: default library for example. public group is also a public library now. list others here.
 #we need to store default nicks from the new system in here as well, so we can use those for users.
 
+existing_users=['adsgut/user:ads', 'adsgut/user:adsgut', 'adsgut/user:anonymouse']
+existing_postables=['anonymouse/group:default','adsgut/app:adsgut', 'ads/app:publications', 'adsgut/group:public']
+#TODO: not sure i am handling readwrites correctly. check
 ###############################################################################
 # 1. Apps
 ###############################################################################
@@ -72,9 +83,13 @@ for app in applist:
     if app['basic']['name']=='publications':
         adspubmembers=app['members']
 
+adsgutmembers=[e for e in adsgutmembers if e['fqmn'] not in existing_users]
+adspubmembers=[e for e in adspubmembers if e['fqmn'] not in existing_users]
+
+#TODO: remove the 3 users from here!
 #note that members of adsgut app are inviteds as well, while those of the pub app are folks who have accepted
 #the invitation
-
+print applist
 ###TODO now add these to the existing classes. There are no changes to the spec for members
 
 
@@ -92,11 +107,12 @@ for group in grouplist:
     del group['_id']
     if group['basic']['name']=='default':#this becomes a library
         personallibs.append(group)
+    elif group['basic']['fqin']=='adsgut/group:public':
+        publicmembers=group['members']
     else:
         groups.append(group)
 
 #now, for each group, also create a library with the group inside it and the owner of the group as well
-
 
 personallibs = [p for p in personallibs if p['basic']['fqin'] not in ['adsgut/group:default','ads/group:default','anonymouse/group:default']]
 
@@ -110,14 +126,15 @@ for p in personallibs:
 #print '--------------------------------'
 #print groups[0]
 
-###TODO now add these to the existing classes. There are no changes to the spec for members
+finaldict['library']=[]
+finaldict['library'].append(personallibs)
 
 ###############################################################################
 #3. Libraries
 ###############################################################################
 
 liblist=datadict['library']
-
+anonymousepin=[]
 for lib in liblist:
     del lib['_id']
     possiblegroup=lib_to_group(lib['basic']['fqin'])
@@ -130,19 +147,19 @@ for lib in liblist:
         lib['islibrarypublic']=True
     else:
         lib['islibrarypublic']=False
-    #print lib
-    #print '--------------------------------'
 
 
-###TODO now add these to the existing classes. There are no changes to the spec for members
 
+finaldict['library'].append(liblist)
 
 ###############################################################################
 #4. Users
 ###############################################################################
 
 userlist=datadict['user']
-userlist=[u for u in userlist if u['basic']['name'] not in ['ads', 'adsgut', 'anonymouse']]
+anonymouse=[u for u in userlist if u['basic']['fqin']=='adsgut/user:anonymouse'][0]
+anonymousepin=[p for p in anonymouse['postablesin'] if p['fqpn'] not in existing_postables ]
+userlist=[u for u in userlist if u['basic']['fqin'] not in existing_users]
 for user in userlist:
     del user['_id']
     user['dormant']=False
@@ -174,6 +191,8 @@ for user in userlist:
 
 #print userlist[0]
 
+finaldict['user']=[]
+finaldict['user'].append(userlist)
 ###############################################################################
 #5. now adjust the group libraries using information from the user table
 ###############################################################################
@@ -189,7 +208,7 @@ for g,p in zip(groups,grouplibs):
     p['islibrarypublic'] = False#start with false but now its a lib
     thelibrarymembe={'fqpn':p['basic']['fqin'], 'ptype':'library', 'owner':p['owner'],
         'librarykind':p['librarykind'], 'islibrarypublic':p['islibrarypublic'],
-        'pname':'library:'+p['basic']['name'],'readwrite':False, 'description':p['basic']['description']}
+        'pname':'library:'+p['basic']['name'],'readwrite':True, 'description':p['basic']['description']}
     presentname=None
     for u in userlist:
         if g['owner']==u['basic']['fqin']:
@@ -208,8 +227,9 @@ for g,p in zip(groups,grouplibs):
 # print "---------------------------------------------------------------"
 # print grouplibs[3]
 
-###TODO now add these to the existing classes. There are no changes to the spec for members
-
+finaldict['group']=[]
+finaldict['group'].append(groups)
+finaldict['library'].append(grouplibs)
 ###############################################################################
 #6. now we do tags
 ###############################################################################
@@ -224,4 +244,171 @@ for tag in tags:
             m['fqmn']=group_to_lib(m['fqmn'])
             m['pname']='library:default'
             m['mtype']='library'
-print tags[0]
+#print tags[0]
+
+# I am not dure what it means for tags to go into groups as well as libs. This needs more
+#thought which we must put in
+finaldict['tag']=[]
+finaldict['tag'].append(tags)
+###############################################################################
+#7. now we do items
+###############################################################################
+
+items = datadict['item']
+
+for item in items:
+    del item['_id']
+    pinpostables=item['pinpostables']
+    for p in pinpostables:
+        p['thingtopostname']=p['thingtopostfqin'].split('/')[-1]
+        p['thingtopostdescription']=""
+        if p['posttype']=='group':
+            p['posttype']='library'
+            p['postfqin']=group_to_lib(p['postfqin'])
+    stags=item['stags']
+    for s in stags:
+        s['posttype']=s['tagtype']
+        del s['tagtype']
+        s['thingtopostname']=s['thingtopostfqin'].split('/')[-1]
+        s['thingtopostdescription']=""
+#print items[0]['stags']
+
+finaldict['item']=[]
+finaldict['item'].append(items)
+###############################################################################
+#7. now we do tagging documents
+###############################################################################
+
+tds=datadict['tagging_document']
+tagposteddict={}
+for td in tds:
+    del td['_id']
+    tagging=td['posting']
+    pinpostables=td['pinpostables']
+    for p in pinpostables:
+        p['thingtopostname']=tagging['tagname']
+        p['thingtopostdescription']=tagging['tagdescription']
+        if p['posttype']=='group':
+            p['posttype']='library'
+            p['postfqin']=group_to_lib(p['postfqin'])
+        if not tagposteddict.has_key(p['postfqin']):
+            tagposteddict[p['postfqin']]=[]
+        tagposteddict[p['postfqin']].append(tagging)
+    tagging['posttype']=tagging['tagtype']
+    del tagging['tagtype']
+    tagging['thingtopostname']=tagging['thingtopostfqin'].split('/')[-1]
+    tagging['thingtopostdescription']=""
+
+# print tds[0]['posting']
+# print "---------------"
+# print tds[0]['pinpostables']
+finaldict['tagging_document']=[]
+finaldict['tagging_document'].append(tds)
+###############################################################################
+#8. now we do posting documents
+###############################################################################
+#remember we now have to handle hists
+
+pds=datadict['posting_document']
+print len(pds)
+postingdict={}
+for pd in pds:
+    del pd['_id']
+    posting=pd['posting']
+    fqin=posting['thingtopostfqin']
+    posting['thingtopostname']=fqin.split('/')[-1]
+    if not postingdict.has_key(fqin):
+        postingdict[fqin]=[]
+    posting['thingtopostdescription']=""
+    if posting['posttype']=='group':
+            posting['posttype']='library'
+            posting['postfqin']=group_to_lib(posting['postfqin'])
+    postingdict[fqin].append(pd)
+
+print len(postingdict.keys())
+#now that we have got the correct fqpns let us consolidate
+postingdocuments=[]
+posting2dict={}
+for fqin in postingdict.keys():
+    if not posting2dict.has_key(fqin):
+        posting2dict[fqin]={}
+        for fqpn,e in [(e['posting']['postfqin'],e) for e in postingdict[fqin]]:
+            if not posting2dict[fqin].has_key(fqpn):
+                posting2dict[fqin][fqpn]=[]
+            posting2dict[fqin][fqpn].append(e) 
+
+print len(posting2dict.keys())
+
+for fqin in posting2dict.keys():
+    for fqpn in posting2dict[fqin].keys():
+        listofpds=posting2dict[fqin][fqpn]
+        hists=[{'whenposted':pd['posting']['whenposted'],
+                'postedby':pd['posting']['postedby']} for pd in listofpds]
+        thepostingdoc=copy.deepcopy(listofpds[0])
+        thepostingdoc['hist']=hists
+        maxer=max(hists, key=lambda x:x['whenposted'])
+        thepostingdoc['posting']['whenposted']=maxer['whenposted']
+        thepostingdoc['posting']['postedby']=maxer['postedby']
+        if tagposteddict.has_key(fqpn):
+            thepostingdoc['stags']=[e for e in tagposteddict[fqpn] if e['thingtopostfqin']==fqin]
+        else:
+            thepostingdoc['stags']=[]
+        postingdocuments.append(thepostingdoc)
+
+# print len(postingdocuments)
+# print '=========='
+# for i,p in enumerate(postingdocuments):
+#     if len(p['stags']) > 3:
+#         print i, len(p['stags']), [e['tagname'] for e in p['stags']]
+# print postingdocuments[272]
+finaldict['posting_document']=[]
+finaldict['posting_document'].append(postingdocuments)
+
+
+#below will not work as we dont create appropriate embeddables
+#DELETE _CLS and use mongoengine throughout.
+counter=0
+for ele in finaldict.keys():
+    daclass=tabledict[ele]
+    for l in finaldict[ele]:
+        for i in l:
+            inst=daclass(**i)
+            inst.save(safe_update=True)
+            counter=counter+1
+print "Saved objects", counter
+
+#Finally
+#(1) add adsgutmembers to adsgut app, adsmembers to ads app
+#(2) add publicmembers to public group
+#(3) add wherever anonymouse is to the anonymouse users postables in
+
+# currentuser=None
+# adsgutuser=whosdb._getUserForNick(currentuser, "adsgut")
+# currentuser=adsgutuser
+# adsgutapp=whosdb._getMembable(currentuser, "adsgut/app:adsgut")
+# adsapp=whosdb._getMembable(currentuser, "ads/app:publications")
+
+# adsuser=whosdb._getUserForNick(currentuser, "ads")
+# anonymouseuser=whosdb._getUserForNick(currentuser, "anonymouse")
+print App.objects.all()
+adsgutapp=App.objects(basic__fqin="adsgut/app:adsgut").get()
+print adsgutmembers[0]
+for m in adsgutmembers:
+    adsgutapp.members.append(MemberableEmbedded(**m))
+adsgutapp.save(safe_update=True)
+adsapp=App.objects(basic__fqin="ads/app:publications").get()
+for m in adspubmembers:
+    adsapp.members.append(MemberableEmbedded(**m))
+adsapp.save(safe_update=True)
+pubgroup=Group.objects(basic__fqin="adsgut/group:public").get()
+for m in publicmembers:
+    pubgroup.members.append(MemberableEmbedded(**m))
+pubgroup.save(safe_update=True)
+anonymouse=User.objects(basic__fqin="adsgut/user:anonymouse").get()
+for p in anonymousepin:
+    anonymouse.postablesin.append(MembableEmbedded(**p))
+anonymouse.save(safe_update=True)
+#Things to deal with
+#(a) should anonymouse be in groups? no, currently only in libs 
+#keep it that way. (b) remove adsgut and ads app libraries
+

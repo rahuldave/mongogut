@@ -336,10 +336,11 @@ class Database():
 
         #if we are not trying to add adsgut
         if not userspec['adsid']=='adsgut':
-            self.addUserToGroup(adsgutuser, adsgutuser, PUBLICGROUP, newuser.basic.fqin)
-            #SHOULD BE AUTOself.addUserToLibrary(adsgutuser, adsgutuser, PUBLICLIBRARY, newuser.basic.fqin)
-            #adding to publications app done on importing from giovanni or getting into giovanni, by adsuser
-            self.addUserToApp(adsgutuser, adsgutuser, MOTHERSHIPAPP, newuser.basic.fqin)
+            if newuser.basic.fqin!=ANONYMOUSE:
+                self.addUserToGroup(adsgutuser, adsgutuser, PUBLICGROUP, newuser.basic.fqin)
+                #SHOULD BE AUTOself.addUserToLibrary(adsgutuser, adsgutuser, PUBLICLIBRARY, newuser.basic.fqin)
+                #adding to publications app done on importing from giovanni or getting into giovanni, by adsuser
+                self.addUserToApp(adsgutuser, adsgutuser, MOTHERSHIPAPP, newuser.basic.fqin)
         newuser.reload()
         return newuser
 
@@ -364,7 +365,7 @@ class Database():
         remuser.delete(safe=True)
         return OK
 
-    def addMembable(self, currentuser, useras, ptypestr, membablespec_in):
+    def addMembable(self, currentuser, useras, ptypestr, membablespec_in, appmode=False):
         "the useras adds a postable. currently either currentuser=superuser or useras"
         #authorize(False, self, currentuser, currentuser)
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
@@ -407,7 +408,11 @@ class Database():
             #owner must be a user WHY DO WE USE CREATOR?
             self.addMemberableToMembable(currentuser, useras, newmembable.basic.fqin, newmembable.basic.creator, changerw=False, ownermode=True)
             #now if this was a group or an app, add the corresponding library
-            if ptypestr in ['group', 'app']:
+            if appmode:
+                ptypelist=['group', 'app']
+            else:
+                ptypelist=['group']
+            if ptypestr in ptypelist:
                 membablespeclib_in=copy.deepcopy(membablespec_in)
                 if not membablespeclib_in.has_key('librarykind'):
                     membablespeclib_in['librarykind']=ptypestr
@@ -421,8 +426,8 @@ class Database():
     def addGroup(self, currentuser, useras, groupspec):
         return self.addMembable(currentuser, useras, "group", groupspec)
 
-    def addApp(self, currentuser, useras, appspec):
-        return self.addMembable(currentuser, useras, "app", appspec)
+    def addApp(self, currentuser, useras, appspec, appmode=False):
+        return self.addMembable(currentuser, useras, "app", appspec, appmode)
 
     def addLibrary(self, currentuser, useras, libraryspec):
         return self.addMembable(currentuser, useras, "library", libraryspec)
@@ -934,6 +939,7 @@ def initialize_application(db_session):
     currentuser=adsuser
     adsuser, adspubsapp=whosdb.addApp(adsuser, adsuser, dict(name='publications', description="ADS's flagship publication app"))
     #will automatically add a library corresponding to this
+    #TODO: does anonymouse user need to be in flagship app to see anything?
     anonymouseuser, adspubapp=whosdb.addUserToMembable(adsuser, FLAGSHIPAPP, 'anonymouse')
     #print "55555 ADS user added publications app"
 
@@ -1004,4 +1010,4 @@ if __name__=="__main__":
         print "Not right number of arguments. Exiting"
         sys.exit(-1)
     initialize_application(db_session)
-    initialize_testing(db_session)
+    #initialize_testing(db_session)
