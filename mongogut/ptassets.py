@@ -257,6 +257,7 @@ class Postdb():
             postingdoc.posting.whenposted=now
             postingdoc.posting.postedby=useras.adsid
             postingdoc.save(safe=True)
+            postingdoc.reload()
             newposting=postingdoc.posting
         except:
             try:
@@ -1019,12 +1020,16 @@ class Postdb():
     #You also have access to tags through group ownership of tags
     #no singletonmodes are usually transferred to group ownership
     #this will give me all
-    def getTagsAsMemberOnly(self, currentuser, useras, tagtype=None, singletonmode=False):
+    def getTagsAsMemberOnly(self, currentuser, useras, tagtype=None, singletonmode=False, fqpn=None):
         #the postables for which user is a member
         #this is only for group so ok to use postablesForUser
         #why not libs? we should back out the libs tho
-        postablesforuser=[e['fqpn'] for e in self.whosdb.membablesForUser(currentuser, useras, "library")]
-        ##print "gtamo", postablesforuser
+        if fqpn:
+            postablesforuser=[fqpn]#TODO: make sure user has access somehow
+        else:
+            postablesforuser=[e['fqpn'] for e in self.whosdb.membablesForUser(currentuser, useras, "library")]
+            postablesforuser=[]
+        #print "gtamo", postablesforuser
         #notice in op does OR not AND
         criteria=[
             {'field':'owner', 'op':'ne', 'value':useras.basic.fqin},
@@ -1037,9 +1042,9 @@ class Postdb():
         #print "RESM", [e.basic.name for e in list(result[1])]
         return result
 
-    def getAllTagsForUser(self, currentuser, useras, tagtype=None, singletonmode=False):
+    def getAllTagsForUser(self, currentuser, useras, tagtype=None, singletonmode=False, fqpn=None):
         a=self.getTagsAsOwnerOnly(currentuser, useras, tagtype, singletonmode)
-        b=self.getTagsAsMemberOnly(currentuser, useras, tagtype, singletonmode)
+        b=self.getTagsAsMemberOnly(currentuser, useras, tagtype, singletonmode, fqpn)
         return (a[0]+b[0], list(a[1])+list(b[1]))
 
 
@@ -1669,12 +1674,12 @@ def initialize_testing(db_session):
 
 if __name__=="__main__":
     import sys
-    if len(sys.argv)==1:
-        db_session=connect("adsgut2")
-    elif len(sys.argv)==3:
-        db_session=connect("adsgut2", host="mongodb://%s:%s@localhost/adsgut2" % (sys.argv[1], sys.argv[2]))
+    if len(sys.argv)==2:
+        db_session=connect(sys.argv[1])
+    elif len(sys.argv)==4:
+        db_session=connect("%s" % sys.argv[1], host="mongodb://%s:%s@localhost/%s" % (sys.argv[2], sys.argv[3], sya.argv[1]))
     else:
         print "Not right number of arguments. Exiting"
         sys.exit(-1)
     initialize_application(db_session)
-    initialize_testing(db_session)
+    #initialize_testing(db_session)

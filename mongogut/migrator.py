@@ -96,7 +96,7 @@ adspubmembers=[e for e in adspubmembers if e['fqmn'] not in existing_users]
 #TODO: remove the 3 users from here!
 #note that members of adsgut app are inviteds as well, while those of the pub app are folks who have accepted
 #the invitation
-print applist
+#print applist
 ###TODO now add these to the existing classes. There are no changes to the spec for members
 
 
@@ -119,6 +119,15 @@ for group in grouplist:
     else:
         groups.append(group)
 
+
+# Handle special case:
+#"06edcc36-7fcd-4f56-a76a-4a1d5f49c250/group:CfA Star Formation Journal Club" as user has created identical library
+
+for g in groups:
+    if g['basic']['fqin']=="06edcc36-7fcd-4f56-a76a-4a1d5f49c250/group:CfA Star Formation Journal Club":
+        print g
+        g['basic']['fqin']="06edcc36-7fcd-4f56-a76a-4a1d5f49c250/group:CfA Star Formation Journal Club-Group"
+        g['basic']['name']="CfA Star Formation Journal Club-Group"
 #now, for each group, also create a library with the group inside it and the owner of the group as well
 
 personallibs = [p for p in personallibs if p['basic']['fqin'] not in ['adsgut/group:default','ads/group:default','anonymouse/group:default']]
@@ -144,6 +153,8 @@ liblist=datadict['library']
 anonymousepin=[]
 for lib in liblist:
     del lib['_id']
+    if lib['basic']['fqin']=="06edcc36-7fcd-4f56-a76a-4a1d5f49c250/library:CfA Star Formation Journal Club":
+        print lib
     possiblegroup=lib_to_group(lib['basic']['fqin'])
     fqmns=[e['fqmn'] for e in lib['members']]
     if possiblegroup in fqmns:
@@ -222,6 +233,7 @@ for g,p in zip(groups,grouplibs):
             presentname=u['adsid']
             u['postablesowned'].append(thelibrarymembe)
             u['postablesin'].append(thelibrarymembe)
+    thelibrarymembe['owner']=presentname
     thegroupmembere={'fqmn':g['basic']['fqin'], 'mtype':'group', 'pname':'group:'+g['basic']['name'],'readwrite':True}
     theownermembere={'fqmn':g['owner'], 'mtype':'user', 'pname':presentname,'readwrite':True}
 
@@ -246,7 +258,15 @@ tags=datadict['tag']
 for tag in tags:
     del tag['_id']
     members=tag['members']
+    #print members[0]
     for m in members:
+        if m['mtype'] in ['group','app','library']:
+            sp=m['fqmn'].split(':')
+            m['pname']=sp[0].split('/')[-1]+':'+sp[-1]
+        if m['mtype']=='user' and not m.has_key('pname'):
+            for u in userlist:
+                if m['fqmn']==u['basic']['fqin']:
+                    m['pname']=u['adsid']
         if m['pname']=='group:default':
             m['fqmn']=group_to_lib(m['fqmn'])
             m['pname']='library:default'
@@ -263,11 +283,14 @@ finaldict['tag'].append(tags)
 ###############################################################################
 
 items = datadict['item']
-
+c=0
+c2=0
+itemdict={}
 for item in items:
     del item['_id']
     pinpostables=item['pinpostables']
     for p in pinpostables:
+        c=c+1
         p['thingtopostname']=p['thingtopostfqin'].split('/')[-1]
         p['thingtopostdescription']=""
         if p['posttype']=='group':
@@ -275,13 +298,16 @@ for item in items:
             p['postfqin']=group_to_lib(p['postfqin'])
     stags=item['stags']
     for s in stags:
+        c2=c2+1
         s['posttype']=s['tagtype']
         del s['tagtype']
         s['thingtopostname']=s['thingtopostfqin'].split('/')[-1]
         s['thingtopostdescription']=""
     item['stags']=[e for e in stags if e['posttype']!="ads/tagtype:note"]
+    itemdict[item['basic']['fqin']]=item
 #print items[0]['stags']
-
+print "items x pinpostables=", c
+print "items x stags=", c2
 finaldict['item']=[]
 finaldict['item'].append(items)
 ###############################################################################
@@ -310,6 +336,7 @@ for td in tds:
             tagposteddict[p['postfqin']].append(tagging)
 
 
+print "taggingdocs", len(tds)
 # print tds[0]['posting']
 # print "---------------"
 # print tds[0]['pinpostables']
@@ -321,7 +348,7 @@ finaldict['tagging_document'].append(tds)
 #remember we now have to handle hists
 
 pds=datadict['posting_document']
-print len(pds)
+print "all posting documents",len(pds)
 postingdict={}
 for pd in pds:
     del pd['_id']
@@ -346,7 +373,7 @@ for fqin in postingdict.keys():
         for fqpn,e in [(e['posting']['postfqin'],e) for e in postingdict[fqin]]:
             if not posting2dict[fqin].has_key(fqpn):
                 posting2dict[fqin][fqpn]=[]
-            posting2dict[fqin][fqpn].append(e) 
+            posting2dict[fqin][fqpn].append(e)
 
 print len(posting2dict.keys())
 
@@ -378,48 +405,85 @@ finaldict['posting_document'].append(postingdocuments)
 
 #below will not work as we dont create appropriate embeddables
 #DELETE _CLS and use mongoengine throughout.
-counter=0
-for ele in finaldict.keys():
-    daclass=tabledict[ele]
-    for l in finaldict[ele]:
-        for i in l:
-            inst=daclass(**i)
-            inst.save(safe_update=True)
-            counter=counter+1
-print "Saved objects", counter
 
-#Finally
-#(1) add adsgutmembers to adsgut app, adsmembers to ads app
-#(2) add publicmembers to public group
-#(3) add wherever anonymouse is to the anonymouse users postables in
+#we somehow seem to get into the situation where there are more posting documents than pinpostables in items.
+#Something there must have failed at some point. We must adjust the pinpostables to match the posting documents or any action
+#will fail on those docs. Ditto for tagging docs. The code below shows us the discrepanvy
+#numbers dont exactly add up but.
 
-# currentuser=None
-# adsgutuser=whosdb._getUserForNick(currentuser, "adsgut")
-# currentuser=adsgutuser
-# adsgutapp=whosdb._getMembable(currentuser, "adsgut/app:adsgut")
-# adsapp=whosdb._getMembable(currentuser, "ads/app:publications")
+#we use the initial pds for this
+remaining=[]
+for pd in pds:
+    ifqin=pd['posting']['thingtopostfqin']
+    fqpn=pd['posting']['postfqin']
+    postedby=pd['posting']['postedby']
+    pinpostables=itemdict[ifqin]['pinpostables']
+    inok=0
+    for p in pinpostables:
+        if p['postfqin']==fqpn and p['postedby']==postedby:
+            inok=inok+1
+    if inok==0:
+        remaining.append(pd)
 
-# adsuser=whosdb._getUserForNick(currentuser, "ads")
-# anonymouseuser=whosdb._getUserForNick(currentuser, "anonymouse")
-print App.objects.all()
-adsgutapp=App.objects(basic__fqin="adsgut/app:adsgut").get()
-print adsgutmembers[0]
-for m in adsgutmembers:
-    adsgutapp.members.append(MemberableEmbedded(**m))
-adsgutapp.save(safe_update=True)
-adsapp=App.objects(basic__fqin="ads/app:publications").get()
-for m in adspubmembers:
-    adsapp.members.append(MemberableEmbedded(**m))
-adsapp.save(safe_update=True)
-pubgroup=Group.objects(basic__fqin="adsgut/group:public").get()
-for m in publicmembers:
-    pubgroup.members.append(MemberableEmbedded(**m))
-pubgroup.save(safe_update=True)
-anonymouse=User.objects(basic__fqin="adsgut/user:anonymouse").get()
-for p in anonymousepin:
-    anonymouse.postablesin.append(MembableEmbedded(**p))
-anonymouse.save(safe_update=True)
-#Things to deal with
-#(a) should anonymouse be in groups? no, currently only in libs 
-#keep it that way. (b) remove adsgut and ads app libraries
+remaining2=[]
+for td in tds:
+    ifqin=td['posting']['thingtopostfqin']
+    fqtn=td['posting']['postfqin']
+    postedby=td['posting']['postedby']
+    stags=itemdict[ifqin]['stags']
+    inok=0
+    for t in stags:
+        if t['postfqin']==fqtn and t['postedby']==postedby:
+            inok=inok+1
+    if inok==0:
+        remaining2.append(td)
 
+print 'nok', len(remaining)
+print '=========================='
+print 'nok', len(remaining2)
+RUN=True
+if RUN:
+    counter=0
+    for ele in finaldict.keys():
+        daclass=tabledict[ele]
+        for l in finaldict[ele]:
+            for i in l:
+                inst=daclass(**i)
+                inst.save(safe_update=True)
+                counter=counter+1
+    print "Saved objects", counter
+
+    #Finally
+    #(1) add adsgutmembers to adsgut app, adsmembers to ads app
+    #(2) add publicmembers to public group
+    #(3) add wherever anonymouse is to the anonymouse users postables in
+
+    # currentuser=None
+    # adsgutuser=whosdb._getUserForNick(currentuser, "adsgut")
+    # currentuser=adsgutuser
+    # adsgutapp=whosdb._getMembable(currentuser, "adsgut/app:adsgut")
+    # adsapp=whosdb._getMembable(currentuser, "ads/app:publications")
+
+    # adsuser=whosdb._getUserForNick(currentuser, "ads")
+    # anonymouseuser=whosdb._getUserForNick(currentuser, "anonymouse")
+    #print App.objects.all()
+    adsgutapp=App.objects(basic__fqin="adsgut/app:adsgut").get()
+    #print adsgutmembers[0]
+    for m in adsgutmembers:
+        adsgutapp.members.append(MemberableEmbedded(**m))
+    adsgutapp.save(safe_update=True)
+    adsapp=App.objects(basic__fqin="ads/app:publications").get()
+    for m in adspubmembers:
+        adsapp.members.append(MemberableEmbedded(**m))
+    adsapp.save(safe_update=True)
+    pubgroup=Group.objects(basic__fqin="adsgut/group:public").get()
+    for m in publicmembers:
+        pubgroup.members.append(MemberableEmbedded(**m))
+    pubgroup.save(safe_update=True)
+    anonymouse=User.objects(basic__fqin="adsgut/user:anonymouse").get()
+    for p in anonymousepin:
+        anonymouse.postablesin.append(MembableEmbedded(**p))
+    anonymouse.save(safe_update=True)
+    #Things to deal with
+    #(a) should anonymouse be in groups? no, currently only in libs
+    #keep it that way. (b) remove adsgut and ads app libraries

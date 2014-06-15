@@ -1002,10 +1002,10 @@ def initialize_testing(db_session):
 
 if __name__=="__main__":
     import sys
-    if len(sys.argv)==1:
-        db_session=connect("adsgut2")
-    elif len(sys.argv)==3:
-        db_session=connect("adsgut2", host="mongodb://%s:%s@localhost/adsgut2" % (sys.argv[1], sys.argv[2]))
+    if len(sys.argv)==2:
+        db_session=connect(sys.argv[1])
+    elif len(sys.argv)==4:
+        db_session=connect("%s" % sys.argv[1], host="mongodb://%s:%s@localhost/%s" % (sys.argv[2], sys.argv[3], sya.argv[1]))
     else:
         print "Not right number of arguments. Exiting"
         sys.exit(-1)
