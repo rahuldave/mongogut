@@ -232,7 +232,7 @@ class Postdb():
         #print "FQPN=======", fqpn
         ptype=gettype(fqpn)
         postable=self.whosdb._getMembable(currentuser, fqpn)
-        print ">>>", useras.basic.fqin, postable.basic.fqin, [m.fqmn for m in postable.members]
+        #print ">>>", useras.basic.fqin, postable.basic.fqin, [m.fqmn for m in postable.members]
         typename=getNSTypeNameFromInstance(postable)
         #item=self._getItem(currentuser, itemfqin)
         #Does the False have something to do with this being ok if it fails?BUG
@@ -563,8 +563,8 @@ class Postdb():
                 item=itemtobetagged)
             #now since in personal group, appropriate postables will pick it up
             #tagmode here must be from taggingdoc, not from tag
-            self.signals['tagged-item'].send(self, obj=self, currentuser=currentuser, useras=useras,
-                taggingdoc=taggingdoc, tagmode=tagmode, item=itemtobetagged)
+        self.signals['tagged-item'].send(self, obj=self, currentuser=currentuser, useras=useras,
+            taggingdoc=taggingdoc, tagmode=tagmode, item=itemtobetagged)
         #if itemtag found just return it, else create, add to group, return
         itemtobetagged.reload()
         return itemtobetagged, tag, itemtag, taggingdoc
@@ -762,17 +762,19 @@ class Postdb():
                 rw=True
             else:
                 rw=RWDEF[postable.librarykind]
-            #everytime you do this the same postable will be added again
-            memb=MemberableEmbedded(mtype=postable.classname, fqmn=postable.basic.fqin, readwrite=rw, pname=postable.presentable_name())
-            #tag.update(safe_update=True, push__members=postable.basic.fqin)
-            tag.update(safe_update=True, push__members=memb)
-            tag.reload()
+            #everytime you do this the same postable will be added again, now FIXED
+            if postable.basic.fqin not in [p.fqmn for p in tag.members]:
+                memb=MemberableEmbedded(mtype=postable.classname, fqmn=postable.basic.fqin, readwrite=rw, pname=postable.presentable_name())
+                #tag.update(safe_update=True, push__members=postable.basic.fqin)
+
+                tag.update(safe_update=True, push__members=memb)
+                tag.reload()
             taggingdoc.reload()
             #TODO: Think:will there be one itemtag per item/tag/user combo in this list?
             pd.update(safe_update=True, push__stags=itemtag)
         except:
-            #import sys
-            #print sys.exc_info()
+            import sys
+            print sys.exc_info()
             doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in postable %s" % (itemtag.thingtopostfqin, itemtag.postfqin, postable.basic.fqin))
 
         return item, tag, taggingdoc.posting, newposting
@@ -1020,6 +1022,7 @@ class Postdb():
     def getTagsAsMemberOnly(self, currentuser, useras, tagtype=None, singletonmode=False):
         #the postables for which user is a member
         #this is only for group so ok to use postablesForUser
+        #why not libs? we should back out the libs tho
         postablesforuser=[e['fqpn'] for e in self.whosdb.membablesForUser(currentuser, useras, "group")]
         ##print "gtamo", postablesforuser
         #notice in op does OR not AND
