@@ -29,6 +29,13 @@ def getlist(tabletype):
     table=bson.decode_all(s)
     return table
 
+def uniq_lod(lod):
+    temp={}
+    for d in lod:
+        if not temp.has_key(d['fqmn']):
+            temp[d['fqmn']]=[]
+        temp[d['fqmn']].append(d)
+    return [temp[e][0] for e in temp.keys()]
 
 tables=[
     "app",
@@ -244,6 +251,7 @@ for tag in tags:
             m['fqmn']=group_to_lib(m['fqmn'])
             m['pname']='library:default'
             m['mtype']='library'
+    tag['members']=uniq_lod(members)
 #print tags[0]
 
 # I am not dure what it means for tags to go into groups as well as libs. This needs more
