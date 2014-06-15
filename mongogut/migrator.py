@@ -279,6 +279,7 @@ for item in items:
         del s['tagtype']
         s['thingtopostname']=s['thingtopostfqin'].split('/')[-1]
         s['thingtopostdescription']=""
+    item['stags']=[e for e in stags if e['posttype']!="ads/tagtype:note"]
 #print items[0]['stags']
 
 finaldict['item']=[]
@@ -292,6 +293,10 @@ tagposteddict={}
 for td in tds:
     del td['_id']
     tagging=td['posting']
+    tagging['posttype']=tagging['tagtype']
+    del tagging['tagtype']
+    tagging['thingtopostname']=tagging['thingtopostfqin'].split('/')[-1]
+    tagging['thingtopostdescription']=""
     pinpostables=td['pinpostables']
     for p in pinpostables:
         p['thingtopostname']=tagging['tagname']
@@ -301,11 +306,9 @@ for td in tds:
             p['postfqin']=group_to_lib(p['postfqin'])
         if not tagposteddict.has_key(p['postfqin']):
             tagposteddict[p['postfqin']]=[]
-        tagposteddict[p['postfqin']].append(tagging)
-    tagging['posttype']=tagging['tagtype']
-    del tagging['tagtype']
-    tagging['thingtopostname']=tagging['thingtopostfqin'].split('/')[-1]
-    tagging['thingtopostdescription']=""
+        if tagging['posttype']!="ads/tagtype:note":
+            tagposteddict[p['postfqin']].append(tagging)
+
 
 # print tds[0]['posting']
 # print "---------------"

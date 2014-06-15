@@ -1023,7 +1023,7 @@ class Postdb():
         #the postables for which user is a member
         #this is only for group so ok to use postablesForUser
         #why not libs? we should back out the libs tho
-        postablesforuser=[e['fqpn'] for e in self.whosdb.membablesForUser(currentuser, useras, "group")]
+        postablesforuser=[e['fqpn'] for e in self.whosdb.membablesForUser(currentuser, useras, "library")]
         ##print "gtamo", postablesforuser
         #notice in op does OR not AND
         criteria=[
