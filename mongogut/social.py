@@ -21,6 +21,40 @@ def is_memberable_embedded_in_membable(mble, pblesub):
         return fqmnhash[mble.basic.fqin]
     return False
 
+def deep_changes_to_postable(postable, f,f_emb, fval, fembval=None):
+    fdict={}
+    fdict['set__'+f]=fval
+    fqpn=postable.basic.fqin
+    postable.update(safe_update=True,**fdict)
+    owner=User.objects(basic__fqin=postable.owner).get()
+    dazip=zip([e.fqpn for e in owner.postablesowned], owner.postablesowned)
+    if fembval==None:
+        fembval=fval
+    for p,pe in dazip:
+        if fqpn==p:
+            emb=pe
+            owner.update(safe_update=True, pull__postablesowned={'fqpn':fqpn})
+            setattr(emb, f_emb, fembval)
+            owner.update(safe_update=True, push__postablesowned=emb)
+    for m in postable.members:
+        mobj = MAPDICT[m.mtype].objects(basic__fqin=m.fqmn).get()
+        print "mobj is", mobj, m, m.fqmn
+        dazip=zip([e.fqpn for e in mobj.postablesin], mobj.postablesin)
+        for p,pe in dazip:
+            if fqpn==p:
+                emb=pe
+                mobj.update(safe_update=True, pull__postablesin={'fqpn':fqpn})
+                setattr(emb, f_emb, fembval)
+                mobj.update(safe_update=True, push__postablesin=emb)
+        if m.mtype=='user':
+            dazip=zip([e.fqpn for e in mobj.postablesinvitedto], mobj.postablesinvitedto)
+            for p,pe in dazip:
+                if fqpn==p:
+                    emb=pe
+                    mobj.update(safe_update=True, pull__postablesinvitedto={'fqpn':fqpn})
+                    setattr(emb, f_emb, fembval)
+                    mobj.update(safe_update=True, push__postablesinvitedto=emb)
+
 class Database():
 
     def __init__(self, db_session):
@@ -265,7 +299,7 @@ class Database():
         #i need to have access to this if i come in through being a member of a memberable which is a member
         #authorize_postable member takes care of this. That memberable is NOT the same memberable in the arguments here
         authorize_membable_member(False, self, currentuser, memberable, membable)
-        #print "CU", currentuser.nick, memberable.nick
+        #print "CU", currentuser.nick, memberable.nick, membable.basic.fqin
         if self.isOwnerOfMembable(currentuser, memberable, membable):
             #print "IS OWNER"
             perms=membable.get_member_rws()
@@ -517,10 +551,18 @@ class Database():
             pe = is_membable_embedded_in_memberable(membable, memberable.postablesin)
             #memb = is_memberable_embedded_in_membable(memberable, postable.members)
             #this would be added a second time but we are protected by this line above!
+            #print "WHAT IS PE", pe, membable.basic.fqin, memberable.basic.fqin
             if pe == False:
                 if ptype==Library:
                     librarykind=membable.librarykind
+                    if memberable.basic.fqin=="adsgut/user:anonymouse" and membable.basic.fqin!="anonymous/library:default":
+                        islibrarypublic=True
+                        rw=False#we artificially make anonymouse read-only, always
+                        deep_changes_to_postable(membable, "islibrarypublic", "islibrarypublic", islibrarypublic)
+                        membable.reload()
+                        #print "MIL", membable, membable.islibrarypublic
                     islibrarypublic=membable.islibrarypublic
+                    #print "MIL2", membable, membable.islibrarypublic, membableq.get().islibrarypublic
                 else:
                     librarykind=""
                     islibrarypublic=False
@@ -532,6 +574,8 @@ class Database():
                 #if we are already there this happened and do nothing.clearly we need to be careful
                 membableq.update(safe_update=True, push__members=member)
         except:
+            import sys
+            print sys.exc_info()
             doabort('BAD_REQ', "Failed adding memberable %s %s to postable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
         memberable.reload()
         return memberable, membableq.get()
@@ -554,7 +598,7 @@ class Database():
 
     #because this is used along with other membership apply/decline funcs, we will go with memberable
     #as opposed to memberablefqin
-    #WORKS ONLY FOR POSTABLE=LIBRARY
+    #WORKS ONLY FOR POSTABLE=LIBRARY. Where do i check for ownership?
     def toggleRWForMembership(self, currentuser, useras, fqpn, memberable):
         ptype=gettype(fqpn)
         memberablefqin=memberable.basic.fqin
@@ -570,17 +614,19 @@ class Database():
             #memberable=memberableq.get()
         except:
             doabort('BAD_REQ', "No such unique memberable %s %s postable %s %s" %  (mtype.__name__, memberablefqin, ptype.__name__,fqpn))
+        authorize_postable_owner(False, self, currentuser, useras, postable)
         members=postable.members
         postables=memberable.postablesin
         #BUG make faster by using a mongo search
-        #REAL BIG BUG: need to flip on both
+        #toggling on anonymouse is not allowed. anonymouse may only be read
         if memberablefqin=="adsgut/user:anonymouse":
             #you are guaranteed (sort of) that public group is also member.
-            memberable2 = Group.objects(basic__fqin="adsgut/group:public").get()
-            memberablefqin = memberable2.basic.fqin
-            postables = memberable2.postablesin
-        if memberablefqin=="adsgut/group:public":
-            memberable2=memberable
+            # memberable2 = Group.objects(basic__fqin="adsgut/group:public").get()
+            # memberablefqin = memberable2.basic.fqin
+            # postables = memberable2.postablesin
+            doabort('BAD_REQ', "Cant give write priviledges to non logged-in users")
+        # if memberablefqin=="adsgut/group:public":
+        #     memberable2=memberable
         for me in members:
             if me.fqmn==memberablefqin:
                 me.readwrite = (not me.readwrite)
@@ -592,8 +638,8 @@ class Database():
         #memberableq.update(safe_update=True)
         postable.save(safe=True)
         memberable.save(safe=True)
-        if memberablefqin=="adsgut/group:public":
-            memberable2.save(safe=True)
+        # if memberablefqin=="adsgut/group:public":
+        #     memberable2.save(safe=True)
         return memberable, postable
 
 
@@ -789,11 +835,11 @@ class Database():
             #pe=MembableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=newowner.adsid, pname = postable.presentable_name(), readwrite=True, description=postable.basic.description)
             #find new owner as member, locate in postable his membership, update it with readwrite if needed, and make him owner
             #add embedded postable to his ownership and his membership
-            membable.update(safe_update=True, set__owner = newowner.basic.fqin)
             newowner.update(safe_update=True, push__postablesowned=pe)
             #for old owner we have removed ownership by changing owner, now remove ownership from him
             owner.update(safe_update=True, pull__postablesowned__fqpn=fqpn)
-
+            deep_changes_to_postable(membable, "owner", "owner", newowner.basic.fqin, newowner.adsid)
+            #membable.update(safe_update=True, set__owner = newowner.basic.fqin)
             #also change library's owner
             if ptype==Group or ptype==App:
                 fqnn=getLibForMembable(fqpn)
@@ -827,19 +873,19 @@ class Database():
 
 
         try:
-            if ptype==Library:
-                librarykind=membable.librarykind
-                islibrarypublic=membable.islibrarypublic
-            else:
-                librarykind=""
-                islibrarypublic=False
-            pe=MembableEmbedded(ptype=ptype.classname,fqpn=membable.basic.fqin, owner=owner.adsid, pname = membable.presentable_name(), readwrite=True, description=description, librarykind=librarykind, islibrarypublic=islibrarypublic)
-            #find new owner as member, locate in postable his membership, update it with readwrite if needed, and make him owner
-            #add embedded postable to his ownership and his membership
-            membableq.update_one(safe_update=True, set__basic__description=description)
-            owner.update(safe_update=True, pull__postablesowned__fqpn=fqpn)
-            owner.update(safe_update=True, push__postablesowned=pe)
-
+            # if ptype==Library:
+            #     librarykind=membable.librarykind
+            #     islibrarypublic=membable.islibrarypublic
+            # else:
+            #     librarykind=""
+            #     islibrarypublic=False
+            # pe=MembableEmbedded(ptype=ptype.classname,fqpn=membable.basic.fqin, owner=owner.adsid, pname = membable.presentable_name(), readwrite=True, description=description, librarykind=librarykind, islibrarypublic=islibrarypublic)
+            # #find new owner as member, locate in postable his membership, update it with readwrite if needed, and make him owner
+            # #add embedded postable to his ownership and his membership
+            # membableq.update_one(safe_update=True, set__basic__description=description)
+            # owner.update(safe_update=True, pull__postablesowned__fqpn=fqpn)
+            # owner.update(safe_update=True, push__postablesowned=pe)
+            deep_changes_to_postable(membable, "basic__description", "description", description)
             #if newownertype != User:
             #
             #postable.update(safe_update=True, set__owner = newowner.basic.fqin, push__members=memb)

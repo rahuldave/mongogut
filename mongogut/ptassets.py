@@ -387,7 +387,9 @@ class Postdb():
 
     def isMemberOfTag(self, currentuser, useras, tagfqin):
         tag=self._getTag(currentuser, tagfqin)
-        ismember=self.whosdb.isMemberOfMembable(currentuser, useras, tag)
+        #print ">>", tag.basic.name
+        ismember=self.whosdb.isMemberOfMembable(currentuser, useras, tag, MEMBERABLES_FOR_TAG_NOT_USER)
+        print "ismember", ismember
         return ismember
 
     def canUseThisFqtn(self, currentuser, useras, fqtn):
@@ -405,10 +407,13 @@ class Postdb():
     def canUseThisTag(self, currentuser, useras, tag):
         "return true is this user can use this tag from access to tagtype, namespace, etc"
         #If you OWN this tag
+        #print ">>", tag.basic.name
         if self.isOwnerOfTag(currentuser, useras, tag):
+            #print "o"
             return True
         #if you could have created this tag
         if not self.canCreateThisTag(currentuser, useras, tag.tagtype):
+            #print "cannot create"
             return False
         tagownertype=gettype(tag.owner)
         #you are member of a group.app/library which owns this tag
@@ -426,6 +431,7 @@ class Postdb():
         #     if self.isMemberOfPostable(currentuser, useras, m):
         #         return True
         if self.isMemberOfTag(currentuser, useras, tag.basic.fqin):
+            #print "is member"
             return True
         return False
 
@@ -1431,7 +1437,9 @@ class Postdb():
             ltns=[e.postfqin for e in pd.stags if not e.singletonmode]
             fqtns=fqtns+ltns
         fqtns=set(fqtns)
+        #print "FQTNS", fqtns
         tags=[parseTag(f) for f in fqtns if self.canUseThisFqtn(currentuser, useras, f)]
+        #print "TAGS", tags
         tagdict=defaultdict(list)
         for k in tags:
             tagdict[k[2]].append(k)

@@ -456,6 +456,7 @@ POSTABLES=[Library]#things that can be posted to
 #Postables are both membable and ownable
 MEMBERABLES=[Group, App, User]#things that can be members
 MEMBERABLES_NOT_USER=[Group, App]
+MEMBERABLES_FOR_TAG_NOT_USER=[Group, App, Library]
 MEMBABLES=[Group, App, Library, Tag]#things you can be a member of
 #above all use nicks
 OWNABLES=[Group, App, Library, ItemType, TagType, Tag]#things that can be owned
