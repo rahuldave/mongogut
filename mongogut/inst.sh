@@ -1,4 +1,5 @@
 sh dbit $1
 python social.py $1
 python ptassets.py $1
-time python migrator.py /Users/rahul/play/adsgut_20140612-154709/adsgut $1
+# $2 is the directory the bson files are in
+time python migrator.py $2 $1
