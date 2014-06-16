@@ -1,5 +1,5 @@
 var=$1
-mongo $var --eval "db.dropDatabase();"
+#mongo $var --eval "db.dropDatabase();"
 mongo <<EOF
 use admin;
 db.addUser("admin","admin");
