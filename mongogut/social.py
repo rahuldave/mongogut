@@ -1000,14 +1000,19 @@ def initialize_testing(db_session):
     #print adsuser.to_json()
     #print "=============================="
 
-if __name__=="__main__":
-    import sys
-    if len(sys.argv)==2:
-        db_session=connect(sys.argv[1])
-    elif len(sys.argv)==4:
-        db_session=connect("%s" % sys.argv[1], host="mongodb://%s:%s@localhost/%s" % (sys.argv[2], sys.argv[3], sya.argv[1]))
+def _init(*args):
+    
+    print args
+    if len(args)==1:
+        db_session=connect(args[0])
+    elif len(args)==2:
+        db_session=connect("%s" % args[0], host=args[1])
     else:
         print "Not right number of arguments. Exiting"
         sys.exit(-1)
     initialize_application(db_session)
     #initialize_testing(db_session)
+
+if __name__=="__main__":
+    import sys
+    _init(*sys.argv[1:])
