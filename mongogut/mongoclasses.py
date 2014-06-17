@@ -403,7 +403,7 @@ class TPHist(EmbeddedDocument):
 class PostingDocument(Document):
     classname="postingdocument"
     meta = {
-        'indexes': ['posting.postfqin', 'posting.posttype', 'posting.whenposted', 'posting.postedby', 'posting.thingtoposttype', 'posting.thingtopostfqin', ('posting.postfqin', 'posting.thingtopostfqin')],
+        'indexes': ['posting.postfqin', 'posting.posttype', 'posting.whenposted', 'posting.postedby', 'posting.thingtoposttype', 'posting.thingtopostfqin', 'posting.thingtopostname', ('posting.postfqin', 'posting.thingtopostfqin'), ('posting.postfqin', 'posting.thingtopostname')],
         'ordering': ['-posting.whenposted']
     }
     #update information in posting below to latest whenposted and posted-by

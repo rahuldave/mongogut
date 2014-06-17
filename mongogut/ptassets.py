@@ -595,9 +595,13 @@ class Postdb():
         #remove it from all the places the tagging was spread too
 
         #only those posts which u made which should be all as taggingdoc is specific to u
+
         postablefqpns=[e.postfqin for e in taggingdoc.pinpostables if taggingdoc.posting.postedby==useras.adsid]
         for fqpn in postablefqpns:
             #this does a bit of extra work with respect to the taggingdoc, we do nuke the taggingdoc below
+            #we might have made this tag and have been subsequently removed from this library
+            #if self.isMemberOfMembable(currentuser, useras, fqpn):
+            #BUG
             self.removeTaggingFromPostable(currentuser, useras, fqpn, fullyQualifiedItemName, fullyQualifiedTagName)
         if tag.singletonmode==True:
             #only delete tag if its a note: ie we are in singletonmode
@@ -674,6 +678,7 @@ class Postdb():
         if tagmode=='0':
             postablesin=[]
             for ptt in item.pinpostables:
+                print "pttdqin"
                 pttfqin=ptt.postfqin
                 #BUG: many database hits. perhaps cached? if not do it or query better.
                 postable=self.whosdb._getMembable(currentuser, pttfqin)
@@ -1696,7 +1701,7 @@ def initialize_testing(db_session):
         postdb.postItemIntoLibrary(user, user, library, thedict[k])
 
 def _init(*args):
-    
+
     if len(args)==1:
         db_session=connect(args[0])
     elif len(args)==2:
@@ -1710,4 +1715,3 @@ def _init(*args):
 if __name__=="__main__":
     import sys
     _init(*sys.argv[1:])
-    

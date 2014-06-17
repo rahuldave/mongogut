@@ -468,6 +468,7 @@ class Database():
 
     def removeMembable(self,currentuser, useras, fqpn):
         "currentuser removes a postable"
+        ptype=gettype(fqpn)
         membable=self._getMembable(currentuser, fqpn)
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         authorize_membable_owner(False, self, currentuser, useras, membable)
@@ -475,7 +476,7 @@ class Database():
         memberfqins=[m.fqmn for m in membable.members]
         invitedfqins=[m.fqmn for m in membable.inviteds]
         for fqin in memberfqins:
-            mtype=gettype(memberablefqin)
+            mtype=gettype(fqin)
             member=self._getMemberableForFqin(currentuser, mtype, fqin)
             member.update(safe_update=True, pull__postablesin={'fqpn':fqpn})
         for fqin in invitedfqins:
@@ -483,12 +484,22 @@ class Database():
             if mtype==User:
                 member=self._getMemberableForFqin(currentuser, mtype, fqin)
                 member.update(safe_update=True, pull__postablesinvitedto={'fqpn':fqpn})
-        useras.update(safe_update=True, pull_postablesowned={'fqpn':fqpn})
+        useras.update(safe_update=True, pull__postablesowned={'fqpn':fqpn})
 
         #TODO:then every item/tag/postingdoc/taggingdoc which has this membable, remove the membable from it
         #we will do this later. we might use routing. Until then the items will show this group there. perhaps
         #as we check which membables a user can access, and now this membable wont be there,
         #so we may effectively never show it. We might have to deal with tag membership tho. This will be done later
+
+        #what if this was a group or an app, then remove it from the libraries it was in
+        if ptype in MEMBERABLES_NOT_USER:
+            infqpns=[e.fqpn for e in membable.postablesin]
+            for f in infqpns:
+                postable = self._getMembable(currentuser, f)
+                postable.update(safe_update=True, pull__members={'fqmn':fqpn})
+
+        #ATODO:Also, what about public memberships? since anonymouse and group:public
+        #would be members, i believe this is taken care off
         membable.delete(safe=True)
         return OK
 
