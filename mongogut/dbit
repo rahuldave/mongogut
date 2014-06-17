@@ -1,9 +1,9 @@
-var=$1
-#mongo $var --eval "db.dropDatabase();"
-mongo <<EOF
+
+#mongo --host $2 --port $3 $1 --eval "db.dropDatabase();"
+mongo --host $2 --port $3 <<EOF
 use admin;
 db.addUser("admin","admin");
 db.auth("admin", "admin");
-use $var;
+use $1;
 db.addUser("adsgut", "adsgut");
 EOF
