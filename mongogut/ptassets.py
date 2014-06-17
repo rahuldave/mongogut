@@ -1149,7 +1149,7 @@ class Postdb():
         result=self._getItemsForQuery(SHOWNFIELDS, currentuser, useras, query, usernick, criteria, sort, pagtuple)
         return result
 
-    def _getItemsForQueryFromPostingDocs(self, shownfields, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
+    def _getItemsForQueryFromPostingDocs(self, shownfields, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None, tags=False):
         #tagquery is currently assumed to be a list of stags=[tagfqin] or tagnames={tagtype, [names]}
         #or postables=[postfqin]
         klass=PostingDocument
@@ -1187,6 +1187,8 @@ class Postdb():
         for pd in result:
             item={'basic':{'fqin':pd.posting.thingtopostfqin,'name':pd.posting.thingtopostname,'description':pd.posting.thingtopostdescription},
                 'itemtype':pd.posting.thingtoposttype, 'whenposted':pd.posting.whenposted, 'postedby':pd.posting.postedby}
+            if tags:
+                item['tags']=list(set([e.tagname for e in pd.stags]))
             tresult.append(item)
         #TODO:does postingby above leak?
         return count, tresult
@@ -1201,6 +1203,19 @@ class Postdb():
                         'posting.postedby']
         #print "USERNICK", usernick
         result=self._getItemsForQueryFromPostingDocs(SHOWNFIELDS, currentuser, useras, query, usernick, criteria, sort, pagtuple)
+        return result
+
+    def getItemsForQueryWithTags(self, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None):
+        SHOWNFIELDS=[   'posting.postfqin',
+                        'posting.posttype',
+                        'posting.thingtopostfqin',
+                        'posting.thingtoposttype',
+                        'posting.thingtopostname',
+                        'posting.whenposted',
+                        'posting.postedby',
+                        'stags']
+        #print "USERNICK", usernick
+        result=self._getItemsForQueryFromPostingDocs(SHOWNFIELDS, currentuser, useras, query, usernick, criteria, sort, pagtuple, True)
         return result
 
     def _getPostingdocsForQuery(self, shownfields, currentuser, useras, query, usernick=False, criteria=False, sort=None, pagtuple=None, specmode=False):
