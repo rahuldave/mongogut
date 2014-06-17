@@ -6,4 +6,4 @@ dumpdir=${4}
 sh dbit $db $host $port
 python social.py $db "mongodb://adsgut:adsgut@${host}:${port}/$db"
 python ptassets.py $db "mongodb://adsgut:adsgut@${host}:${port}/$db"
-# time python migrator.py $dumpdir $db
+time python migrator.py $dumpdir $db "mongodb://adsgut:adsgut@${host}:${port}/$db"
