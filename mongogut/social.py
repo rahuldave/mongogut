@@ -38,7 +38,7 @@ def deep_changes_to_postable(postable, f,f_emb, fval, fembval=None):
             owner.update(safe_update=True, push__postablesowned=emb)
     for m in postable.members:
         mobj = MAPDICT[m.mtype].objects(basic__fqin=m.fqmn).get()
-        print "mobj is", mobj, m, m.fqmn
+        #print "mobj is", mobj, m, m.fqmn
         dazip=zip([e.fqpn for e in mobj.postablesin], mobj.postablesin)
         for p,pe in dazip:
             if fqpn==p:
@@ -676,6 +676,9 @@ class Database():
             memberableq.update(safe_update=True, pull__postablesin__fqpn=membable.basic.fqin)
             #buf not sure how removing embedded doc works, if at all
             membableq.update(safe_update=True, pull__members__fqmn=memberablefqin)
+            #BUG: additional things need to be done if removing anonymouse or public group. WHAT ELSE?
+            if memberablefqin=='adsgut/user:anonymouse':
+                deep_changes_to_postable(membable, "islibrarypublic", "islibrarypublic", False)
         except:
             doabort('BAD_REQ', "Failed removing memberable %s %s from membable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
         return OK
@@ -1047,7 +1050,7 @@ def initialize_testing(db_session):
     #print "=============================="
 
 def _init(*args):
-    
+
     print args
     if len(args)==1:
         db_session=connect(args[0])
