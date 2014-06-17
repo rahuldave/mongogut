@@ -778,7 +778,8 @@ class Postdb():
                 tag.reload()
             taggingdoc.reload()
             #TODO: Think:will there be one itemtag per item/tag/user combo in this list?
-            pd.update(safe_update=True, push__stags=itemtag)
+            if not tag.singletonmode:
+                pd.update(safe_update=True, push__stags=itemtag)
         except:
             import sys
             print sys.exc_info()
@@ -1188,7 +1189,7 @@ class Postdb():
             item={'basic':{'fqin':pd.posting.thingtopostfqin,'name':pd.posting.thingtopostname,'description':pd.posting.thingtopostdescription},
                 'itemtype':pd.posting.thingtoposttype, 'whenposted':pd.posting.whenposted, 'postedby':pd.posting.postedby}
             if tags:
-                item['tags']=list(set([e.tagname for e in pd.stags]))
+                item['tags']=list(set([e.tagname for e in pd.stags if e.posttype=="ads/tagtype:tag"]))
             tresult.append(item)
         #TODO:does postingby above leak?
         return count, tresult
