@@ -5,7 +5,8 @@ import bson
 import copy
 dumpdir=sys.argv[1]
 database=sys.argv[2]
-connect(database)
+host_uri=sys.argv[3]
+connect(database, host=host_uri)
 from mongoclasses import *
 
 #open("/Users/rahul/mongodata/dump/adsgut/user.bson").read()
