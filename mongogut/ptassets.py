@@ -389,7 +389,7 @@ class Postdb():
         tag=self._getTag(currentuser, tagfqin)
         #print ">>", tag.basic.name
         ismember=self.whosdb.isMemberOfMembable(currentuser, useras, tag, MEMBERABLES_FOR_TAG_NOT_USER)
-        print "ismember", ismember
+        #print "ismember", ismember
         return ismember
 
     def canUseThisFqtn(self, currentuser, useras, fqtn):
@@ -807,13 +807,20 @@ class Postdb():
         item=self._getItem(currentuser, fqin)
         tag=self._getTag(currentuser, fqtn)
         authorize_postable_member(False, self, currentuser, useras, postable)
+        #BUG: need to make sure if i am not the creator of this tag, i am owner of the
+        #postable from which tag is being removed.
+        owneroftag=useras
+        if tag.owner!=useras.basic.fqin:
+            print "IS IT OWNER"
+            authorize_postable_owner(False, self, currentuser, useras, postable)
+            owneroftag=self.whosdb._getUserForFqin(currentuser, tag.owner)
         #we'll throw an error here if this user did not post it.
         try:
-          taggingdoc=self._getTaggingDoc(currentuser, item.basic.fqin, tag.basic.fqin, useras.adsid)
+          taggingdoc=self._getTaggingDoc(currentuser, item.basic.fqin, tag.basic.fqin, owneroftag.adsid)
         except:
-          doabort('BAD_REQ', "Wasnt a tagging on item %s with tag %s in postable %s for user %s" % (item.basic.fqin, tag.basic.fqin, postable.basic.fqin, useras.adsid))
+          doabort('BAD_REQ', "Wasnt a tagging on item %s with tag %s in postable %s for user %s" % (item.basic.fqin, tag.basic.fqin, postable.basic.fqin, owneroftag.adsid))
         #if it is an stag, get it from postingdoc as well as from item
-        taggingdoc.update(safe_update=True, pull__pinpostables={'postfqin':postable.basic.fqin, 'postedby':useras.adsid})
+        taggingdoc.update(safe_update=True, pull__pinpostables={'postfqin':postable.basic.fqin, 'postedby':owneroftag.adsid})
         #NOTE: even if we remove this tagging, we continue to let the tag have this postable as a member. So there
         #is no deletion of postable membership of tag. This allows the tag to be continued to be used in this library
         if tag.singletonmode:
@@ -824,7 +831,7 @@ class Postdb():
         except:
           doabort('BAD_REQ', "Wasnt a postingon item %s in postable %s" % (item.basic.fqin, fqpn))
         #this removes the stag from the postingdoc
-        postingdoc.update(safe_update=True, pull__stags={'postfqin':taggingdoc.posting.postfqin, 'thingtopostfqin':item.basic.fqin, 'postedby':useras.adsid})
+        postingdoc.update(safe_update=True, pull__stags={'postfqin':taggingdoc.posting.postfqin, 'thingtopostfqin':item.basic.fqin, 'postedby':owneroftag.adsid})
         return OK
 
 
