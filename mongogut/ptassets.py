@@ -601,8 +601,11 @@ class Postdb():
             #this does a bit of extra work with respect to the taggingdoc, we do nuke the taggingdoc below
             #we might have made this tag and have been subsequently removed from this library
             #if self.isMemberOfMembable(currentuser, useras, fqpn):
-            #BUG
-            self.removeTaggingFromPostable(currentuser, useras, fqpn, fullyQualifiedItemName, fullyQualifiedTagName)
+            #what if postable exists no more? Then we will assume its
+            #properly cleaned.
+            postable=self.whosdb._getMembable(currentuser, fqpn)
+            if self.isMemberOfMembable(currentuser, useras, postable):
+                self.removeTaggingFromPostable(currentuser, useras, fqpn, fullyQualifiedItemName, fullyQualifiedTagName)
         if tag.singletonmode==True:
             #only delete tag if its a note: ie we are in singletonmode
             if not self.isOwnerOfTag(currentuser, useras, tag):
@@ -854,6 +857,66 @@ class Postdb():
 
     # def removeItemFromLibrary(self, currentuser, useras, fqln, itemfqin):
     #     removeTaggingFromPostable(self, currentuser, useras, fqln, itemfqin, tagfqin)
+
+    #WE MOVED THIS HERE AS WE NEED TO NUKE items/tags/pds/tds, etc associated with
+    #a deleted library
+    def removeMembable(self,currentuser, useras, fqpn):
+        "currentuser removes a postable"
+        ptype=gettype(fqpn)
+        membable=self.whosdb._getMembable(currentuser, fqpn)
+        authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self.whosdb, currentuser, useras)
+        authorize_membable_owner(False, self.whosdb, currentuser, useras, membable)
+        #ok, so must find all memberables, and for each memberable, delete this membable for it.
+        memberfqins=[m.fqmn for m in membable.members]
+        invitedfqins=[m.fqmn for m in membable.inviteds]
+        for fqin in memberfqins:
+            mtype=gettype(fqin)
+            member=self.whosdb._getMemberableForFqin(currentuser, mtype, fqin)
+            member.update(safe_update=True, pull__postablesin={'fqpn':fqpn})
+        for fqin in invitedfqins:
+            mtype=gettype(memberablefqin)
+            if mtype==User:
+                member=self.whosdb._getMemberableForFqin(currentuser, mtype, fqin)
+                member.update(safe_update=True, pull__postablesinvitedto={'fqpn':fqpn})
+        useras.update(safe_update=True, pull__postablesowned={'fqpn':fqpn})
+
+        #TODO:then every item/tag/postingdoc/taggingdoc which has this membable, remove the membable from it
+        #we will do this later. we might use routing. Until then the items will show this group there. perhaps
+        #as we check which membables a user can access, and now this membable wont be there,
+        #so we may effectively never show it. We might have to deal with tag membership tho. This will be done later
+        if ptype==Library:
+            items=Item.objects(pinpostables__postfqin=fqpn)
+            for i in items:
+                i.update(safe_update=True, pull__pinpostables={'postfqin':fqpn})
+            pds=PostingDocument.objects(posting__postfqin=fqpn)
+            for pd in pds:
+                pd.delete(safe=True)
+            tds=TaggingDocument.objects(pinpostables__postfqin=fqpn)
+            for td in tds:
+                td.update(safe_update=True, pull__pinpostables={'postfqin':fqpn})
+            tags=Tag.objects(members__fqmn=fqpn)
+            for t in tags:
+                t.update(safe_update=True, pull__members={'fqmn':fqpn})
+        #what if this was a group or an app, then remove it from the libraries it was in
+        if ptype in MEMBERABLES_NOT_USER:
+            infqpns=[e.fqpn for e in membable.postablesin]
+            for f in infqpns:
+                postable = self.whosdb._getMembable(currentuser, f)
+                postable.update(safe_update=True, pull__members={'fqmn':fqpn})
+
+        #ATODO:Also, what about public memberships? since anonymouse and group:public
+        #would be members, i believe this is taken care off
+        membable.delete(safe=True)
+        return OK
+
+    def removeGroup(self, currentuser, useras, fqpn):
+        self.removeMembable(currentuser, useras, fqpn)
+
+    def removeApp(self, currentuser, useras, fqpn):
+        self.removeMembable(currentuser, useras, fqpn)
+
+    def removeLibrary(self, currentuser, useras, fqpn):
+        self.removeMembable(currentuser, useras, fqpn)
 
     # SO HERE WE LIST THE SEARCHES
     #
