@@ -1110,7 +1110,7 @@ class Postdb():
             postablesforuser=[fqpn]#TODO: make sure user has access somehow
         else:
             postablesforuser=[e['fqpn'] for e in self.whosdb.membablesForUser(currentuser, useras, "library")]
-            postablesforuser=[]
+            #postablesforuser=[]
         #print "gtamo", postablesforuser
         #notice in op does OR not AND
         criteria=[
