@@ -346,8 +346,8 @@ class Database():
             newuser=User(**userspec)
             newuser.save(safe=True)
         except:
-            import sys
-            print sys.exc_info()
+            #import sys
+            #print sys.exc_info()
             doabort('BAD_REQ', "Failed adding user %s" % userspec['adsid'])
 
         #A this point, if adding adsgut, set the currentuser to adsgut
@@ -540,8 +540,8 @@ class Database():
                 #if we are already there this happened and do nothing.clearly we need to be careful
                 membableq.update(safe_update=True, push__members=member)
         except:
-            import sys
-            print sys.exc_info()
+            #import sys
+            #print sys.exc_info()
             doabort('BAD_REQ', "Failed adding memberable %s %s to postable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
         memberable.reload()
         return memberable, membableq.get()

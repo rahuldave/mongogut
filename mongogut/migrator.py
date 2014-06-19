@@ -120,7 +120,7 @@ for group in grouplist:
     else:
         groups.append(group)
 
-
+publicmembers=[e for e in publicmembers if e['fqmn'] not in existing_users]
 # Handle special case:
 #"06edcc36-7fcd-4f56-a76a-4a1d5f49c250/group:CfA Star Formation Journal Club" as user has created identical library
 
