@@ -313,23 +313,33 @@ class Postdb():
         ptype=gettype(fqpn)
         postable=self.whosdb._getMembable(currentuser, fqpn)
         item=self._getItem(currentuser, itemfqin)
-        #BUG TODO posting must somehow be got from item and removed from posting document!!!!!!
-        permit(self.isMemberOfPostable(currentuser, useras, postable),
-            "Only member of postable %s who posted this item can remove it" % postable.basic.fqin)
-        item.update(safe_update=True, pull__pinpostables={'postfqin':postable.basic.fqin, 'postedby':useras.adsid})
-        #now add stuff to remove from postingdoc
-        postingdoc=self._getPostingDoc(currentuser, itemfqin, fqpn)
-        postingdoc.update(safe_update=True, pull__hist={'postedby':useras.adsid})
-        postingdoc.reload()
-        hists=postingdoc.hist
-        if len(hists) > 0:
-            maxdict=max(hists, key=lambda x:x['whenposted'])
-            postingdoc.whenposted=maxdict['whenposted']
-            postingdoc.postedby=maxdict['postedby']
-            postingdoc.save(safe=True)
-        else:#this was the only posting todo: chek if logic ok
+        cantremove=0
+        if self.isOwnerOfPostable(currentuser, useras, postable):
+            #print "I AM OWNER"
+            item.update(safe_update=True, pull__pinpostables={'postfqin':postable.basic.fqin})
+            postingdoc=self._getPostingDoc(currentuser, itemfqin, fqpn)
             postingdoc.delete(safe=True)
-        return OK
+            return {'status':'OK', 'histset':0}
+        #BUG TODO posting must somehow be got from item and removed from posting document!!!!!!
+        if self.isMemberOfPostable(currentuser, useras, postable):
+            item.update(safe_update=True, pull__pinpostables={'postfqin':postable.basic.fqin, 'postedby':useras.adsid})
+            postingdoc=self._getPostingDoc(currentuser, itemfqin, fqpn)
+            postingdoc.update(safe_update=True, pull__hist={'postedby':useras.adsid})      
+            #reload
+            postingdoc.reload()
+            hists=postingdoc.hist
+            if len(hists) > 0:
+                maxdict=max(hists, key=lambda x:x['whenposted'])
+                postingdoc.whenposted=maxdict['whenposted']
+                postingdoc.postedby=maxdict['postedby']
+                postingdoc.save(safe=True)
+                histset=1
+            else:#this was the only posting todo: chek if logic ok
+                postingdoc.delete(safe=True)
+                histset=0
+        else:
+            doabort('BAD_REQ', "Only member of postable %s who posted this item, or owner of postable can remove it" % postable.basic.fqin)
+        return {'status':'OK', 'histset':histset}
 
     def removeItemFromLibrary(self, currentuser, useras, fqln, itemfqin):
         removeItemFromPostable(self, currentuser, useras, fqln, itemfqin)
