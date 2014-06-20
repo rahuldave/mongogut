@@ -326,7 +326,7 @@ class Postdb():
         if self.isMemberOfPostable(currentuser, useras, postable):
             item.update(safe_update=True, pull__pinpostables={'postfqin':postable.basic.fqin, 'postedby':useras.adsid})
             postingdoc=self._getPostingDoc(currentuser, itemfqin, fqpn)
-            postingdoc.update(safe_update=True, pull__hist={'postedby':useras.adsid})      
+            postingdoc.update(safe_update=True, pull__hist={'postedby':useras.adsid})
             #reload
             postingdoc.reload()
             hists=postingdoc.hist
@@ -1278,8 +1278,10 @@ class Postdb():
         count, result=self._makeQuery(klass, currentuser, useras, criteria, None, sort, shownfields, pagtuple)
         tresult=[]
         for pd in result:
-            item={'basic':{'fqin':pd.posting.thingtopostfqin,'name':pd.posting.thingtopostname,'description':pd.posting.thingtopostdescription},
-                'itemtype':pd.posting.thingtoposttype, 'whenposted':pd.posting.whenposted, 'postedby':pd.posting.postedby}
+            hists=[e.postedby for e in pd.hist]
+            item={'basic':{'fqin':pd.posting.thingtopostfqin,'name':pd.posting.thingtopostname,
+                    'description':pd.posting.thingtopostdescription},
+                'itemtype':pd.posting.thingtoposttype, 'whenposted':pd.posting.whenposted, 'postedby':pd.posting.postedby, 'hist':hists}
             if tags:
                 item['tags']=list(set([e.tagname for e in pd.stags if e.posttype=="ads/tagtype:tag"]))
             tresult.append(item)
@@ -1293,7 +1295,8 @@ class Postdb():
                         'posting.thingtoposttype',
                         'posting.thingtopostname',
                         'posting.whenposted',
-                        'posting.postedby']
+                        'posting.postedby',
+                        'hist']
         #print "USERNICK", usernick
         result=self._getItemsForQueryFromPostingDocs(SHOWNFIELDS, currentuser, useras, query, usernick, criteria, sort, pagtuple)
         return result
@@ -1347,7 +1350,8 @@ class Postdb():
                         'posting.thingtoposttype',
                         'posting.thingtopostname',
                         'posting.whenposted',
-                        'posting.postedby']
+                        'posting.postedby',
+                        'hist']
         #you dont want this as it leaks who posted it in the other library: 'posting.postedby']
         #TODO: not sure of above. seems we need it, and if we are only in one fqpn we be ok as we get postingdocs for one fqpn only
 
