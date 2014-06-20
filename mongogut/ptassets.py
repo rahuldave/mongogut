@@ -253,13 +253,15 @@ class Postdb():
         try:#BUG:what if its already there? Now fixed?
             #BUG: what if someone else had also posted it into a group, should we do it again or not?
             #or do a unique on the query later in postings...self._getItem(currentuser, itemspec['basic'].fqin)
-            postingdoc=self._getPostingDoc(currentuser, fqin, fqpn)
+            postingdoc=self._getPostingDoc(currentuser, item.basic.fqin, fqpn)
             postingdoc.posting.whenposted=now
             postingdoc.posting.postedby=useras.adsid
             postingdoc.save(safe=True)
             postingdoc.reload()
             newposting=postingdoc.posting
         except:
+            #import sys
+            #print "SYS", sys.exc_info()
             try:
                 newposting=Post(postfqin=postable.basic.fqin, posttype=getNSTypeName(fqpn),
                     postedby=useras.adsid, thingtopostfqin=item.basic.fqin, thingtopostname=item.basic.name,
@@ -285,7 +287,7 @@ class Postdb():
 
     def postItemIntoGroupLibrary(self, currentuser, useras, fqgn, item):
         fqnn=getLibForMembable(fqgn)
-        print "fqnn is", fqnn
+        #print "fqnn is", fqnn
         item=self.postItemIntoPostable(currentuser, useras, fqnn, item)
         return item
 
@@ -328,11 +330,14 @@ class Postdb():
             #reload
             postingdoc.reload()
             hists=postingdoc.hist
+            #print "HISTS", hists
             if len(hists) > 0:
                 maxdict=max(hists, key=lambda x:x['whenposted'])
-                postingdoc.whenposted=maxdict['whenposted']
-                postingdoc.postedby=maxdict['postedby']
+                postingdoc.posting.whenposted=maxdict['whenposted']
+                postingdoc.posting.postedby=maxdict['postedby']
                 postingdoc.save(safe=True)
+                postingdoc.reload()
+                #print ">>>", maxdict, postingdoc.whenposted, postingdoc.postedby
                 histset=1
             else:#this was the only posting todo: chek if logic ok
                 postingdoc.delete(safe=True)
@@ -659,7 +664,9 @@ class Postdb():
     #     return taggingdocs
     #
     def _getPostingDoc(self, currentuser, fqin, fqpn):
+        #print "A"
         postingdoc=embeddedmatch(PostingDocument.objects, "posting", thingtopostfqin=fqin, postfqin=fqpn).get()
+        #print "B"
         return postingdoc
     #
     # def _getPostingDocsForItemandUser(self, currentuser, fqin, adsid):
@@ -691,7 +698,7 @@ class Postdb():
         if tagmode=='0':
             postablesin=[]
             for ptt in item.pinpostables:
-                print "pttdqin"
+                #print "pttdqin"
                 pttfqin=ptt.postfqin
                 #BUG: many database hits. perhaps cached? if not do it or query better.
                 postable=self.whosdb._getMembable(currentuser, pttfqin)
@@ -799,8 +806,8 @@ class Postdb():
             if not tag.singletonmode:
                 pd.update(safe_update=True, push__stags=itemtag)
         except:
-            import sys
-            print sys.exc_info()
+            #import sys
+            #print sys.exc_info()
             doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in postable %s" % (itemtag.thingtopostfqin, itemtag.postfqin, postable.basic.fqin))
 
         return item, tag, taggingdoc.posting, newposting
@@ -821,7 +828,7 @@ class Postdb():
         #postable from which tag is being removed.
         owneroftag=useras
         if tag.owner!=useras.basic.fqin:
-            print "IS IT OWNER"
+            #print "IS IT OWNER"
             authorize_postable_owner(False, self, currentuser, useras, postable)
             owneroftag=self.whosdb._getUserForFqin(currentuser, tag.owner)
         #we'll throw an error here if this user did not post it.
