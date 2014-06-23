@@ -1,15 +1,13 @@
 from mongoclasses import *
-from errors import *
+from exc import *
 OK=200
+
+#Initial starting points for barrier functions in perms.py
 LOGGEDIN_A_SUPERUSER_O_USERAS=False
 MEMBER_OF_POSTABLE=False
 MEMBER_OF_MEMBABLE=False
 
-#if the default for tag is false, and we actually do land up checking this, then we have to find a way to let other use tags.
-#that i'd want is for it to be true for group and user members of tags, but not for apps.
-
-#the above all have nicks
-#TAGGISH=[Group, App, Library, Tag]: or should it be PostingDoc, TaggingDoc?
+#map for words to classes. used to translate parts of fqins
 MAPDICT={
     'group':Group,
     'app':App,
@@ -18,34 +16,34 @@ MAPDICT={
 }
 
 def classname(instance):
-    #return type(instance).__name__
     return instance.classname
 
 def classtype(instance):
     return type(instance)
 
+#from a fqin, get its type, eg: item/library
 def getNSTypeName(fqin):
-    #print "fqin", fqin
     lst=fqin.split(':')
     nslist=lst[-2].split('/')
     nstypename=nslist[-1]
     return nstypename
 
+#from an fqin, get the name part of it
 def getNSVal(fqin):
-    #print "fqin", fqin
     lst=fqin.split(':')
     return lst[-1]
 
+#this gets the classname we baked into every mongo class
 def getNSTypeNameFromInstance(instance):
     return classname(instance).lower()
 
+#return the Class corresponding to the type in the fqin
 def gettype(fqin):
     nstypename=getNSTypeName(fqin)
-    #print 'FQIN',fqin, nstypename
     return MAPDICT[nstypename]
 
+#parses a tag, eg:#jayluker/ads/tagtype:tag:asexy
 def parseTag(fqtn):
-    #jayluker/ads/tagtype:tag:asexy
     tagname=fqtn.split('tagtype:tag:')[-1]
     spl=fqtn.split('/',1)
     taguser=spl[0]
@@ -53,27 +51,37 @@ def parseTag(fqtn):
     tagtype=spl[1][0:n-1]
     return fqtn, taguser, tagtype, tagname
 
+#use this to convert an app or a group to that apps or groups library
 def getLibForMembable(fqin):
     lst=fqin.split(':')
     nslist=lst[-2].split('/')
     nshead=nslist[0]
     nstail=lst[-1]
     return nshead+"/library:"+nstail
-#BUG: add a function musthave which can then be used to validate in augmentitspec
-#this function currently dosent throw an exception it should when not in flask mode
+
+#used to make sure that object SPECs have the right keys
 def musthavekeys(indict, listofkeys):
     for k in listofkeys:
         if not indict.has_key(k):
             doabort('BAD_REQ', "Indict does not have key %s" % k)
     return indict
 
+#make a uuid for the user
 import uuid
 def makeUuid():
     return str(uuid.uuid4())
 
+
+###### The next few functions set up and make sure that SPEC's for various classes
+#are set up properly
+
+#set up a new group/app/library/user.
+#the membable must have a creator and name coming in
+#owner is set to creator and name is used in fqin
+#for user, we must have the adsid which is an email coming in.
+#a uuid is assigned as the nick for the user, and thus the name.
 def augmentspec(specdict, specstr="user"):
     basicdict={}
-    #print "INSPECDICT", specdict
     spectype=MAPDICT[specstr]
     spectypestring = spectype.classname
 
@@ -109,20 +117,21 @@ def augmentspec(specdict, specstr="user"):
     del specdict['creator']
     if specdict.has_key('description'):
         del specdict['description']
-    #print "OUTSPECDICT", specdict
     if specstr!="library" and specdict.has_key("librarykind"):
         del specdict['librarykind']
     return specdict
 
+#the SPEC augmenter for items and tags
+#creator, name, and type are compulsory
+#notice item is a bit different in how it is set, we use the namespace
+#of thew itemtype eg ads/bibcode with no colon
 def augmentitspec(specdict, spectype="item"):
     basicdict={}
-    #print "INSPECDICT", specdict
     specdict=musthavekeys(specdict,['creator', 'name'])
     if spectype=='item' or spectype=='tag':
         basicdict['creator']=specdict['creator']
         basicdict['name']=specdict['name']
         basicdict['description']=specdict.get('description','')
-        #BUG:item is different. should it be so?
         if spectype=="item":
             specdict=musthavekeys(specdict,['itemtype'])
             itemtypens=specdict['itemtype'].split('/')[0]
@@ -146,15 +155,13 @@ def augmentitspec(specdict, spectype="item"):
         del specdict['description']
     return specdict
 
-#The creator here must be a user. The owner can later be changed
-#to a general memberable. If the memberable is a postable and you
-#belong to it, you can use it. But until we are shifted only that
-#user can use it.
+#item types and tagtypes. The creator here must be a user.
+#notice here we have a membable in addition to creators name
+#we are using it right now for apps that the type was created in
+#for bibgroups we would want to extend this to groups as well
 def augmenttypespec(specdict, spectype="itemtype"):
     basicdict={}
-    #BUG: validate the specdict
     #for itemtype, come in with an postabletype=app and a postable=appfqin
-    #print "INSPECDICT", specdict
     specdict=musthavekeys(specdict,['creator', 'name', 'membable'])
     #BUG validate its in the choices wanted ie app and grp (what about tagtypes in libs)
     specdict['membabletype']=getNSVal(specdict['membable'])
@@ -170,3 +177,6 @@ def augmenttypespec(specdict, spectype="itemtype"):
     if specdict.has_key('description'):
         del specdict['description']
     return specdict
+
+
+#TODO: generally we should add some validation code in here.

@@ -9,18 +9,31 @@ import sys
 from utilities import *
 import copy
 
+## we first start with some helper functions
+
+#this looks for a postable like a library in the postablesin or postablesowned of a user
+#or the postablesin of a group or app
 def is_membable_embedded_in_memberable(pble, mblesub):
     fqpnhash = dict([(e.fqpn, e) for e in mblesub])
     if pble.basic.fqin in fqpnhash.keys():
         return fqpnhash[pble.basic.fqin]
     return False
 
+#this gets the reverse, is a member as a user or a group among the membets of a library
+#or if a user is among the members of an app or group
 def is_memberable_embedded_in_membable(mble, pblesub):
     fqmnhash = dict([(e.fqmn, e) for e in pblesub])
     if mble.basic.fqin in fqmnhash.keys():
         return fqmnhash[mble.basic.fqin]
     return False
 
+#this is an critical function which goes to a postable
+#and changes a value on it. it then goes to the owner user and changes
+#the value in postables owned. it then goes to all members of the postable,
+#finds their postables in, and changes the value there. It allows for slightly
+#different field names by having a different f and f_emb. This ridmarole is needed
+#as our data model is fully flattened and thus we must handle the relational stuff
+#ourself
 def deep_changes_to_postable(postable, f,f_emb, fval, fembval=None):
     fdict={}
     fdict['set__'+f]=fval
@@ -55,10 +68,13 @@ def deep_changes_to_postable(postable, f,f_emb, fval, fembval=None):
                     setattr(emb, f_emb, fembval)
                     mobj.update(safe_update=True, push__postablesinvitedto=emb)
 
+
+#The social part of the database. This database becomes a part of the items-and-tags database
+#and carries info about users/libraries/groups and apps in the Database class
 class Database():
 
     def __init__(self, db_session):
-        "initialize the database"
+        "initialize the database with mongoengine db_session"
         self.session=db_session
 
     #UNPROTECTED
@@ -88,9 +104,7 @@ class Database():
         return user
 
     def _getUserForCookieid(self, currentuser, cookieid):
-        "gets user for adsid"
-        ##print "ingetuser", [e.nick for e in User.objects]
-        ##print "nick", nick
+        "gets user for cookieid, the ads cookie"
         try:
             user=User.objects(cookieid=cookieid).get()
         except:
@@ -106,6 +120,7 @@ class Database():
             doabort('NOT_FND', "User %s not found" % userfqin)
         return user
 
+    #get a user group or app from fqin
     def _getMemberableForFqin(self, currentuser, mtype, memberfqin):
         "gets a memberable from its fully qualified name"
         try:
@@ -139,7 +154,7 @@ class Database():
         return entity
 
     #this one is unprotected
-    #BUG make sure ptype is in MEMBABLES.
+    #TODO make sure ptype is in MEMBABLES.
     def _getMembable(self, currentuser, fqpn):
         "gets the postable corresponding to the fqpn"
         return self._getEntity(currentuser, fqpn)
@@ -148,19 +163,14 @@ class Database():
     def getMembableInfo(self, currentuser, memberable, fqpn):
         "gets membable only if you are member of the membable"
         membable=self._getMembable(currentuser, fqpn)
-        #BUG:this should work for a user member of postable as well as a memberable member of postable
-        #print "AUTHING", currentuser.nick, memberable.nick
         authorize_membable_member(MEMBER_OF_MEMBABLE, self, currentuser, memberable, membable)
-        #print "GOT HERE"
         owner = self._getUserForFqin(currentuser, membable.owner)
         creator = self._getUserForFqin(currentuser, membable.basic.creator)
         return membable, owner, creator
 
 
-
     def isMemberOfMembable(self, currentuser, memberable, membable, memclass=MEMBERABLES_NOT_USER):
-        "is the memberable a member of membable"
-        #this is the slow way to do it.
+        "is the memberable(user/group/app) a member of membable(group/app/lib)"
         #First get the members, if our memberable is directly there, return true (direct user membership)
         memberfqins=membable.get_member_fqins()
         if memberable.basic.fqin in memberfqins:
@@ -179,7 +189,7 @@ class Database():
         "is the memberable a member of postable"
         return self.isMemberOfMembable(currentuser, memberable, postable)
 
-    #Also checks for membership!
+    #this one checks direct membership of library, but then also checks for membership of grps/apps in lib!
     def canIPostToPostable(self, currentuser, memberable, library, memclass=MEMBERABLES_NOT_USER):
         "am i allowed to post to a library, either through user or through a memberable"
         #if i own the library let me post.
@@ -220,7 +230,6 @@ class Database():
 
     #invitations for users. invitation to a tag is undefined, as yet. unprotected
     def isInvitedToMembable(self, currentuser, useras, membable):
-        #print "MEMBERABLE", memberable.to_json(), "MEMBABLE", membable.to_json()
         if useras.basic.fqin in [m.fqmn for m in membable.inviteds]:
             return True
         else:
@@ -230,6 +239,7 @@ class Database():
         "is the user invited to the postable?"
         return self.isInvitedToMembable(currentuser, memberable, postable)
 
+    #unprotected.
     def ownerOfMembables(self, currentuser, useras, ptypestr=None):
         "return the membables the user is an owner of"
         #TODO:currently suppressiong protection. revisit.
@@ -242,9 +252,9 @@ class Database():
         return membables
 
     #unprotected
-    #BUG just for user currently. Dosent work for other memberables
     def membablesForUser(self, currentuser, useras, ptypestr=None):
         "return the membables the user is DIRECTLY a member of"
+        #TODO: revisit whether this should be protected later
         #authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         allmembables=useras.postablesin
         if ptypestr:
@@ -253,6 +263,7 @@ class Database():
             membables=allmembables
         return membables
 
+    #unprotected
     def membablesUserCanAccess(self, currentuser, useras, ptypestr=None):
         "return the membables the user can access, directly or indirectly(for libraries)"
         #authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
@@ -265,9 +276,10 @@ class Database():
             membables=allmembables
         return membables
 
+    #unprotected
     def membablesUserCanWriteTo(self, currentuser, useras, ptypestr=None):
         """return the membables the user can access, directly or
-        indirectly(for libraries), which user can write to"""
+        indirectly(for libraries), which user can write to (using readwrite)"""
         #authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         nlibmembables = useras.membablesnotlibrary()
         othermembables = useras.membableslibrary()
@@ -291,17 +303,15 @@ class Database():
             membables=allmembables
         return membables
 
-    #why auth here?
-    #user/memberable may be member through another memberable
-    #this will give just those memberables, and not their expansion: is that ok? i think so
+    #gives  members only along with their permissions. used to get perms for users and groups
+    #in libs or users in libs
     def membersOfMembable(self, currentuser, memberable, membable):
         "who are the members of the membable?"
         #i need to have access to this if i come in through being a member of a memberable which is a member
-        #authorize_postable member takes care of this. That memberable is NOT the same memberable in the arguments here
+        #authorize_membable_member takes care of this.
         authorize_membable_member(False, self, currentuser, memberable, membable)
         #print "CU", currentuser.nick, memberable.nick, membable.basic.fqin
         if self.isOwnerOfMembable(currentuser, memberable, membable):
-            #print "IS OWNER"
             perms=membable.get_member_rws()
         else:
             perms=membable.get_member_rws()
@@ -316,8 +326,7 @@ class Database():
     #Needs owner or superuser access. currently useras must be a user
     def invitedsForMembable(self, currentuser, useras, membable):
         "who are invited to the membable?"
-        #i need to have access to this if i come in through being a member of a memberable which is a member
-        #authorize_postable member takes care of this. That memberable is NOT the same memberable in the arguments here
+        #you must be an owner to get all the inviteds
         authorize_membable_owner(False, self, currentuser, useras, membable)
         inviteds=membable.get_invited_rws()
         return inviteds
@@ -327,18 +336,16 @@ class Database():
         return self.invitedsForMembable(currentuser, memberable, membable)
     ################################################################################
 
-    #Add user to system, given a userspec from flask user object. commit needed
-    #This should never be called from the web interface, but can be called on the fly when user
-    #logs in in Giovanni's system. So will there be a cookie or not?
-    #BUG: make sure this works on a pythonic API too. think about authorize in a
-    #pythonic API setting
+    #Add user to system, given a userspec which can be your own, or from flask user object.
+    #This should never be called from the web services, but can be called on the fly when user
+    #logs in in Giovanni's system.
     #
-    #ought to be initialized on signup or in batch for existing users.
-    #adduser must be called with the adsgut user as currentuser
+    #adduser MUST be called with the adsgut user as currentuser
     def addUser(self, currentuser, userspec):
         "add a user to the system. currently only sysadmin can do this"
+        #NOTE: any user can add adsuser, but only adsgut should. Thus this function should never be exposed via web service
+
         #if we are not trying to add adsgut:
-        #BUG: any user can add adsuser. Thus this function should never be exposed via web service
         if not userspec['adsid']=='adsgut':
             authorize_systemuser(False, self, currentuser)#I MUST BE SYSTEMUSER
         try:
@@ -346,8 +353,6 @@ class Database():
             newuser=User(**userspec)
             newuser.save(safe=True)
         except:
-            #import sys
-            #print sys.exc_info()
             doabort('BAD_REQ', "Failed adding user %s" % userspec['adsid'])
 
         #A this point, if adding adsgut, set the currentuser to adsgut
@@ -355,35 +360,23 @@ class Database():
             currentuser=newuser
         #make who is doing this all explicit.
         adsgutuser=currentuser
-        #Also add user to private default group and public group
 
-        #currentuser adds this as newuser
-        ##print adding default personal group
-
-        #self.addGroup(currentuser, newuser, dict(name='default', creator=newuser.basic.fqin,
-        #    personalgroup=True
-        #))
-
-        #add youre default library as yourself
+        #adding the default library in
         self.addLibrary(adsgutuser, newuser, dict(name='default', creator=newuser.basic.fqin, librarykind='udl'))
-        #perhaps this kind of dual addition should later be done via routing?
 
-        #if we are not trying to add adsgut
+        #if we are not trying to add adsgut, or anonymouse, add user to public group and adsgut main app
         if not userspec['adsid']=='adsgut':
             if newuser.basic.fqin!=ANONYMOUSE:
                 self.addUserToGroup(adsgutuser, adsgutuser, PUBLICGROUP, newuser.basic.fqin)
-                #SHOULD BE AUTOself.addUserToLibrary(adsgutuser, adsgutuser, PUBLICLIBRARY, newuser.basic.fqin)
-                #adding to publications app done on importing from giovanni or getting into giovanni, by adsuser
+                #this will automatically add to the public library as well
                 self.addUserToApp(adsgutuser, adsgutuser, MOTHERSHIPAPP, newuser.basic.fqin)
         newuser.reload()
         return newuser
 
-    #TODO: we want to blacklist users and relist them. add a dormant to user object
-    #TODO: what about removal of the user from tags: later we will hook this up to
-    #tags a user is a member of, but its not urgent
-    #TODO: THINK:What if they have create tagtypes? Then these may still be used but no-one can remove them.
-    #this should only be a systemuser thing.
-    #Generally we will never do this.
+    #TODO: we want to blacklist users and relist them. add a method for this using the dormant field
+
+    #Generally we will never do this. There is nothing in the UI for it.
+    #TODO: let us hook up a script for this
     def removeUser(self, currentuser, usertoberemovednick):
         "remove a user. only systemuser can do this"
         #Only sysuser can remove user.
