@@ -392,29 +392,31 @@ class Database():
         remuser.delete(safe=True)
         return OK
 
+    #this method has a user adding a group, library, or application
     def addMembable(self, currentuser, useras, ptypestr, membablespec_in, appmode=False):
         "the useras adds a postable. currently either currentuser=superuser or useras"
-        #authorize(False, self, currentuser, currentuser)
+        #first make sure that user is either logged in or isa superuser
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
+        #set the creator
         membablespec_in['creator']=useras.basic.fqin
         membablespec=copy.deepcopy(membablespec_in)
         membablespec=augmentspec(membablespec, ptypestr)
+        #make sure we dont have a colon(:) or a / in the name of the membable.
         a = membablespec['basic'].name.find(':')
         b = membablespec['basic'].name.find('/')
         if a!=-1 or b!=-1:
             doabort('BAD_REQ', "Failed adding membable due to presence of : or /  %s" % (membablespec['basic'].name))
         ptype=gettype(membablespec['basic'].fqin)
+        #idempotency: if this membable already exists, return it and the user
         try:
-            #print "do we exist",membablespec['basic'].fqin
             p=ptype.objects.get(basic__fqin=membablespec['basic'].fqin)
-            #print "postable exists", p.basic.fqin
             return useras, p
         except:
-            #print "In addPostable", ptypestr, ptype
+            #if not, try creating the membable
             try:
                 newmembable=ptype(**membablespec)
                 newmembable.save(safe=True)
-                #how to save it together?
+                #also get the user to save into postablesowned
                 userq= User.objects(basic__fqin=newmembable.owner)
                 user=userq.get()
                 newpe = is_membable_embedded_in_memberable(newmembable, user.postablesowned)
@@ -427,14 +429,12 @@ class Database():
                 if newpe == False:
                     newpe=MembableEmbedded(ptype=ptypestr,fqpn=newmembable.basic.fqin, owner=user.adsid, pname = newmembable.presentable_name(), readwrite=True, description=newmembable.basic.description, librarykind=librarykind)
                     res=userq.update(safe_update=True, push__postablesowned=newpe)
-                ##print "result", res, currentuser.groupsowned, currentuser.to_json()
-
             except:
                 doabort('BAD_REQ', "Failed adding membable %s %s" % (ptype.__name__, membablespec['basic'].fqin))
-            #BUG changerw must be appropriate here!
-            #owner must be a user WHY DO WE USE CREATOR?
+            #This will add the creator to postablesin, with changerw false
             self.addMemberableToMembable(currentuser, useras, newmembable.basic.fqin, newmembable.basic.creator, changerw=False, ownermode=True)
             #now if this was a group or an app, add the corresponding library
+            #if appmode is true we are also adding the app into the library
             if appmode:
                 ptypelist=['group', 'app']
             else:
@@ -446,7 +446,6 @@ class Database():
                 luser, mlib=self.addMembable(currentuser, useras, 'library', membablespeclib_in)
                 #now make sure group or app is in that library
                 self.addMemberableToMembable(currentuser, useras, mlib.basic.fqin, newmembable.basic.fqin, changerw=False, ownermode=False)
-            ##print "autoRELOAD?", userq.get().to_json()
             newmembable.reload()
             return user, newmembable
 
@@ -460,15 +459,15 @@ class Database():
         return self.addMembable(currentuser, useras, "library", libraryspec)
 
 
-    #BUG: there is no restriction here of what can be added to what in memberables and postables
-    #BUG: when do we use get and when not. And what makes sure the fqins are kosher?
+    #add a memberable to a membable, such as a user to group or library, or a group/app to a library
     def addMemberableToMembable(self, currentuser, useras, fqpn, memberablefqin, changerw=False, ownermode=False):
         "add a user, group, or app to a postable=group, app, or library"
         ptype=gettype(fqpn)
         mtype=gettype(memberablefqin)
         membableq=ptype.objects(basic__fqin=fqpn)
         memberableq= mtype.objects(basic__fqin=memberablefqin)
-        #BUG currently restricted admission. Later we will want groups and apps proxying for users.
+        #currently restricted admission. Later we will want groups and apps proxying for users.
+        #make sure its a logged in user or superuser
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         rw=False#makes no sense unless you are in a library
         try:
@@ -481,7 +480,7 @@ class Database():
             doabort('BAD_REQ', "No such memberable %s %s" %  (mtype.__name__,memberablefqin))
 
         if fqpn!='adsgut/group:public':
-            #print "Adding to POSTABLE ", memberable.basic.fqin, postable.basic.fqin, currentuser.basic.fqin, useras.basic.fqin
+            #make sure only the owner of the membable can do things
             #special case so any user can add themselves to public group
             authorize_membable_owner(False, self, currentuser, useras, membable)
         try:
@@ -494,47 +493,48 @@ class Database():
                     else:
                         rw= (not RWDEF[membable.librarykind])
                 restriction=RESTR[membable.librarykind]
-                #print "restriction is", restriction
-                if restriction[0]!=None:
+                #RESTR is used in libraries to set what is allowed in
+                if restriction[0]!=None:#only in case of 'udl'
                     if restriction[1]==None and ownermode==False:
                         doabort('BAD_REQ', "Only owner is allowed to be a member of %s" %  membable.librarykind)
+                    #TODO: remove as none of this ought to kick in. If we decide to make things more useful
+                    #this could be used to kick in the right permissions
                     if ownermode==False:#ownly the group/app/pub group entity is allowed to be a member of this library
                         if mtype!=restriction[0]:
                             doabort('BAD_REQ', "Memberable %s not allowed as member of %s library" %  (mtype.__name__,membable.librarykind))
-                        if restriction[1]==True:
+                        if restriction[1]==True:#this used to be the case when we wanted a one group lib but
+                            #thats not the case any more.
                             if membable.basic.name!=memberable.basic.name and membable.owner!=memberable.owner:
                                 doabort('BAD_REQ', "Memberable %s not allowed as member of %s library" %  (memberable.basic.fqin,membable.basic.fqin))
 
             #if all of this passes, we are now ok to add
-
+            #do we have a membable-embedded already for some reason? just use it (idempotency)
             pe = is_membable_embedded_in_memberable(membable, memberable.postablesin)
-            #memb = is_memberable_embedded_in_membable(memberable, postable.members)
-            #this would be added a second time but we are protected by this line above!
-            #print "WHAT IS PE", pe, membable.basic.fqin, memberable.basic.fqin
+
             if pe == False:
                 if ptype==Library:
                     librarykind=membable.librarykind
+                    #adding anonymouse to any library but her own
                     if memberable.basic.fqin=="adsgut/user:anonymouse" and membable.basic.fqin!="anonymous/library:default":
                         islibrarypublic=True
                         rw=False#we artificially make anonymouse read-only, always
                         deep_changes_to_postable(membable, "islibrarypublic", "islibrarypublic", islibrarypublic)
                         membable.reload()
-                        #print "MIL", membable, membable.islibrarypublic
                     islibrarypublic=membable.islibrarypublic
-                    #print "MIL2", membable, membable.islibrarypublic, membableq.get().islibrarypublic
                 else:
                     librarykind=""
                     islibrarypublic=False
+                #now create a membable embedded to add to memberable
                 pe=MembableEmbedded(ptype=ptype.classname,fqpn=membable.basic.fqin, owner=useras.adsid, pname = membable.presentable_name(), readwrite=rw, description=membable.basic.description, librarykind=librarykind, islibrarypublic=islibrarypublic)
+            #update memberable with membable
             memberableq.update(safe_update=True, push__postablesin=pe)
+            #again, for idempotency, see if we have a memberable embedded
             member = is_memberable_embedded_in_membable(memberable, membable.members)
             if member == False:
                 member=MemberableEmbedded(mtype=mtype.classname, fqmn=memberablefqin, readwrite=rw, pname = memberable.presentable_name())
-                #if we are already there this happened and do nothing.clearly we need to be careful
+                #update membable with member
                 membableq.update(safe_update=True, push__members=member)
         except:
-            #import sys
-            #print sys.exc_info()
             doabort('BAD_REQ', "Failed adding memberable %s %s to postable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
         memberable.reload()
         return memberable, membableq.get()
@@ -555,87 +555,88 @@ class Database():
         user=self._getUserForNick(currentuser, nick)
         return self.addMemberableToMembable(currentuser, currentuser, fqpn, user.basic.fqin, changerw, ownermode)
 
-    #because this is used along with other membership apply/decline funcs, we will go with memberable
-    #as opposed to memberablefqin
-    #WORKS ONLY FOR POSTABLE=LIBRARY. Where do i check for ownership?
+    #this methods lets us toggle the read-only vs read-write status for a member of a library
+    #WORKS ONLY FOR POSTABLE=LIBRARY. The notion of posting dosent make sense for any other membership.
     def toggleRWForMembership(self, currentuser, useras, fqpn, memberable):
         ptype=gettype(fqpn)
         memberablefqin=memberable.basic.fqin
         mtype=gettype(memberablefqin)
-        #print "types", fqpn, ptype, memberablefqin,mtype
         postableq=ptype.objects(basic__fqin=fqpn)
-        #memberableq=mtype.objects(basic__fqin=memberablefqin)
 
-        #BUG currently restricted admission. Later we will want groups and apps proxying for users.
+        #TODO currently restricted admission. Later we will want groups and apps proxying for users.
+        #currently must be superuser or logged in user
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
-        try:
+        try:#get the library
             postable=postableq.get()
-            #memberable=memberableq.get()
         except:
             doabort('BAD_REQ', "No such unique memberable %s %s postable %s %s" %  (mtype.__name__, memberablefqin, ptype.__name__,fqpn))
+        #make sure that the user making changes actually owns the library
         authorize_postable_owner(False, self, currentuser, useras, postable)
         members=postable.members
         postables=memberable.postablesin
-        #BUG make faster by using a mongo search
-        #toggling on anonymouse is not allowed. anonymouse may only be read
+        #toggling on anonymouse is not allowed. anonymouse may only read
         if memberablefqin=="adsgut/user:anonymouse":
-            #you are guaranteed (sort of) that public group is also member.
-            # memberable2 = Group.objects(basic__fqin="adsgut/group:public").get()
-            # memberablefqin = memberable2.basic.fqin
-            # postables = memberable2.postablesin
             doabort('BAD_REQ', "Cant give write priviledges to non logged-in users")
-        # if memberablefqin=="adsgut/group:public":
-        #     memberable2=memberable
+        #prevent owner from toggling herself
+        if memberablefqin==useras.basic.fqin:
+            doabort('BAD_REQ', "owner cannot toggle their own read-write status")
+        #make the toggle change both in members and postablesin
+        #(need not worry about postablesowned as you are not allowed to toggle that)
+
         for me in members:
             if me.fqmn==memberablefqin:
                 me.readwrite = (not me.readwrite)
         for p in postables:
             if p.fqpn==fqpn:
                 p.readwrite = (not p.readwrite)
-        #CHECK: does this make the change we want, or do we need explicit update?
-        #postableq.update(safe_update=True)
-        #memberableq.update(safe_update=True)
+
         postable.save(safe=True)
         memberable.save(safe=True)
-        # if memberablefqin=="adsgut/group:public":
-        #     memberable2.save(safe=True)
+        #note how we are using save instead of update. this technique could potentially simplify
+        #codeelsewhere
         return memberable, postable
 
 
-    #This should work for tags as well. you must be systemuser or tag owner to remove someone from tags
+    #THINK: This should perhaps work for tags as well. 
+    #you must be systemuser or tag owner to remove someone from tags
+
+    #remove a user from a group/app, or u/g/a from a library.
     def removeMemberableFromMembable(self, currentuser, useras, fqpn, memberablefqin):
         "remove a u/g/a from a g/a/l"
         ptype=gettype(fqpn)
         mtype=gettype(memberablefqin)
         membableq=ptype.objects(basic__fqin=fqpn)
         memberableq= mtype.objects(basic__fqin=memberablefqin)
+        #make sure you are superuser or logged in
         authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
+        #get the membable
         try:
             membable=membableq.get()
         except:
             doabort('BAD_REQ', "No such membable %s" % fqpn)
+        #get the memberable
         try:
             memberable=memberableq.get()
         except:
             doabort('BAD_REQ', "No such memberable %s" % memberablefqin)
-
+        #If you are the memberable, that is, you are removing yourself:
         if useras.basic.fqin==memberablefqin:
             #if the user is removing herself, first make sure she is a member
             authorize_membable_member(False, self, currentuser, useras, membable)
-            #now make sure she is not the owner
+            #now make sure she is not the owner (that would be harakiri)
             if self.isOwnerOfMembable(currentuser, useras, membable):
                 doabort('BAD_REQ', "Cannot remove owner %s of %s" % (useras.basic.fqin,fqpn))
         else:
             #otherwise you must be the owner of the membable or systemuser. this is independent
             #of whether the memberable is a user or a group/app in a library
             #or a user in a group/app
-            #system user will be allowed by below so we are good
+            #system user will be allowed by below
             authorize_membable_owner(False, self, currentuser, useras, membable)
+        #pull from postablesin and members
         try:
             memberableq.update(safe_update=True, pull__postablesin__fqpn=membable.basic.fqin)
-            #buf not sure how removing embedded doc works, if at all
             membableq.update(safe_update=True, pull__members__fqmn=memberablefqin)
-            #BUG: additional things need to be done if removing anonymouse or public group. WHAT ELSE?
+            #if you are removing anonymouse, you need to flip the "is library public"
             if memberablefqin=='adsgut/user:anonymouse':
                 deep_changes_to_postable(membable, "islibrarypublic", "islibrarypublic", False)
         except:
@@ -643,31 +644,28 @@ class Database():
         return OK
 
 
-    #do we want to use this for libraries? why not? Ca we invite other memberables?
+    #invite user to a group, app, or library (currently we dont invite to apps)
     def inviteUserToMembable(self, currentuser, useras, fqpn, user, changerw=False):
-        "invite a user to a postable."
+        "invite a user to a membable."
         ptype=gettype(fqpn)
         membable=self._getMembable(currentuser, fqpn)
         usertobeaddedfqin=user.basic.fqin
         rw=False
+        #cant invite owner!
         if usertobeaddedfqin==useras.basic.fqin:
             doabort('BAD_REQ', "Failed inviting user %s to postable %s as cant invite owner" % (usertobeaddedfqin, fqpn))
-        # userq= User.objects(basic__fqin=usertobeaddedfqin)
-        # try:
-        #     user=userq.get()
-        # except:
-        #     doabort('BAD_REQ', "No such user %s" % usertobeaddedfqin)
-        #print ">>>", membable.owner, useras.basic.fqin, currentuser.basic.fqin, user.basic.fqin
+        #to invite, you must be the owner of the membable
         authorize_membable_owner(False, self, currentuser, useras, membable)
+        #if library, deal with the read-write invitation mode
         try:
             if ptype==Library:
                 if not changerw:
                     rw=RWDEF[membable.librarykind]
                 else:
                     rw= (not RWDEF[membable.librarykind])
-
+            #if invitation has already been made, fetch it
             pe = is_membable_embedded_in_memberable(membable, user.postablesinvitedto)
-            #memb = is_memberable_embedded_in_membable(memberable, postable.members)
+            #if not, create the membable-embedded for the invitation and update user with it
             if pe == False:
                 if ptype==Library:
                     librarykind=membable.librarykind
@@ -677,50 +675,48 @@ class Database():
                     islibrarypublic=False
                 pe=MembableEmbedded(ptype=ptype.classname,fqpn=membable.basic.fqin, owner=useras.adsid, pname = membable.presentable_name(), readwrite=rw, description=membable.basic.description, librarykind=librarykind, islibrarypublic=islibrarypublic)
                 user.update(safe_update=True, push__postablesinvitedto=pe)
-
+            #also, go for the memberable-embedded and put it in the inviteds for the membable/postable
             memb = is_memberable_embedded_in_membable(user, membable.inviteds)
+            #if not already there, create it!
             if memb==False:
                 memb=MemberableEmbedded(mtype=User.classname, fqmn=usertobeaddedfqin, readwrite=rw, pname = user.presentable_name())
-                #BUG: ok to use fqin here instead of getting from oblect?
-                #print "LLL", pe.to_json(), memb.to_json(), "+++++++++++++"
-                #print postable.to_json()
                 membable.update(safe_update=True, push__inviteds=memb)
-            ##print "userq", userq.to_json()
         except:
             doabort('BAD_REQ', "Failed inviting user %s to postable %s" % (usertobeaddedfqin, fqpn))
-        ##print "IIIII", userq.get().groupsinvitedto
         membable.reload()
         user.reload()
         return user, membable
 
+    #use the nickname(uuid)
     def inviteUserToMembableUsingNick(self, currentuser, fqpn, nick, changerw=False):
         "invite a user to a postable."
         user=self._getUserForNick(currentuser,nick)
         return self.inviteUserToMembable(currentuser, currentuser, fqpn, user, changerw)
 
+    #use the adsid to invite(email). this is the workhorse
     def inviteUserToMembableUsingAdsid(self, currentuser, fqpn, adsid, changerw=False):
         "invite a user to a postable."
         user=self._getUserForAdsid(currentuser,adsid)
         return self.inviteUserToMembable(currentuser, currentuser, fqpn, user, changerw)
 
+    #accept invitation to group or library. 
     #this cannot be masqueraded, must be explicitly approved by user
-    #can we do without the mefqin?
     def acceptInviteToMembable(self, currentuser, fqpn, me):
         "do i accept the invite?"
         ptype=gettype(fqpn)
         membableq=ptype.objects(basic__fqin=fqpn)
-        # userq= User.objects(basic__fqin=mefqin)
-        # try:
-        #     me=userq.get()
-        # except:
-        #     doabort('BAD_REQ', "No such user %s" % mefqin)
         mefqin=me.basic.fqin
+        #get the membable the invitation is to
         try:
             membable=membableq.get()
         except:
             doabort('BAD_REQ', "No such membable %s %s" % (ptype.__name__,fqpn))
+        #make sure it is I who am logge on, and no-one else
         authorize(False, self, currentuser, me)
+        #make sure i have actually been invited
         permit(self.isInvitedToMembable(currentuser, me, membable), "User %s must be invited to membable %s %s" % (mefqin, ptype.__name__,fqpn))
+        #obtain the membable-embedded and memberable embedded with the aim of pulling from invitations
+        #and updating the membership
         try:
             inviteds=membable.inviteds
             memb=None
@@ -733,6 +729,7 @@ class Database():
                     pe=uinv
             if memb==None or pe==None:
                 doabort('BAD_REQ', "User %s was never invited to postable %s %s" % (mefqin, ptype.__name__, fqpn))
+            #now that we got these, pull gtom inviteds and add to ins
             me.update(safe_update=True, push__postablesin=pe, pull__postablesinvitedto__fqpn=pe.fqpn)
             membableq.update(safe_update=True, push__members=memb, pull__inviteds__fqmn=memb.fqmn)
         except:
@@ -740,17 +737,19 @@ class Database():
         me.reload()
         return me, membableq.get()
 
+    #use nicks to accept invitations
     def acceptInviteToMembableUsingNick(self, currentuser, fqpn, nick):
         "invite a user to a postable."
         user=self._getUserForNick(currentuser,nick)
         return self.acceptInviteToMembable(currentuser, fqpn, user)
 
+    #use adsids to accept invitations
     def acceptInviteToMembableUsingAdsid(self, currentuser, fqpn, adsid):
         "invite a user to a postable."
         user=self._getUserForNick(currentuser,adsid)
         return self.acceptInviteToMembable(currentuser, fqpn, user)
 
-    #changes postable ownership to a 'ownerable'
+    #changes membable ownership to another user
     #USER must be owner! This CAN happen through membership in a member group.
     def changeOwnershipOfMembable(self, currentuser, owner, fqpn, newowner):
         "give ownership over to another user for g/a/l"
@@ -760,57 +759,38 @@ class Database():
             membable=membableq.get()
         except:
             doabort('BAD_REQ', "No such membable %s %s" % (ptype.__name__,fqpn))
-        #Before anything else, make sure I own the stuff so can transfer it.
-        #Bug this dosent work if useras is a group
 
-        #useras must be member of postable
+        #useras must be owner of membable
         authorize_membable_owner(False, self, currentuser, owner, membable)
 
-        # try:
-        #     newowner=self._getUserForFqin(currentuser, newownerfqin)
-        # except:
-        #     #make sure target exists.
-        #     doabort('BAD_REQ', "No such newowner %s" % newownerfqin)
+        #set the newowner-fqin
         newownerfqin=newowner.basic.fqin
-        #Either as a user or a group, you must be member of group/app or app respectively to
-        #transfer membership there. But what does it mean for a group to own a group.
-        #it makes sense for library and app, but not for group. Though currently let us have it
-        #there. Then if a group owns a group, the person doing the changing must be owner.
 
-        #newowner must be member of the postable (group cant own itself)
+        #newowner must be member of the membable who's ownership is being changed
         permit(self.isMemberOfMembable(currentuser, newowner, membable),
             " Possible new owner %s must be member of membable %s %s" % ( newownerfqin, ptype.__name__, fqpn))
-        #BUG new orners rwmode must be  true!
-        #we have removed the possibility of group ownership of postables. CHECK. I've removed the push right now as i assume new owner
-        #must be a member of postable. How does this affect tag ownership if at all?
+        #TODO new owners rwmode must be  true! BUG: needs to be explicitly set
         try:
             #we dont need to be that protective here as we have checked for ownership
             #and only owners can do this
             oldownerfqpn=membable.owner
             members=membable.members
-            #get new user me
-            #memb=MemberableEmbedded(mtype=User.classname, fqmn=newowner.basic.fqin, readwrite=True, pname = newowner.presentable_name())
+            #get new user memberable embedded. member must be there
             memb = is_memberable_embedded_in_membable(newowner, membable.members)
-            #get postable pe
+            #get membable-embedded
             #If owner the pe must already be there.
             pe = is_membable_embedded_in_memberable(membable, owner.postablesowned)
-            #pe=MembableEmbedded(ptype=ptype.classname,fqpn=postable.basic.fqin, owner=newowner.adsid, pname = postable.presentable_name(), readwrite=True, description=postable.basic.description)
-            #find new owner as member, locate in postable his membership, update it with readwrite if needed, and make him owner
-            #add embedded postable to his ownership and his membership
+ 
             newowner.update(safe_update=True, push__postablesowned=pe)
             #for old owner we have removed ownership by changing owner, now remove ownership from him
             owner.update(safe_update=True, pull__postablesowned__fqpn=fqpn)
             deep_changes_to_postable(membable, "owner", "owner", newowner.basic.fqin, newowner.adsid)
-            #membable.update(safe_update=True, set__owner = newowner.basic.fqin)
-            #also change library's owner
+            #WRITE CODE HERE TO CHANGE LIBRARY RW
+            #if group or app change library membership as well
             if ptype==Group or ptype==App:
                 fqnn=getLibForMembable(fqpn)
                 lowner, lib=self.changeOwnershipOfMembable(currentuser, owner, fqnn, newowner)
-            #if newownertype != User:
-            #
-            #postable.update(safe_update=True, set__owner = newowner.basic.fqin, push__members=memb)
-            #else:
-            #postable.update(safe_update=True, set__owner = newowner.basic.fqin, push__members=newowner.basic.fqin, pull__members=oldownerfqpn)
+
         except:
             doabort('BAD_REQ', "Failed changing owner from %s to %s for membable %s %s" % (oldownerfqpn, newowner.basic.fqin, ptype.__name__, fqpn))
         newowner.reload()
@@ -818,53 +798,29 @@ class Database():
         owner.reload()
         return newowner, membable
 
-    #Instead of changing ownership of a group or app library here we must do it separately
+    #this is used tointeractively change description of a group/library
     def changeDescriptionOfMembable(self, currentuser, owner, fqpn, description):
-        "give ownership over to another user for g/a/l"
+        "change description for g/a/l"
         ptype=gettype(fqpn)
         membableq=ptype.objects(basic__fqin=fqpn)
         try:
             membable=membableq.get()
         except:
             doabort('BAD_REQ', "No such membable %s %s" % (ptype.__name__,fqpn))
-        #Before anything else, make sure I own the stuff so can transfer it.
-        #Bug this dosent work if useras is a group
 
-        #useras must be member of postable
         authorize_membable_owner(False, self, currentuser, owner, membable)
 
 
         try:
-            # if ptype==Library:
-            #     librarykind=membable.librarykind
-            #     islibrarypublic=membable.islibrarypublic
-            # else:
-            #     librarykind=""
-            #     islibrarypublic=False
-            # pe=MembableEmbedded(ptype=ptype.classname,fqpn=membable.basic.fqin, owner=owner.adsid, pname = membable.presentable_name(), readwrite=True, description=description, librarykind=librarykind, islibrarypublic=islibrarypublic)
-            # #find new owner as member, locate in postable his membership, update it with readwrite if needed, and make him owner
-            # #add embedded postable to his ownership and his membership
-            # membableq.update_one(safe_update=True, set__basic__description=description)
-            # owner.update(safe_update=True, pull__postablesowned__fqpn=fqpn)
-            # owner.update(safe_update=True, push__postablesowned=pe)
             deep_changes_to_postable(membable, "basic__description", "description", description)
-            #if newownertype != User:
-            #
-            #postable.update(safe_update=True, set__owner = newowner.basic.fqin, push__members=memb)
-            #else:
-            #postable.update(safe_update=True, set__owner = newowner.basic.fqin, push__members=newowner.basic.fqin, pull__members=oldownerfqpn)
         except:
             doabort('BAD_REQ', "Failed changing owner description for membable %s %s" % ( ptype.__name__, fqpn))
         owner.reload()
         membable.reload()
         return owner, membable
 
-    #group should be replaced by anything that can be the owner
-    #dont want to use this for postables, even though they are ownable.
-    #This is where we deal with TAG's. Check. BUG: also combine with above for non repeated code.
-    #tags are membables, we dont check that here. Ought it be done with postables?
-    #and do we have use cases for tag ownership changes, as opposed to tagtypes and itemtypes?
-    #TODO:THINK:this is not explicitly for tags
+    #UNUSED currently. This was created to change ownership of itemtypes/tagtypes
+    #and possibly for tags. But we dont use this currently
     def changeOwnershipOfOwnable(self, currentuser, owner, fqon, newowner):
         "this is used for things like itentypes and tagtypes, not for g/a/l."
         otype=gettype(fqon)
@@ -875,19 +831,12 @@ class Database():
             doabort('BAD_REQ', "No such ownable %s %s" % (otype.__name__,fqon))
         authorize_ownable_owner(False, self, currentuser, owner, ownable)
 
-        # try:
-        #     newowner=self._getUserForFqin(currentuser, newownerfqin)
-        # except:
-        #     #make sure target exists.
-        #     doabort('BAD_REQ', "No such newowner %s" % newownerfqin)
         newownerfqin=newowner.basic.fqin
         permit(self.isMemberOfMembable(currentuser, newowner, ownable),
             " Possible new owner %s must be member of ownable %s %s" % (newownerfqin, ptype.__name__, fqpn))
         try:
             oldownerfqpn=ownable.owner
-            #memb=MemberableEmbedded(mtype=User.classname, fqmn=newowner.basic.fqin, readwrite=True, pname = newowner.presentable_name())
             memb = is_memberable_embedded_in_membable(newowner, ownable.members)
-            #oq.filter(members__fqmn=newowner.basic.fqin).update_one(safe_update=True, set__owner = newowner.basic.fqin, set__members_S=memb)
             ownable.update(safe_update=True, set__owner = newowner.basic.fqin)
         except:
             doabort('BAD_REQ', "Failed changing owner from %s to %s for ownable %s %s" % (oldownerfqpn, newowner.basic.fqin, otype.__name__, fqon))
@@ -924,32 +873,32 @@ class Database():
     def getLibrary(self, currentuser, fqln):
         return self._getMembable(currentuser, fqln)
 
+
+#this critical function sets up the initialization of the database
 def initialize_application(db_session):
-    #print Group
     currentuser=None
+    #make the connection
     whosdb=Database(db_session)
+    #add the superuser, or adsgut
     adsgutuser=whosdb.addUser(currentuser, dict(nick='adsgut', adsid='adsgut'))
+    #set current user to superuser
     currentuser=adsgutuser
-    #print "11111 Added Initial User, this should have added private group too"
     igspec=dict(personalgroup=False, name="public", description="Public Group", librarykind="public")
+    #adsgut creates the public group
     adsgutuser, publicgrp=whosdb.addGroup(adsgutuser, adsgutuser, igspec)
-    #this should automatically create the public library
-    #ilspec=dict(name="public", description="Public Library")
-    #adsgutuser, publiclib=whosdb.addLibrary(adsgutuser, adsgutuser, ilspec)
-    #adsgutuser, publiclibrary=whosdb.addLibraryForGroup(adsgutuser, publicgrp, "public")
-    #print "22222 Added Initial Public group"
+    #adsgut adds the mothership adsgut app everyone is in
     adsgutuser, adsgutapp=whosdb.addApp(adsgutuser, adsgutuser, dict(name='adsgut', description="The MotherShip App"))
-    #will automatically add a library corresponding to this
-    #print "33333 Added Mothership app"
+    #adsgut creates anonymouse to represent a not-loggedin user
     anonymouseuser=whosdb.addUser(adsgutuser, dict(nick='anonymouse', adsid='anonymouse'))
+    #adsgut creates the ads user who runs the publications app
     adsuser=whosdb.addUser(adsgutuser, dict(nick='ads', adsid='ads'))
-    #print "44444 Added ADS user", adsuser.to_json()
+    # now set the current user to the ads user
     currentuser=adsuser
+    #ads user adds the ads app.
     adsuser, adspubsapp=whosdb.addApp(adsuser, adsuser, dict(name='publications', description="ADS's flagship publication app"))
-    #will automatically add a library corresponding to this
-    #TODO: does anonymouse user need to be in flagship app to see anything?
+    #CHECK: does anonymouse user need to be in flagship app to see anything?
+    #add anonymouse user to pubs app, or will not be able to access any itemtypes/tagtypes defined by adsuser
     anonymouseuser, adspubapp=whosdb.addUserToMembable(adsuser, FLAGSHIPAPP, 'anonymouse')
-    #print "55555 ADS user added publications app"
 
 
 def initialize_testing(db_session):
@@ -965,15 +914,10 @@ def initialize_testing(db_session):
     rahuldave, mll=whosdb.addLibrary(rahuldave, rahuldave, dict(name='mll', description="Machine Learning Library"))
     #must explicitly add in testing as this happens on before_request otherwise
     rahuldave, adspubapp=whosdb.addUserToMembable(adsuser, FLAGSHIPAPP, 'rahuldave')
-    #rahuldave.applicationsin.append(adspubsapp)
 
-    #print "currentuser", currentuser.nick
     jayluker=whosdb.addUser(currentuser, dict(nick='jayluker', adsid="jayluker@gmail.com"))
     jayluker, adspubapp=whosdb.addUserToMembable(adsuser, FLAGSHIPAPP, 'jayluker')
-    #jayluker.applicationsin.append(adspubsapp)
-    #print "GAGAGAGAGAGA", adspubapp.to_json()
     jayluker, mlg=whosdb.inviteUserToMembableUsingNick(rahuldave, 'rahuldave/group:ml', 'jayluker')
-    #print "invited", jayluker.to_json()
 
     jayluker, mlg = whosdb.acceptInviteToMembable(jayluker, 'rahuldave/group:ml', jayluker)
     jayluker, spg=whosdb.addGroup(jayluker, jayluker, dict(name='sp', description="Solr Programming Group"))
@@ -984,7 +928,6 @@ def initialize_testing(db_session):
     rahuldave, gpg=whosdb.inviteUserToMembableUsingNick(jayluker, 'jayluker/group:gp', 'rahuldave')
     rahuldave, spg=whosdb.addUserToMembable(jayluker, 'jayluker/group:sp', 'rahuldave')
     u, p =whosdb.addMemberableToMembable(jayluker, jayluker, 'jayluker/library:spl', 'rahuldave/group:ml', True)
-    #print "GEEEE", u, p
     import random
     for i in range(20):
         r=random.choice([1,2])
@@ -994,19 +937,8 @@ def initialize_testing(db_session):
 
         if r==1:
             user, mlg=whosdb.inviteUserToMembableUsingNick(rahuldave, 'rahuldave/group:ml', user.nick)
-            #print "==================================================================================================="
         else:
             user, spg=whosdb.inviteUserToMembableUsingNick(jayluker, 'jayluker/group:sp', user.nick)
-    #whosdb.addGroupToApp(currentuser, 'ads@adslabs.org/app:publications', 'adsgut@adslabs.org/group:public', None )
-    #public.applicationsin.append(adspubsapp)
-    #rahuldavedefault.applicationsin.append(adspubsapp)
-
-    #print "ending init", whosdb.ownerOfMembables(rahuldave, rahuldave), whosdb.ownerOfMembables(rahuldave, rahuldave, "group")
-    #print "=============================="
-    #print rahuldave.to_json(), mlg.to_json()
-    #print "=============================="
-    #print adsuser.to_json()
-    #print "=============================="
 
 def _init(*args):
 

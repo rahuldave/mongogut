@@ -503,7 +503,7 @@ RWDEF={
 #For public, note that only the public group is allowed
 RESTR={
     'group':(None,True),
-    'app':(None, True),#should apps use masquerading instead? BUG
+    'app':(None, True),#should app libraries use masquerading instead? BUG
     'library':(None,False),
     'tag':(None, False),
     'udl':(User, None),
