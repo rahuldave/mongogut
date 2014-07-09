@@ -16,11 +16,10 @@ from blinker import signal
 
 import operator
 
-#BUG:replace obj by the sender
+#this function is used to connect a sender to a function to be called when a signal is activated
+#(blinker signal)
 def receiver(f):
-    ##print "SETTING UP SIGNAL"
     def realreceiver(sender, **data):
-        ##print "In real reciever", data,f
         otherargs={}
         for e in data.keys():
             if e not in ['obj', 'currentuser', 'useras']:
@@ -28,34 +27,26 @@ def receiver(f):
         obj=data['obj']
         currentuser=data['currentuser']
         useras=data['useras']
-        ##print "OTHERARGS", otherargs
         val=f(currentuser, useras, **otherargs)
         return val
     return realreceiver
 
-# Agent.objects.filter(
-#     name='ashraf',
-#     __raw__={"skills": {
-#         "$elemMatch": {
-#             "level": {"$gt": 5},
-#             "name": "Computer Skills"
-#         }
-#     }}
-# )
+
+#this function is used to set up a filter on embedded documents in mongo-engine style. It takes
+#an existing query set, and a set of clauses, with a prefix to search under
 def embeddedmatch(inqset, ed, **clauseargs):
     propclause={}
     for ele in clauseargs.keys():
         propclause[ed+'__'+ele]=clauseargs[ele]
     of=inqset.filter(**propclause)
-    #print "PROPCALUSE", propclause
     return of
 
-
+#a matcher for our own little filter language
 def element_matcher(ed, clauseargs):
     f={}
     f[ed]={}
     clauselist=[]
-    ##print "CLAUSEARGS", clauseargs
+    #split the search and set op to =
     for k in clauseargs.keys():
         klst=k.split('__')
         field=klst[0]
@@ -63,35 +54,37 @@ def element_matcher(ed, clauseargs):
         if len(klst) ==2:
             op=klst[1]
         clauselist.append((field, op, clauseargs[k]))
-    #BUG:allow for onely one list for now
-    ##print "CLAUSELIST", clauselist
+    #if we want all, explicitly construct a list of all clauses
     for ele in clauselist:
         if ele[1]=='all':
             thedicts=[{ele[0]:x} for x in ele[2]]
     d={}
-    ##print "THEDICTS", thedicts
+    #for those not 'all' in the clause 
     for ele in clauselist:
         if ele[1]!='all':
-            if ele[1] != 'eq':
+            if ele[1] != 'eq':#get op ifnot eq
                 d[ele[0]]={'$'+ele[1]: ele[2]}
             elif ele[1] == 'eq':#got a list
                 d[ele[0]]=ele[2]
-    ##print "ddddddddddddd", d
+    #now add in the dicts from the all clause
     for e in thedicts:
         e.update(d)
     mq=[{'$elemMatch': e} for e in thedicts]
+    #finally combine under the $all operator
     f[ed]["$all"]=mq
-    #print "fffffffffffffffff",f
     return f
-#BUG need signal handlers for added to app, added to lib. Especially for lib, do we post tags to lib.
-#what does that even mean? We will do it but i am not sure what it means. I mean we will get tags
-#consistent with user from his groups, not libs, so what does it mean to get tags posted to a lib?
-#BUG:is there conflict between spreadOwnedTaggingIntoPostable and postTaggingIntoItemtypesApp
+
+#This is the database for items and tags and the like. Its done as a separate class to simply keep
+#it different from the social aspects, but this is an arbitrary construction. The social database
+#is kept under self.whosdb
+
 class Postdb():
 
     def __init__(self, db_session):
         self.session=db_session
         self.whosdb=Database(db_session)
+        #let some methods of the social database be made available here. This simplifies
+        #permission checking TODO: not sure the simplicity is worth additional namespace pollution
         self.isOwnerOfOwnable=self.whosdb.isOwnerOfOwnable
         self.isOwnerOfPostable=self.whosdb.isOwnerOfPostable
         self.isMemberOfPostable=self.whosdb.isMemberOfPostable
@@ -99,32 +92,30 @@ class Postdb():
         self.isMemberOfMembable=self.whosdb.isMemberOfMembable
         self.isOwnerOfMembable=self.whosdb.isOwnerOfMembable
         self.isSystemUser=self.whosdb.isSystemUser
+
+        #set up a dictionary for signals
         self.signals={}
-        #CHECK taking out  receiver(self.recv_postTaggingIntoItemtypesApp)
-        # , from tagged items as will happen by appr.
-        #postables. General BUG tho that we can post taggings multiple times. Add check
-        #"added-to-group":[receiver(self.recv_postItemIntoPersonal), receiver(self.recv_spreadOwnedTaggingIntoPostable)],
-
-
+        
+        #set up a dictionary with keys the signals and values the functions that will be called
+        #when the signal is fired.
+        #            "added-to-app":[receiver(self.recv_spreadOwnedTaggingIntoPostable)],
         SIGNALS={
             "saved-item":[receiver(self.recv_postItemIntoPersonal)],
-            "added-to-group":[receiver(self.recv_spreadOwnedTaggingIntoPostable)],
             "save-to-personal-group-if-not":[receiver(self.recv_postItemIntoPersonal)],
             "tagged-item":[
                         receiver(self.recv_spreadTaggingToAppropriatePostables), receiver(self.recv_postTaggingIntoPersonal)
                     ],
             "tagmode-changed":[receiver(self.recv_spreadTaggingToAppropriatePostables)],
-            "added-to-app":[receiver(self.recv_spreadOwnedTaggingIntoPostable)],
             "added-to-library":[receiver(self.recv_spreadOwnedTaggingIntoPostable)],
         }
         for ele in SIGNALS:
+            #set up blinker signal
             self.signals[ele]=signal(ele)
-            ##print ele, len(SIGNALS[ele])
             for r in SIGNALS[ele]:
                 self.signals[ele].connect(r, sender=self, weak=False)
-            ##print "[[]]", self.signals[ele], self.signals[ele].receivers
-        ##print "ssiiggnnaallss", self.signals['saved-item'].receivers
 
+    #a set of unprotected functions, to be used internaly to get
+    #itemtypes, tagtypes, items, and tags
     def _getItemType(self, currentuser, fullyQualifiedItemType):
         try:
             itemtype=ItemType.objects(basic__fqin=fullyQualifiedItemType).get()
@@ -154,34 +145,30 @@ class Postdb():
         return tag
 
 
-    #BUG: add a protected getTagInfo and getItemInfo
-
-    #BUG useras must be a user. Not a general postable for now
-    #one must change ownership
+    #add an item type. note masquerading is not allowed in here as this is a system
+    #changing function.
     def addItemType(self, currentuser, typespec):
         "add an itemtype. only owners of apps can do this for now"
         typespec['creator']=currentuser.basic.fqin
         typespec=augmenttypespec(typespec)
         useras=currentuser
         authorize(False, self, currentuser, useras)
+        #do it in the context of a membable so that it can be used by all members
         membable=self.whosdb._getMembable(currentuser, typespec['membable'])
-        #To add a new itemtype you must be owner!
+        #To add a new itemtype you must be owner of the membable!
         authorize_membable_owner(False, self, currentuser, useras, membable)
         try:
             itemtype=ItemType(**typespec)
             itemtype.save(safe=True)
             itemtype.reload()
         except:
-            # import sys
-            # #print sys.exc_info()
             doabort('BAD_REQ', "Failed adding itemtype %s" % typespec['basic'].name)
         return itemtype
 
 
 
-    #BUG: completely not dealing with all the things of that itemtype
-    #if refcount is even 1, one shouldnt allow it
-    #should this have a useras?
+    #remove an itemtype. This should not be called in system contexts,
+    #but a user might want to do it in their group/app
     def removeItemType(self, currentuser, fullyQualifiedItemType):
         itemtype=self._getItemType(currentuser, fullyQualifiedItemType)
         authorize(False, self, currentuser, currentuser)#any logged in user
@@ -189,19 +176,17 @@ class Postdb():
         itemtype.delete(safe=True)
         return OK
 
+    #add a tagtype in the context of a membable
     def addTagType(self, currentuser, typespec):
+        "add a tagtype in the context of an app"
         typespec['creator']=currentuser.basic.fqin
         typespec=augmenttypespec(typespec, "tagtype")
         useras=currentuser
         authorize(False, self, currentuser, useras)
         membable=self.whosdb._getMembable(currentuser, typespec['membable'])
-        #BUG CHECK: do we want anyone to be able to add stuff to an app? or only groups and libraries?
-        #or should we revert to only owners having tagtypes
-        #also what are implications for personal and public groups and all that, either way.
         #can you post a tag to a group if the tagtype is not in that groups scope?
         authorize_membable_member(False, self, currentuser, useras, membable)
         try:
-            #print "TAGSPEC", typespec, typespec['basic'].to_json()
             tagtype=TagType(**typespec)
             tagtype.save(safe=True)
             tagtype.reload()
@@ -209,8 +194,7 @@ class Postdb():
             doabort('BAD_REQ', "Failed adding tagtype %s" % typespec['basic'].name)
         return tagtype
 
-    #BUG: completely not dealing with all the things of that itemtype
-    #should this have a useras
+    #remove a tag type. should not be used in system contexts.
     def removeTagType(self, currentuser, fullyQualifiedTagType):
         tagtype=self._getTagType(currentuser, fullyQualifiedTagType)
         authorize(False, self, currentuser, currentuser)#any logged in user
@@ -218,50 +202,46 @@ class Postdb():
         tagtype.delete(safe=True)
         return OK
 
+    #change ownership of item and tag types. unused for now
     def changeOwnershipOfItemType(self, currentuser, owner, fqitype, fqno):
-        #BUG put something here to make sure itype and such
         newowner=self.changeOwnershipOfOwnable(currentuser, owner, fqitype, fqno)
         return newowner
 
     def changeOwnershipOfTagType(self, currentuser, owner, fqttype, fqno):
-        #BUG put something here to make sure itype and such
         newowner=self.changeOwnershipOfOwnable(currentuser, owner, fqttype, fqno)
         return newowner
 
+    #the workhorse function. post an item into a library
     def postItemIntoPostable(self, currentuser, useras, fqpn, item):
-        #print "FQPN=======", fqpn
+        #get the library instance
         ptype=gettype(fqpn)
         postable=self.whosdb._getMembable(currentuser, fqpn)
-        #print ">>>", useras.basic.fqin, postable.basic.fqin, [m.fqmn for m in postable.members]
-        typename=getNSTypeNameFromInstance(postable)
-        #item=self._getItem(currentuser, itemfqin)
-        #Does the False have something to do with this being ok if it fails?BUG
-        #BUG:we dont need both of these, i think
+        #make sure you are (a) a member and (b) can write
         authorize_postable_member(False, self, currentuser, useras, postable)
         permit(self.canIPostToPostable(currentuser, useras, postable),
-            "No perms to post into postable %s %s" % (typename, postable.basic.fqin))
+            "No perms to post into library %s" % postable.basic.fqin)
+        #where is this item already posted?
         postablefqpns=[ele.postfqin for ele in item.pinpostables]
-        #ALREADY POSTED IDEMPOTENCY. REVISIT
-        #DONT RETURN POSTINGDOC currently as how to search. THUS return newposting
+        #if it is already posted by myself (IDEMPOTENCY), return
         for p in item.pinpostables:
             if p.postfqin==fqpn and p.postedby==useras.adsid:
                 return item, p
-        # if fqpn in postablefqpns:
-        #     return item
+
+        #ok now its been posted by another user, or unposted
         now=datetime.datetime.now()
 
-        try:#BUG:what if its already there? Now fixed?
-            #BUG: what if someone else had also posted it into a group, should we do it again or not?
-            #or do a unique on the query later in postings...self._getItem(currentuser, itemspec['basic'].fqin)
+        try:
+            #ok is it posted by another user?
             postingdoc=self._getPostingDoc(currentuser, item.basic.fqin, fqpn)
             postingdoc.posting.whenposted=now
             postingdoc.posting.postedby=useras.adsid
+            #if so update the posting time (this will bring to top of list)
+            #and also update the posting by
             postingdoc.save(safe=True)
             postingdoc.reload()
             newposting=postingdoc.posting
         except:
-            #import sys
-            #print "SYS", sys.exc_info()
+            #if not, we must make a new posting
             try:
                 newposting=Post(postfqin=postable.basic.fqin, posttype=getNSTypeName(fqpn),
                     postedby=useras.adsid, thingtopostfqin=item.basic.fqin, thingtopostname=item.basic.name,
@@ -271,58 +251,62 @@ class Postdb():
             except:
                 doabort('BAD_REQ', "Failed adding newposting of item %s into %s %s." % (item.basic.fqin, typename, postable.basic.fqin))
 
-
+        #in either case update the item with the new posting
         item.update(safe_update=True, push__pinpostables=newposting)
+        #also update the history in the posting doc (remember pd is i,lib uniq)
         newhist=TPHist(postedby=useras.adsid,whenposted=now)
         postingdoc.update(safe_update=True, push__hist=newhist)
         postingdoc.reload()
-        #BUG: now send to personal group via routing. Still have to add to datatypes app
+        #routing. 
+        #TODO: ought we be adding to the datatypes app? could be useful for future functionality
         personalfqln=useras.nick+"/library:default"
-        #not sure below is needed. Being defensive CHECK
+        #make sure we dont send infinite signals on the signal being fired to add to peronal lib
         if postable.basic.fqin!=personalfqln:
-            #print "RUNNING FOR", typename, postable.basic.fqin
-            self.signals['added-to-'+typename].send(self, obj=self, currentuser=currentuser, useras=useras, item=item, fqpn=fqpn)
+            self.signals['added-to-library'].send(self, obj=self, currentuser=currentuser, useras=useras, item=item, fqpn=fqpn)
         item.reload()
         return item, newposting
 
+    #specifically post to a group library
     def postItemIntoGroupLibrary(self, currentuser, useras, fqgn, item):
         fqnn=getLibForMembable(fqgn)
-        #print "fqnn is", fqnn
         item=self.postItemIntoPostable(currentuser, useras, fqnn, item)
         return item
-
-    def recv_postItemIntoPersonal(self, currentuser, useras, **kwargs):
-        kwargs=musthavekeys(kwargs,['item'])
-        #print "POST ITEM INTO PERSONAL", kwargs
-        item=kwargs['item']
-        personalfqln=useras.nick+"/library:default"
-        #item=self._getItem(currentuser, itemfqin)
-        #add check for udl in TODO?
-        if personalfqln not in [ptt.postfqin for ptt in item.pinpostables]:
-            #print "NOT IN PERSONAL GRP"
-            self.postItemIntoLibrary(currentuser, useras, personalfqln, item)
-
+  
+    #specifically post to an app library
     def postItemIntoAppLibrary(self, currentuser, useras, fqan, item):
         fqnn=getLibForMembable(fqan)
         item=self.postItemIntoPostable(currentuser, useras, fqnn, item)
         return item
 
+    #stupid wrapper which made more sense whrn u could post into groups
+    #TODO rationalize by reducing some of these functions
     def postItemIntoLibrary(self, currentuser, useras, fqln, item):
         item=self.postItemIntoPostable(currentuser, useras, fqln, item)
         return item
 
+    #a reciever that will post an item into a personal library
+    #recievers start with recv_
+    def recv_postItemIntoPersonal(self, currentuser, useras, **kwargs):
+        kwargs=musthavekeys(kwargs,['item'])
+        item=kwargs['item']
+        personalfqln=useras.nick+"/library:default"
+        if personalfqln not in [ptt.postfqin for ptt in item.pinpostables]:
+            self.postItemIntoLibrary(currentuser, useras, personalfqln, item)
+
+    #remove an item from a postable. This is triggered by the little red buttons
     def removeItemFromPostable(self, currentuser, useras, fqpn, itemfqin):
         ptype=gettype(fqpn)
         postable=self.whosdb._getMembable(currentuser, fqpn)
         item=self._getItem(currentuser, itemfqin)
         cantremove=0
+        #if you are an owner of library u can remove it wholesale
         if self.isOwnerOfPostable(currentuser, useras, postable):
             #print "I AM OWNER"
             item.update(safe_update=True, pull__pinpostables={'postfqin':postable.basic.fqin})
             postingdoc=self._getPostingDoc(currentuser, itemfqin, fqpn)
             postingdoc.delete(safe=True)
             return {'status':'OK', 'histset':0}
-        #BUG TODO posting must somehow be got from item and removed from posting document!!!!!!
+        #if u are a member, you can remove your own posting of the item, updating history
         if self.isMemberOfPostable(currentuser, useras, postable):
             item.update(safe_update=True, pull__pinpostables={'postfqin':postable.basic.fqin, 'postedby':useras.adsid})
             postingdoc=self._getPostingDoc(currentuser, itemfqin, fqpn)
@@ -330,22 +314,22 @@ class Postdb():
             #reload
             postingdoc.reload()
             hists=postingdoc.hist
-            #print "HISTS", hists
+            #set the postingdoc to reflect the next-latest post from the hists
             if len(hists) > 0:
                 maxdict=max(hists, key=lambda x:x['whenposted'])
                 postingdoc.posting.whenposted=maxdict['whenposted']
                 postingdoc.posting.postedby=maxdict['postedby']
                 postingdoc.save(safe=True)
                 postingdoc.reload()
-                #print ">>>", maxdict, postingdoc.whenposted, postingdoc.postedby
                 histset=1
-            else:#this was the only posting todo: chek if logic ok
+            else:#if this was the only posting you can remove the posting doc!
                 postingdoc.delete(safe=True)
                 histset=0
         else:
             doabort('BAD_REQ', "Only member of postable %s who posted this item, or owner of postable can remove it" % postable.basic.fqin)
         return {'status':'OK', 'histset':histset}
 
+    #remove item from library
     def removeItemFromLibrary(self, currentuser, useras, fqln, itemfqin):
         removeItemFromPostable(self, currentuser, useras, fqln, itemfqin)
 
