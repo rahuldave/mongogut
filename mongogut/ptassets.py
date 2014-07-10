@@ -607,128 +607,108 @@ class Postdb():
         return postingdoc
 
 
-    #CHECK: Appropriate postables takes care of this. not needed.
+    #UNUSED FOR NOW: post something into the itemtypes app
+    #may be useful for third party apps.
     def recv_postTaggingIntoItemtypesApp(self, currentuser, useras, **kwargs):
         kwargs=musthavekeys(kwargs,['item', 'taggingdoc', 'tagmode'])
         item=kwargs['item']
         taggingdoc=kwargs['taggingdoc']
         tagmode=kwargs['tagmode']
-        if tagmode=='0':
-            #item=self._getItem(currentuser, itemfqin)
+        if tagmode=='0':#this works in promiscuous mode only
             fqan=self._getItemType(currentuser, item.itemtype).postable
             self.postTaggingIntoAppLibrary(currentuser, useras, fqan, taggingdoc)
-    #BUG how do things get into apps? Perhaps a bit solved
-    #As it is now it will automatically post YOUR tags to apps, libraries, groups you are a member of
+
+    #WORKHORSE signal reciever.
+    #Iit will automatically post YOUR tags to libraries you are a member of
     #if tagmode allows it
     def recv_spreadTaggingToAppropriatePostables(self, currentuser, useras, **kwargs):
         kwargs=musthavekeys(kwargs,['tagmode', 'item', 'taggingdoc'])
-        #print "0000kwargs", kwargs
         item=kwargs['item']
         taggingdoc=kwargs['taggingdoc']
         tagmode=kwargs['tagmode']
-        #item=self._getItem(currentuser, itemfqin)
         personalfqln=useras.nick+"/library:default"
-        #print "TAGMODE", tagmode
+        #if we are in promiscuous mode
         if tagmode=='0':
             postablesin=[]
             for ptt in item.pinpostables:
-                #print "pttdqin"
                 pttfqin=ptt.postfqin
-                #BUG: many database hits. perhaps cached? if not do it or query better.
                 postable=self.whosdb._getMembable(currentuser, pttfqin)
+                #add those non-personal libs u can write to:
                 if pttfqin!=personalfqln and self.isMemberOfPostable(currentuser, useras, postable) and self.canIPostToPostable(currentuser, useras, postable):
                     postablesin.append(postable)
+            #now post the tagging to the postable
             for postable in postablesin:
                 self.postTaggingIntoPostable(currentuser, useras, postable.basic.fqin, taggingdoc)
+        #if item posted to an individual library, make sure the tagging is posted there
+        #as long as its not the personal library
         if tagmode not in ['0','1']:
             fqpn=tagmode
             postable=self.whosdb._getMembable(currentuser, fqpn)
             if fqpn!=personalfqln and self.isMemberOfPostable(currentuser, useras, postable) and self.canIPostToPostable(currentuser, useras, postable):
                 self.postTaggingIntoPostable(currentuser, useras, postable.basic.fqin, taggingdoc)
+    
     #this one reacts to the posted-to-postable kind of signal. It takes the taggings on the item that I made and
+    #makes sure that these existing taggings are posted into this postable(their mode allowing)
     def recv_spreadOwnedTaggingIntoPostable(self, currentuser, useras, **kwargs):
         kwargs=musthavekeys(kwargs,['item', 'fqpn'])
         item=kwargs['item']
         fqpn=kwargs['fqpn']
-        #item=self._getItem(currentuser, itemfqin)
-        taggingstopost=[]
-        #Now note this will NOT do libraries. BUG: have we changed model to group is member of libraries? i think so
-        #print "ITEM.STAGS", item.stags
         for tagging in item.stags:
             if tagging.postedby==useras.basic.fqin:#you did this tagging
                 taggingstopost.append(tagging)
         for tagging in taggingstopost:
-            #BUG:not sure this will work, searching on a full embedded doc, at the least it would be horribly slow
-            #so we shall map instead on some posting properties
+            #get tagging doc by u/i/t
             taggingdoc=embeddedmatch(TaggingDocument.objects, "posting", postfqin=tagging.postfqin,
                     thingtopostfqin=tagging.thingtopostfqin,
                     postedby=tagging.postedby).get()
-            #if tagmode allows us to post it, then we post it. This could be made faster later
-            #tagmode = self._getTagType(currentuser, tagging.tagtype).tagmode
-            #Shut down the above as taggingmode is there in taggingdoc
+            #if tagmode allows us to post it, then we post it. 
             if taggingdoc.posting.tagmode=='0':
                 self.postTaggingIntoPostable(currentuser, useras, fqpn, taggingdoc)
 
-    #BUG only do if postable does not exist
-    #DONT WE HAVE TO ASSUME THAT STUFF EXISTS AT THIS POINT?
-    #What if item does not exist? But we never do this directly so it should, its only a
-    #reply to routing so we should be ok using _getItem. CHECK
+    #WORKHORSE: function that posts tagging into a postable. This is either used directly
+    #in the items UI or in recievers.
     def postTaggingIntoPostable(self, currentuser, useras, fqpn, taggingdoc):
         itemtag=taggingdoc.posting
         postable=self.whosdb._getMembable(currentuser, fqpn)
         ptype=classtype(postable)
-        #why did we have this before?
-        #authorize_postable_owner(False, self, currentuser, useras, postable)
-        #BUG:we dont need both of these, i think
+        #TODO:we dont need both of these, i think
         authorize_postable_member(False, self, currentuser, useras, postable)
         permit(self.canIPostToPostable(currentuser, useras, postable),
             "No perms to post into postable %s %s" % (ptype, postable.basic.fqin))
-        # permit(self.whosdb.isMemberOfPostable(currentuser, useras, postable),
-        #     "Only member of postable %s can post into it" % postable.basic.fqin)
-        #Now that we are allowing posting via canuse thistag
-        # permit(useras.nick==itemtag.postedby,
-        #     "Only creator of tag can post into group %s" % postable.basic.fqin)
+        #get the tag and item and where the item is posted, aborting if u r trying to post
+        #tagging to a place where the item has not been posted
         tag=self._getTag(currentuser, itemtag.postfqin)
         item=self._getItem(currentuser, itemtag.thingtopostfqin)
         itemsfqpns =[ele.postfqin for ele in item.pinpostables]
         if not fqpn in itemsfqpns:
             doabort('NOT_AUT', "Cant post tag %s in postable %s if item %s is not there" % (tag.basic.fqin, fqpn, item.basic.fqin))
 
-
+        #if you cant use the tag, you cant post it into a postable: this is to make sure
+        #that some web service is not posting someone elses tag into a postable unless the
+        #user can use that tag
         if not self.canUseThisTag(currentuser, useras, tag):
             doabort('NOT_AUT', "Not authorized for tag %s" % tag.basic.fqin)
-        postablefqpns =[ele.postfqin for ele in taggingdoc.pinpostables]
-        #CHECK: if you alreasy posted this we should be done. CHECK API
-        #BUG: why does this yet have no routing. this is the big question associated
-        #with posting notes public and stuff.
-
-        #FOR idempotency, if someone has posted this taggingdoc in group, just get it.
-        #This is confusing. What does it mean? taggingdocs are so unique its not
-        #going to happen i think. CHECK
-        # for p in taggingdoc.pinpostables:
-        #     if p.postfqin==fqpn:
-        #         return item, tag, taggingdoc.posting, p
-        # if fqpn in postablefqpns:
-        #     return taggingdoc
-        # newposting=Post(postfqin=postable.basic.fqin, posttype=getNSTypeNameFromInstance(postable),
-        #     postedby=useras.adsid, thingtopostfqin=itemtag.postfqin, thingtoposttype=itemtag.tagtype)
-
+        #get the posting doc for item and fqpn
         pd=self._getPostingDoc(currentuser, item.basic.fqin, fqpn)
         now=datetime.datetime.now()
         try:
+            #first update the taggingdoc with a new posting
             newposting=Post(postfqin=postable.basic.fqin, posttype=getNSTypeNameFromInstance(postable),
                 thingtopostname=itemtag.tagname, thingtopostdescription=itemtag.tagdescription,
                 postedby=useras.adsid, whenposted=now,
                 thingtopostfqin=itemtag.postfqin, thingtoposttype=itemtag.posttype)
             taggingdoc.update(safe_update=True, push__pinpostables=newposting)
 
-            #BUG:postables will be pushed multiple times here. How to unique? i think we ought to have this
-            #happen at mongoengine/mongodb level
+            #TODO:postables will be pushed multiple times here. How to unique? i think we ought to have this
+            #happen at mongoengine/mongodb level. butwe do uniq on queries so this should be ok
+            #still fix at some point. FIXSOON
+
+            #get the rw mode
             if postable.basic.fqin==useras.nick+"/library:default":
                 rw=True
             else:
                 rw=RWDEF[postable.librarykind]
-            #everytime you do this the same postable will be added again, now FIXED
+            #add this postable as a member of the tag if not already there.
             if postable.basic.fqin not in [p.fqmn for p in tag.members]:
                 memb=MemberableEmbedded(mtype=postable.classname, fqmn=postable.basic.fqin, readwrite=rw, pname=postable.presentable_name())
                 #tag.update(safe_update=True, push__members=postable.basic.fqin)
@@ -736,19 +716,18 @@ class Postdb():
                 tag.update(safe_update=True, push__members=memb)
                 tag.reload()
             taggingdoc.reload()
-            #TODO: Think:will there be one itemtag per item/tag/user combo in this list?
+            #update the posting doc in question with this tag
+            #Think:will there be one itemtag per item/tag/user combo in this list?
             if not tag.singletonmode:
                 pd.update(safe_update=True, push__stags=itemtag)
         except:
-            #import sys
-            #print sys.exc_info()
             doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in postable %s" % (itemtag.thingtopostfqin, itemtag.postfqin, postable.basic.fqin))
 
         return item, tag, taggingdoc.posting, newposting
 
-
+    #remove tagging from a library. you may not have permissions to nuke a tag,
+    #but you might have permissions to remove it from a library u posted it to
     def removeTaggingFromPostable(self, currentuser, useras, fqpn, fqin, fqtn):
-        #no thoughts of any routing to be affected etc over here. or consequences to other users. Just do it.
         ptype=gettype(fqpn)
         postable=self.whosdb._getMembable(currentuser, fqpn)
         if postable.basic.fqin==useras.nick+"/library:default":
@@ -757,26 +736,28 @@ class Postdb():
             rw=RWDEF[postable.librarykind]
         item=self._getItem(currentuser, fqin)
         tag=self._getTag(currentuser, fqtn)
+        #firstly i must be a member of the postable
         authorize_postable_member(False, self, currentuser, useras, postable)
-        #BUG: need to make sure if i am not the creator of this tag, i am owner of the
+        #need to make sure if i am not the creator of this tag, i am owner of the
         #postable from which tag is being removed.
         owneroftag=useras
+        #if i am not the owner of the tag, i better be the owner of the postable.
         if tag.owner!=useras.basic.fqin:
-            #print "IS IT OWNER"
             authorize_postable_owner(False, self, currentuser, useras, postable)
             owneroftag=self.whosdb._getUserForFqin(currentuser, tag.owner)
-        #we'll throw an error here if this user did not post it.
+        #just in case, we'll throw an error here if this user did not post it.
         try:
           taggingdoc=self._getTaggingDoc(currentuser, item.basic.fqin, tag.basic.fqin, owneroftag.adsid)
         except:
           doabort('BAD_REQ', "Wasnt a tagging on item %s with tag %s in postable %s for user %s" % (item.basic.fqin, tag.basic.fqin, postable.basic.fqin, owneroftag.adsid))
-        #if it is an stag, get it from postingdoc as well as from item
+        #remove the taggingdoc's pinpostable
         taggingdoc.update(safe_update=True, pull__pinpostables={'postfqin':postable.basic.fqin, 'postedby':owneroftag.adsid})
         #NOTE: even if we remove this tagging, we continue to let the tag have this postable as a member. So there
         #is no deletion of postable membership of tag. This allows the tag to be continued to be used in this library
         if tag.singletonmode:
             return OK
-        #only get here for stags (ie not singletonmodes)
+        #only get here for stags (ie not singletonmodes): also update postingdoc by pulling stag
+        #from postingdoc
         try:
           postingdoc=self._getPostingDoc(currentuser, item.basic.fqin, fqpn)
         except:
@@ -785,12 +766,13 @@ class Postdb():
         postingdoc.update(safe_update=True, pull__stags={'postfqin':taggingdoc.posting.postfqin, 'thingtopostfqin':item.basic.fqin, 'postedby':owneroftag.adsid})
         return OK
 
-
+    #just a more specific function for us to use.
     def postTaggingIntoGroupLibrary(self, currentuser, useras, fqgn, taggingdoc):
         fqnn=getLibForMembable(fqgn)
         itemtag=self.postTaggingIntoPostable(currentuser, useras, fqnn, taggingdoc)
         return itemtag
 
+    #a signal called to post tagging into personal lib
     def recv_postTaggingIntoPersonal(self, currentuser, useras, **kwargs):
         kwargs=musthavekeys(kwargs,['taggingdoc'])
         taggingdoc=kwargs['taggingdoc']
@@ -807,15 +789,7 @@ class Postdb():
         itemtag=self.postTaggingIntoPostable(currentuser, useras, fqln, taggingdoc)
         return itemtag
 
-    # def removeTaggingFromGroup(self, currentuser, useras, fqgn, itemfqin, tagfqin):
-    #     removeTaggingFromPostable(self, currentuser, useras, fqgn, itemfqin, tagfqin)
-
-    # def removeItemFromApp(self, currentuser, useras, fqan, itemfqin):
-    #     removeTaggingFromPostable(self, currentuser, useras, fqan, itemfqin, tagfqin)
-
-    # def removeItemFromLibrary(self, currentuser, useras, fqln, itemfqin):
-    #     removeTaggingFromPostable(self, currentuser, useras, fqln, itemfqin, tagfqin)
-
+    #WORKHORSE: delete a library, group, or app
     #WE MOVED THIS HERE AS WE NEED TO NUKE items/tags/pds/tds, etc associated with
     #a deleted library
     def removeMembable(self,currentuser, useras, fqpn):
@@ -827,21 +801,21 @@ class Postdb():
         #ok, so must find all memberables, and for each memberable, delete this membable for it.
         memberfqins=[m.fqmn for m in membable.members]
         invitedfqins=[m.fqmn for m in membable.inviteds]
+        #do it for members, including groups
         for fqin in memberfqins:
             mtype=gettype(fqin)
             member=self.whosdb._getMemberableForFqin(currentuser, mtype, fqin)
             member.update(safe_update=True, pull__postablesin={'fqpn':fqpn})
+        #do it for invited users
         for fqin in invitedfqins:
             mtype=gettype(memberablefqin)
             if mtype==User:
                 member=self.whosdb._getMemberableForFqin(currentuser, mtype, fqin)
                 member.update(safe_update=True, pull__postablesinvitedto={'fqpn':fqpn})
+        #remove this library from postables owned by the user
         useras.update(safe_update=True, pull__postablesowned={'fqpn':fqpn})
 
-        #TODO:then every item/tag/postingdoc/taggingdoc which has this membable, remove the membable from it
-        #we will do this later. we might use routing. Until then the items will show this group there. perhaps
-        #as we check which membables a user can access, and now this membable wont be there,
-        #so we may effectively never show it. We might have to deal with tag membership tho. This will be done later
+        #Every item/tag/postingdoc/taggingdoc which has this membable, remove the membable from it
         if ptype==Library:
             items=Item.objects(pinpostables__postfqin=fqpn)
             for i in items:
@@ -862,11 +836,14 @@ class Postdb():
                 postable = self.whosdb._getMembable(currentuser, f)
                 postable.update(safe_update=True, pull__members={'fqmn':fqpn})
 
-        #ATODO:Also, what about public memberships? since anonymouse and group:public
+        #Also, what about public memberships? since anonymouse and group:public
         #would be members, i believe this is taken care off
+
+        #now nuke
         membable.delete(safe=True)
         return OK
 
+    #specific removals
     def removeGroup(self, currentuser, useras, fqpn):
         self.removeMembable(currentuser, useras, fqpn)
 
@@ -875,6 +852,9 @@ class Postdb():
 
     def removeLibrary(self, currentuser, useras, fqpn):
         self.removeMembable(currentuser, useras, fqpn)
+
+    #################################moving onto searches ###########################
+    ######## NOT DOCUMENTED YET #####################################################
 
     # SO HERE WE LIST THE SEARCHES
     #
