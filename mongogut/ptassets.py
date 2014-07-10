@@ -333,178 +333,146 @@ class Postdb():
     def removeItemFromLibrary(self, currentuser, useras, fqln, itemfqin):
         removeItemFromPostable(self, currentuser, useras, fqln, itemfqin)
 
+    #a signal reciever for posting into an itemtypes app. we do not use this
+    #currently, relying instead on access to itemtype by user being in app
+    #but for a website that intends to replicate whats in the ADS, this is the
+    #ticket
     def recv_postItemIntoItemtypesApp(self, currentuser, useras, **kwargs):
         kwargs=musthavekeys(kwargs,['item'])
-        #print "POST ITEM INTO ITEMTYPES APP", kwargs
         item=kwargs['item']
-        #tem=self._getItem(currentuser, itemfqin)
         fqan=self._getItemType(currentuser, item.itemtype).postable
         self.postItemIntoAppLibrary(currentuser, useras, fqan, item)
 
+    #this is workhorse number two. It ensures that the item is saved in items table, and
+    #in the user's default library.
     def saveItem(self, currentuser, useras, itemspec):
         authorize(False, self, currentuser, useras)#sysadmin or any logged in user where but cu and ua must be same
         itemspec['creator']=useras.basic.fqin
         itemspec=augmentitspec(itemspec)
-        #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
-        #print "ITEMSPEC", itemspec, itemspec['basic'].to_json()
+        #try and see if the item already exists in the items table
         try:
-            #print "was the item found?"
             #this does idempotency for us.
             newitem=self._getItem(currentuser, itemspec['basic'].fqin)
-            #TODO: do we want to handle an updated saving date here by making an array
-            #this way we could count how many times 'saved'
         except:
             #the item was not found. Create it
-            #print "SO CREATING ITEM %s\n" % itemspec['basic'].fqin
             try:
-                #print "ITSPEC", itemspec
                 newitem=Item(**itemspec)
                 newitem.save(safe=True)
                 newitem.reload()
-                # #print "Newitem is", newitem.info()
             except:
-                # import sys
-                # #print sys.exc_info()
                 doabort('BAD_REQ', "Failed adding item %s" % itemspec['basic'].fqin)
 
-        ##print "RECEIBERS", self.signals['saved-item'], self.signals['saved-item'].receivers
+        #set up a signal so that item goes into default library
         self.signals['saved-item'].send(self, obj=self, currentuser=currentuser, useras=useras, item=newitem)
-        #not needed due to above:self.postItemIntoGroup(currentuser, useras, personalfqgn, newitem.basic.fqin)
-        #SIGNALS needed even if item is already saved so we add it to personal group! Tres cool! What about itemtypes app?
-        #Since posting into postables is idempotent it will not be reposted (hopefully :-))
-        #print '**********************'
-        #IN LIEU OF ROUTING
-        #BUG: shouldnt this be done by routing
-        #Now taken care of by routingp
-        #fqan=self._getItemType(currentuser, newitem.itemtype).postable
-        #self.postItemIntoApp(currentuser, useras, fqan, newitem.basic.fqin)
-        #NOTE: above is now done via saving item into group, which means to say its auto done on personal group addition
-        #But now idempotency, when I add it to various groups, dont want it to be added multiple times
-        #thus we'll do it only when things are added to personal groups: which they always are
-        #print '&&&&&&&&&&&&&&&&&&&&&&', 'FINISHED SAVING'
         return newitem
 
+    ######now we start with a bunch of tag related methods ########
+
+    #is the useras a member of tag? Note this takes care of indirect membership!!!
     def isMemberOfTag(self, currentuser, useras, tagfqin):
         tag=self._getTag(currentuser, tagfqin)
-        #print ">>", tag.basic.name
         ismember=self.whosdb.isMemberOfMembable(currentuser, useras, tag, MEMBERABLES_FOR_TAG_NOT_USER)
-        #print "ismember", ismember
         return ismember
 
-    def canUseThisFqtn(self, currentuser, useras, fqtn):
-        tag=self._getTag(currentuser, fqtn)
-        return self.canUseThisTag(currentuser, useras, tag)
-
-    #BUG when will we make these useras other memberables? like a group
-
+    #is the user the owner of the tag(remember owners are always user's)
+    #you own a tag by creating it.
     def isOwnerOfTag(self, currentuser, useras, tag):
         if useras.basic.fqin==tag.owner:
             return True
         else:
             return False
 
-    def canUseThisTag(self, currentuser, useras, tag):
-        "return true is this user can use this tag from access to tagtype, namespace, etc"
-        #If you OWN this tag
-        #print ">>", tag.basic.name
-        if self.isOwnerOfTag(currentuser, useras, tag):
-            #print "o"
-            return True
-        #if you could have created this tag
-        if not self.canCreateThisTag(currentuser, useras, tag.tagtype):
-            #print "cannot create"
-            return False
-        tagownertype=gettype(tag.owner)
-        #you are member of a group.app/library which owns this tag
-        #CHECK this means owner is member of tag
-        # if tagownertype in POSTABLES:
-        #     tagowner=self._getMembable(currentuser,tag.owner)
-        #     if self.isMemberOfPostable(currentuser, useras, tagowner):
-        #         return True
-        #finally when a tagging is posted to a group, the group becomes a member of the tag
-        #(not tagging)
-        #and members of the group(postable) can use it
-        # memberables=tag.members
-        # #CHECK: a tags members are only postables so we short cut. we catch the first.
-        # for m in memberables:
-        #     if self.isMemberOfPostable(currentuser, useras, m):
-        #         return True
-        if self.isMemberOfTag(currentuser, useras, tag.basic.fqin):
-            #print "is member"
-            return True
-        return False
-
-    #can pattern below be refactored out?
-    #BUG: currently only works for user creating tag. But i think this should be the way it is
-    #only users can create tags. Groups etc can own them. perhaps a CREATABLE interface?
-
+    #can you access this itemtype or tagtype?
     def canAccessThisType(self, currentuser, useras, thetype, isitemtype=True):
         if isitemtype:
             typeobj=self._getItemType(currentuser, thetype)
         else:
             typeobj=self._getTagType(currentuser, thetype)
+        #this is the critical line: get the membable for the type object
+        #for example pub app for pubs: if you are member there you can access pubs
+        #this is needed for u to tag and post items
         membable=self.whosdb._getMembable(currentuser, typeobj.membable)
         if self.isMemberOfMembable(currentuser, useras, membable):
                 return True
         return False
 
+    #if the tagtypes membable is one we are a member of, we could have created this tag
     def canCreateThisTag(self, currentuser, useras, tagtype):
         "return true if this user can use this tag from access to tagtype, namespace, etc"
         return self.canAccessThisType(currentuser, useras, tagtype, False)
 
+    #another WORKHORSE. can you use a tag. there are various situations in which you can
+    #follow along to see what these are.
+    def canUseThisTag(self, currentuser, useras, tag):
+        "return true is this user can use this tag from access to tagtype, namespace, etc"
+        #If you OWN this tag, you can use it
+        if self.isOwnerOfTag(currentuser, useras, tag):
+            return True
+        #if you could not have created this tag, you cant use it
+        if not self.canCreateThisTag(currentuser, useras, tag.tagtype):
+            return False
+        #if you are a member of this tag (directly or indirectly), you can use it
+        if self.isMemberOfTag(currentuser, useras, tag.basic.fqin):
+            return True
+        return False
+
+    def canUseThisFqtn(self, currentuser, useras, fqtn):
+        tag=self._getTag(currentuser, fqtn)
+        return self.canUseThisTag(currentuser, useras, tag)
+
+
     #this is done for making a standalone tag, without tagging anything with it
     def makeTag(self, currentuser, useras, tagspec):
-        authorize(False, self, currentuser, useras)
-
+        authorize(False, self, currentuser, useras)#make sure we are logged in
+        #first check to see if the tag exists
         try:
-            #print "was tha tag found"
-            #this gets the tag regardless of if you are allowed to.
             tag=self._getTag(currentuser, tagspec['basic'].fqin)
-
         except:
             #it wasnt, make it
             try:
-                #print "TRY CREATING TAG"
-                #not needed for now tags dont have members tagspec['push__members']=useras.nick
+                #we must be able to 'create' this tag by being in app/group which the tagtype
+                #is affiliated with
                 if not self.canCreateThisTag(currentuser, useras, tagspec['tagtype']):
                     doabort('NOT_AUT', "Not authorized for tag %s" % tagspec['basic'].fqin)
-
+                #ok, so now create the tag and add us as a member
                 tag=Tag(**tagspec)
                 tag.save(safe=True)
                 memb=MemberableEmbedded(mtype=User.classname, fqmn=useras.basic.fqin, readwrite=True, pname=useras.presentable_name())
-                #tag.update(safe_update=True, push__members=postable.basic.fqin)
                 tag.update(safe_update=True, push__members=memb)
                 tag.reload()
                 #can obviously use tag if i created it
             except:
                 doabort('BAD_REQ', "Failed making tag %s" % tagspec['basic'].fqin)
-        #print "TAG FOUND OR MADE", tag.basic.fqin
+        #throw error if i cant use tag. if we created it this will not throw error
         if not self.canUseThisTag(currentuser, useras, tag):
             doabort('NOT_AUT', "Not authorized for tag %s" % tagspec['basic'].fqin)
         return tag
 
-    #tagspec here needs to have name and tagtype, this gives, given the useras, the fqtn and allows
+    #WORKHORSE: actually tag an item
+    #The tagspec here needs to have name and tagtype, this gives, given the useras, the fqtn and allows
     #us to create a new tag or tag an item with an existing tag. If you want to use someone elses tag,
-    #on the assumption u are allowed to (as code in makeTag..BUG..refactor), add a creator into the tagspec
+    #on the assumption u are allowed to, add a creator into the tagspec
     def tagItem(self, currentuser, useras, item, tagspec):
         tagspec=musthavekeys(tagspec, ['tagtype'])
         tagtypeobj=self._getTagType(currentuser, tagspec['tagtype'])
-        #print "smode", tagtypeobj.singletonmode
+        #singletonmode is used for notes. it means each tag is uniqie (each note gets uuid)
         if not tagspec.has_key('singletonmode'):
             tagspec['singletonmode']=tagtypeobj.singletonmode
         if not tagspec.has_key('creator'):
             tagspec['creator']=useras.basic.fqin
+        #a note must hasve a tagspec key content. This then becomes the note text
+        #which is added to the description, and a unique uuid is assigned as the name
         if tagspec.has_key('content') and tagspec['singletonmode']:
             tagspec['name']=str(uuid.uuid4())
             tagspec['description']=tagspec['content']
             del tagspec['content']
         tagspec=augmentitspec(tagspec, spectype='tag')
+        #make sure you are logged in
         authorize(False, self, currentuser, useras)
-        #print "FQIN", item.basic.fqin
-        #itemtobetagged=self._getItem(currentuser, fullyQualifiedItemName)
         itemtobetagged=item
-
-        #print "TAGSPEC IS", tagspec
+        #the tagmode tells us the privacy of the tag. use if given, else use the
+        #tagtype's tagmode. this lets us things like have default note's tagmode as private
+        #but add fqpn instead by clicking the checkbox
         if tagspec.has_key('tagmode'):
             tagmode = tagspec['tagmode']
             del tagspec['tagmode']
@@ -517,13 +485,8 @@ class Postdb():
         #Now that we have a tag item, we need to create a tagging
         now=datetime.datetime.now()
         try:
-            #print "was the taggingdoc found?"
-            #QUESTION: should we really be looking at a existing tagmode? What if i wanted to make a note public?
-            #note we put the posted by in. This function itself prevents posted_by twice
-            #but BUG: we have uniqued on the other terms in constructor below. This requires us
-            #to get our primary key and uniqueness story right. (or does this func do it for us)
-
             #because we do this we can never have more than one taggingdoc for item/tag/user
+            #so if *we* already tagged item with that tag, just getch the tagging doc
             taggingdoc=self._getTaggingDoc(currentuser, itemtobetagged.basic.fqin, tag.basic.fqin, useras.adsid)
             itemtag=taggingdoc.posting
             #if tagmode for this tag changed, change it (we update it) [no ui for this as yet]
@@ -533,13 +496,15 @@ class Postdb():
             taggingdoc.save(safe=True)
             taggingdoc.reload()
         except:
-            #print "NOTAGGING YET. CREATING", tagmode,']'
+            #ok create a tagging document since it does not exist.
             tagtype=self._getTagType(currentuser, tag.tagtype)
-            #BUG in tags shouldnt singleton mode enforce a tagdescription, unlike what augmentitspec does?
+            #if singletonmode pluck the description from the tag else set to empty string
+            #todo: we should perhaps get this from a tagtype like thing later?
             if tagtype.singletonmode:
                 tagdescript=tag.basic.description
             else:
                 tagdescript=""
+            #create the tagging
             try:
                 itemtag=Tagging(postfqin=tag.basic.fqin,
                                 posttype=tag.tagtype,
@@ -554,70 +519,62 @@ class Postdb():
                                 thingtopostname=itemtobetagged.basic.name,
                                 thingtopostdescription=itemtobetagged.basic.description
                 )
-                #itemtag.save(safe=True)
+                #save the taggingdoc
                 taggingdoc=TaggingDocument(posting=itemtag)
                 taggingdoc.save(safe=True)
                 taggingdoc.reload()
-                #print "LALALALALALALALA990"
-                #below used to not be there: how does it impact queries?
+                #if its not a singletonmode update the stags on the item
                 if not singletonmode:
                     itemtobetagged.update(safe_update=True, push__stags=itemtag)
             except:
                 doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s" % (itemtobetagged.basic.fqin, tag.basic.fqin))
-            ##print "adding to %s" % personalfqgn
+            #signal to save to personal library
             self.signals['save-to-personal-group-if-not'].send(self, obj=self, currentuser=currentuser, useras=useras,
                 item=itemtobetagged)
-            #now since in personal group, appropriate postables will pick it up
-            #tagmode here must be from taggingdoc, not from tag
+        #in either case, even if retagging, signal tagged item. This will ensure the tagging
+        #is spread to appropriate libraries item is in (when tagged in saved items mode, for eg)    
         self.signals['tagged-item'].send(self, obj=self, currentuser=currentuser, useras=useras,
             taggingdoc=taggingdoc, tagmode=tagmode, item=itemtobetagged)
-        #if itemtag found just return it, else create, add to group, return
         itemtobetagged.reload()
         return itemtobetagged, tag, itemtag, taggingdoc
 
-    #So this is the removal of the tagging doc associated with the userAS
+    #this is the removal of the tagging doc associated with the useras
     #only that taggingdoc will be removed.
     def untagItem(self, currentuser, useras, fullyQualifiedTagName, fullyQualifiedItemName):
-        #Do not remove item, do not remove tag, do not remove tagging
-        #just remove the tag from the personal group
-        #print "here"
+        #make sure user is logged in
         authorize(False, self, currentuser, useras)
-        #print "there", fullyQualifiedTagName, fullyQualifiedItemName
-        #BUG POSTPONE until we have refcounting implementation
         tag=self._getTag(currentuser, fullyQualifiedTagName)
         item=self._getItem(currentuser, fullyQualifiedItemName)
-        #print "where"
+        #make sure user can use this tag
         if not self.canUseThisTag(currentuser, useras, tag):
             doabort('NOT_AUT', "Not authorized for tag %s" % tag.basic.fqin)
+        #now get the tagging doc
         taggingdoc=self._getTaggingDoc(currentuser, item.basic.fqin, tag.basic.fqin, useras.adsid)
         #removing the taggingdoc will remove pinpostables will thus
         #remove it from all the places the tagging was spread too
-
-        #only those posts which u made which should be all as taggingdoc is specific to u
-
+        #get the places to which this taggingdoc went that were posted by you! (this should be all tho
+        #as taggingdoc (as oppoed to tag) is specific to u)
         postablefqpns=[e.postfqin for e in taggingdoc.pinpostables if taggingdoc.posting.postedby==useras.adsid]
         for fqpn in postablefqpns:
-            #this does a bit of extra work with respect to the taggingdoc, we do nuke the taggingdoc below
-            #we might have made this tag and have been subsequently removed from this library
-            #if self.isMemberOfMembable(currentuser, useras, fqpn):
-            #what if postable exists no more? Then we will assume its
-            #properly cleaned.
+            #get library, and checking that we are indeed a member, remove tagging from library
             postable=self.whosdb._getMembable(currentuser, fqpn)
             if self.isMemberOfMembable(currentuser, useras, postable):
                 self.removeTaggingFromPostable(currentuser, useras, fqpn, fullyQualifiedItemName, fullyQualifiedTagName)
+        #if we cerated a note we can remove this note without reservation
         if tag.singletonmode==True:
             #only delete tag if its a note: ie we are in singletonmode
             if not self.isOwnerOfTag(currentuser, useras, tag):
                 doabort('NOT_AUT', "Not authorized for tag %s" % tag.basic.fqin)
             tag.delete(safe=True)
-        else:
+        else:#if not note, then remove this tagging from the item
             item.update(safe_update=True, pull__stags={'postfqin':tag.basic.fqin, 'postedby':useras.adsid})
-
+        #now deleting the taggingdoc will also delete all postings for this tag: nice, no?
         taggingdoc.delete(safe=True)
-        #we never delete tags from the system unless they are singletonmodes
+        #we never delete tags from the system unless they are singletonmodes, as we might want to
+        #use these tags later
         return OK
 
-    #Note that the following provide a model for the uniqueness of posting and tagging docs.
+    #get the taggingdoc given the u/i/t triad
     def _getTaggingDoc(self, currentuser, fqin, fqtn, adsid):
         try:
           taggingdoc=embeddedmatch(TaggingDocument.objects, "posting", thingtopostfqin=fqin, postfqin=fqtn, postedby=adsid).get()
@@ -626,36 +583,29 @@ class Postdb():
         return taggingdoc
 
     #expose this one outside. currently just a simple authorize currentuser to useras.
+    #does not make more checks as if u didnt create it, we'll doabort
     def getTaggingDoc(self, currentuser, useras, fqin, fqtn):
         authorize(False, self, currentuser, useras)
         taggingdoc=self._getTaggingDoc(currentuser, fqin, fqtn, useras.adsid)
         return taggingdoc
-    #BUG: protection of this tagging? Use useras.basic.fqin for now
-    #BUG: this does not work in the direction of making tagging private for now
+
+    #change to make an existing tagging to another mode. dont believe this is exposed as yet
     def changeTagmodeOfTagging(self, currentuser, useras, fqin, fqtn, tomode='0'):
         #below makes sure user owned that tagging doc
         taggingdoc=self.getTaggingDoc(currentuser, useras, fqin, fqtn)
         taggingdoc.update(safe_update=True, set__posting__tagmode=tomode)
         taggingdoc.reload()
-        #Ok to assume here that item exists? Check
+        #if tagmode changes send a signal so that reciever will add/take from appropriate libraries
         itemtobetagged=self._getItem(currentuser, fqin)
         self.signals['tagmode-changed'].send(self, obj=self, currentuser=currentuser, useras=useras,
                 taggingdoc=taggingdoc, tagmode=tomode, item=itemtobetagged)
         return taggingdoc
 
-    # def _getTaggingDocsForItemandUser(self, currentuser, fqin, adsid):
-    #     taggingdocs=embeddedmatch(TaggingDocument.objects, "posting", thingtopostfqin=fqin, postedby=adsid)
-    #     return taggingdocs
-    #
+    # postingdoc is unique to item and library. get it.
     def _getPostingDoc(self, currentuser, fqin, fqpn):
-        #print "A"
         postingdoc=embeddedmatch(PostingDocument.objects, "posting", thingtopostfqin=fqin, postfqin=fqpn).get()
-        #print "B"
         return postingdoc
-    #
-    # def _getPostingDocsForItemandUser(self, currentuser, fqin, adsid):
-    #     postingdocs=embeddedmatch(PostingDocument.objects, "posting", thingtopostfqin=fqin, postedby=adsid)
-    #     return postingdocs
+
 
     #CHECK: Appropriate postables takes care of this. not needed.
     def recv_postTaggingIntoItemtypesApp(self, currentuser, useras, **kwargs):
