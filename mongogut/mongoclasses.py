@@ -176,13 +176,14 @@ class User(Document):
     #Unless user sets nick ahead of time, it is set to a uuid
     #its set for anonymouse/adsgut/ads
     nick = StringField(required=True, unique=True)
-    #basic.name is set to nick
+    #basic.name is set to nick, basic.fqin to adsgut/user:nick, see above
     basic = EmbeddedDocumentField(Basic)
-    #use this to temporarily turn off a user
+    #use this to temporarily turn off a user, UNUSED currently
     dormant=BooleanField(default=False)
     #@interface=MEMBERSHIP-IN (augmented by owned)
     #note the postables is now a misnomer, it is anything you
-    #can be a member in
+    #can be a member in, such as a group, app, or library
+    #but it does not include tags. we are keeping name for historical compat
     postablesin=ListField(EmbeddedDocumentField(MembableEmbedded))
     postablesowned=ListField(EmbeddedDocumentField(MembableEmbedded))
     postablesinvitedto=ListField(EmbeddedDocumentField(MembableEmbedded))
@@ -193,16 +194,15 @@ class User(Document):
         libs=[]
         lfqpns=[]
         pathincludes=defaultdict(list)
-        #first get the libraries etc we are directly members of
+        #first get the libraries we are directly members of
         for ele in self.postablesin:
             if ele.ptype == 'library':
                 libs.append(ele)
                 lfqpns.append(ele.fqpn)
+                #here we sture the reason why that library is included
                 pathincludes[ele.fqpn].append((ele.ptype, ele.pname, ele.fqpn))
-        #TODO:the below is removed for an array. Any code which depends on this in the JS should be changed.
-        # for l in lfqpns:
-        #     pathincludes[l] = ""
-        #ok now lets target the non-directs
+        #now if postables we are in are not a library, but group and app, we find
+        #which libraries that group/app is in (ls)
         for ele in self.postablesin:
             if ele.ptype != 'library':
                 p = MAPDICT[ele.ptype].objects(basic__fqin=ele.fqpn).get()
@@ -210,10 +210,12 @@ class User(Document):
                 ls = p.postablesin
                 for e in ls:
                     #dont pick up anything else than libraries that the groups and apps are in
+                    #(there shouldnt be anything unless we later allow groups to be in apps)
                     if e.ptype=='library':
+                      #again store the why. This way we get the directs first, and here we get the indirects
                         pathincludes[e.fqpn].append((ele.ptype, ele.pname, ele.fqpn))
                         plist.append(e)
-        #put all the libraries together. there might be dupes
+        #put all the libraries together. there might be dupes, because membership comes from different places
         libs = libs + plist
         pdict={}
         rw={}
@@ -242,14 +244,19 @@ class User(Document):
         for ele in self.postablesin:
           if ele.ptype != 'library':
               plist.append(ele)
-        #print "membnotlib", [e.fqpn for e in plist]
         return plist
 
 
     def presentable_name(self):
         return self.adsid
 
-#POSTABLES
+#a group is a collection of users. it has an owner who can add or remove people from it
+#each group has an associated library (which can have others or other groups as members)
+#in an earlier version the group used to be a library like object, but now it is just a collection
+#a special group is the public group. There used to be a user default group which was a group with
+#just one user, but that has now been made into a library. 
+#(Interchangeably we still use the words udg and udl to describe this)
+
 class Group(Document):
     classname="group"
     meta = {
@@ -257,19 +264,20 @@ class Group(Document):
         'ordering': ['-basic.whencreated']
     }
 
-    #DEPRECATED: it has now become a personal library
+    #DEPRECATED: it has now become a personal library, will always be set to false
     personalgroup=BooleanField(default=False, required=True)
 
     #@interface=BASIC
+    #group's nick is set by a uuid
     nick = StringField(required=True, unique=True)
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
 
-    #@interface=MEMBERS
+    #@interface=MEMBERS: who are the invited users and members for this group
     members = ListField(EmbeddedDocumentField(MemberableEmbedded))
     inviteds = ListField(EmbeddedDocumentField(MemberableEmbedded))#only fqmn
 
-    #@interface=MEMBERSHIP-IN
+    #@interface=MEMBERSHIP-IN: what libraries is this group in
     postablesin=ListField(EmbeddedDocumentField(MembableEmbedded))
 
     def get_member_fqins(self):
@@ -278,8 +286,8 @@ class Group(Document):
     def get_member_pnames(memb):
         return Gget_member_pnames(memb)
 
-    def get_member_rws(self):
-        return Gget_member_rws(self)
+    # def get_member_rws(self):no rws for groups any more
+    #     return Gget_member_rws(self)
 
     def get_invited_fqins(self):
         return Gget_invited_fqins(self)
@@ -287,9 +295,10 @@ class Group(Document):
     def get_invited_pnames(memb):
         return Gget_invited_pnames(memb)
 
-    def get_invited_rws(self):
-        return Gget_invited_rws(self)
+    # def get_invited_rws(self):no rws for groups any more
+    #     return Gget_invited_rws(self)
 
+    #get this group's permissions in the libraries it is in
     def get_postablesin_rws(self):
         perms={}
         for ele in self.postablesin:
@@ -301,6 +310,8 @@ class Group(Document):
             return self.basic.name
         return self.classname+":"+self.basic.name
 
+#apps are used for adsgut, ads, and thirdparty apps. A cds app for eg could be done, 
+#also a bibliographic app
 class App(Document):
     classname="app"
     meta = {
@@ -313,11 +324,12 @@ class App(Document):
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
 
+    #not currently using inviteds for apps but the use case is clear.
     #@interface=MEMBERS
     members = ListField(EmbeddedDocumentField(MemberableEmbedded))
     inviteds = ListField(EmbeddedDocumentField(MemberableEmbedded))
 
-    #@interface=MEMBERSHIP-IN
+    #@interface=MEMBERSHIP-IN: libraries the app is in
     postablesin=ListField(EmbeddedDocumentField(MembableEmbedded))
 
 
@@ -327,8 +339,8 @@ class App(Document):
     def get_member_pnames(memb):
         return Gget_member_pnames(memb)
 
-    def get_member_rws(self):
-        return Gget_member_rws(self)
+    # def get_member_rws(self):
+    #     return Gget_member_rws(self)
 
     def get_invited_fqins(self):
         return Gget_invited_fqins(self)
@@ -336,8 +348,8 @@ class App(Document):
     def get_invited_pnames(memb):
         return Gget_invited_pnames(memb)
 
-    def get_invited_rws(self):
-        return Gget_invited_rws(self)
+    # def get_invited_rws(self):
+    #     return Gget_invited_rws(self)
 
     def get_postablesin_rws(self):
         perms={}
@@ -350,6 +362,7 @@ class App(Document):
             return self.basic.name
         return self.classname+":"+self.basic.name
 
+#and finally the library, this is where all the exciting stuff happens!
 class Library(Document):
     classname="library"
     meta = {
@@ -358,18 +371,21 @@ class Library(Document):
     }
 
     #@interface=BASIC
-    nick = StringField(required=True, unique=True)
+    nick = StringField(required=True, unique=True)#set by guid
     basic = EmbeddedDocumentField(Basic)
     owner = StringField(required=True)
 
     #Two NEW fields added to library
-    #this one can be "udg" (1 per user), "public" (1), "group" (1 per group), "app"(1 per app)
+    #this one can be "udl" (1 per user), "public" (1), "group" (1 per group), "app"(1 per app)
+    #pr "library"(simple library), see restr below
     librarykind = StringField(required=False, default="library")
     #did you make the library public? (public group and anonymouse support)
-    #QUESTION: should it be public library (post or not), and anonymouse separate? I think so.
+    #even if we revoke public group, it is still considered public.
+    #only if we revoke anonymouse is it not considered public
     islibrarypublic = BooleanField(default=False, required=False)
 
-    #@interface=MEMBERS
+    #@interface=MEMBERS:who is a member of this library and who is invited
+    #members can be groups and apps as well, inviteds can only be users
     members = ListField(EmbeddedDocumentField(MemberableEmbedded))
     inviteds = ListField(EmbeddedDocumentField(MemberableEmbedded))
 
