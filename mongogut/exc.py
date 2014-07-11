@@ -1,9 +1,4 @@
-#from http://flask.pocoo.org/snippets/97/
-#usage:
-# @app.route("/test")
-# def view():
-#     abort(422, {'errors': dict(password="Wrong password")})
-
+#Error codes corresponding to http error codes
 
 ERRGUT={}
 ERRGUT['AOK_REQ']=200
@@ -15,6 +10,7 @@ ERRGUT['SRV_UNA']=503
 ERRGUT['NOT_AUT']=401
 ERRGUT['FOR_BID']=403
 
+#error types for the error codes
 adsgut_errtypes=[
     ('ADSGUT_AOK_REQ',ERRGUT['AOK_REQ'], 'Request Ok'),
     ('ADSGUT_AOK_CRT',ERRGUT['AOK_CRT'], 'Object Created'),
@@ -28,6 +24,8 @@ adsgut_errtypes=[
 
 import sys, traceback
 
+#A class representing an error in the mongogut system flask will handle the 
+#status code (by getting http error code from ERRGUT)
 class MongoGutError(Exception):
 
     def __init__(self, message, status_code=None, payload=None):
@@ -42,6 +40,7 @@ class MongoGutError(Exception):
         rv['reason'] = self.message
         return rv
 
+#just wraps the mongo gut error
 def codeabort(status_code, reasondict):
     raise MongoGutError(reasondict['reason'], status_code)
 
@@ -49,6 +48,7 @@ def codeabort(status_code, reasondict):
 webabort=codeabort
 abort=codeabort
 
+#raise an exception with a error code and a reason
 def doabort(codestring, reason):
     #x=sys.exc_info()
     codeabort(ERRGUT[codestring], {'reason':reason})

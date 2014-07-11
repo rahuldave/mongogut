@@ -1,5 +1,6 @@
 from mongoclasses import *
 from exc import *
+#we return this from some deletion functions
 OK=200
 
 #Initial starting points for barrier functions in perms.py
@@ -15,9 +16,11 @@ MAPDICT={
     'library':Library
 }
 
+#get the 'classname' of a mongoclasses instance
 def classname(instance):
     return instance.classname
 
+#get the python type of an instance
 def classtype(instance):
     return type(instance)
 
@@ -161,7 +164,7 @@ def augmentitspec(specdict, spectype="item"):
 #for bibgroups we would want to extend this to groups as well
 def augmenttypespec(specdict, spectype="itemtype"):
     basicdict={}
-    #for itemtype, come in with an postabletype=app and a postable=appfqin
+    #for itemtype, come in with an membabletype=app and a membable=appfqin
     specdict=musthavekeys(specdict,['creator', 'name', 'membable'])
     #BUG validate its in the choices wanted ie app and grp (what about tagtypes in libs)
     specdict['membabletype']=getNSVal(specdict['membable'])

@@ -4,56 +4,75 @@ from collections import defaultdict
 
 
 
-
-#Some notes
-
-#(a) for reasons of historical accident, owner variables must be user fqin
-#(earlier we wanted to allow groups/apps to own things)
+# A list of globals
+#the public group. Everyone belongs to this. This group can be added to libraries to give access
+#to all ads users, read only, or read-write
 PUBLICGROUP='adsgut/group:public'
-PUBLICLIBRARY='adsgut/group:public'
+#the library corresponding to the above group. We dont use this currently, but the idea is to add
+#a public library so that posting to it becomes an endorsement of an item, and we can then do things
+#in a user's preferences like autotweet from there.
+PUBLICLIBRARY='adsgut/library:public'
+#everyone belongs to this app but it has no use
 MOTHERSHIPAPP='adsgut/app:adsgut'
+#everyone belongsto this app and the use here is to make sure all have access to tags, notes
+#pubs and searches. it may be wortj having the MOTHERSHIP app own tags and notes but this works for now.
 FLAGSHIPAPP='ads/app:publications'
+#this is the mongo user we use when there is no login. It lets us expose libraries to the general 
+#public if we like
 ANONYMOUSE='adsgut/user:anonymouse'
 
-#The BASIC interface: its utilized by almost everything else
+#The BASIC interface: its embedded and utilized by almost everything else
 class Basic(EmbeddedDocument):
-  name = StringField(required=True)
-  uri = StringField(default="", required=True)
-  creator=StringField(required=True)
+  name = StringField(required=True)#critial..eg bibcode for pubs
+  uri = StringField(default="", required=True)#not really used yet
+  creator=StringField(required=True)#person who created this object
   whencreated=DateTimeField(required=True, default=datetime.datetime.now)
   lastmodified=DateTimeField(required=True, default=datetime.datetime.now)
-  #Below is a combination of namespace and name
+  #Below is a combination of namespace and name. see README(TODO) for section
+  #on how fqins are constructed
   fqin = StringField(required=True, unique=True)
+  #description of object. for eg description of group or the text of a note.
+  #context dependent
   description = StringField(default="")
 
+#an itemtype, eg ads/itemtype:pub
 class ItemType(Document):
   classname="itemtype"
   basic = EmbeddedDocumentField(Basic)
   owner = StringField(required=True)#must be fqin of user
-  membable = StringField(default="adsgut/adsgut", required=True)
+  #the membable specifies what app/group created this
+  membable = StringField(default="adsgut/app:adsgut", required=True)
+  #this last one is autoset, see augmenttypespec in utilities
   membabletype = StringField(required=True)
 
+#a tagtype, eg ads/tagtype:tag
 class TagType(Document):
   classname="tagtype"
   basic = EmbeddedDocumentField(Basic)
   owner = StringField(required=True)#must be fqin of user
   membable = StringField(required=True)
   membabletype = StringField(required=True)
-  #Document tagmode 0/1 here
+  #tagmode='0' is promiscuous, means it will go to all libs item is in
+  #tagmode=fqpn sets it to a particulat library
+  #tagmode='1' heeps it private, so the tag is visible in personal library only
   tagmode = StringField(default='0', required=True)
   #singleton mode, if true, means that a new instance of this tag must be created each time
   #once again example is note, which is created with a uuid as name
   singletonmode = BooleanField(default=False, required=True)
 
-#We are calling it PostablEmbedded, but this is now a misnomer. We might change this name.
+#MembableEmbedded will be embedded in users and groups/apps(ie in memberables)
 #This is anything that "CAN HAVE" a member. ie the membable interface
+#thus its also used to embed groups/apps inside users
+#most of this embedded is copied from the corresponding membable. This is part
+#of our fully denormalized design.
 class MembableEmbedded(EmbeddedDocument):
-  fqpn = StringField(required=True)
-  ptype = StringField(required=True)
-  pname = StringField(required=True)
+  fqpn = StringField(required=True)#fqin of membable
+  ptype = StringField(required=True)#type, eg 'library'
+  pname = StringField(required=True)#presentable name(ie what we will use on web page)
   owner = StringField(required=True)#must be fqin of user
+  #if library, what are the memberable's perms in it
   readwrite = BooleanField(required=True, default=False)
-  islibrarypublic = BooleanField(default=False)
+  islibrarypublic = BooleanField(default=False)# is library, is it public
   description = StringField(default="")
   librarykind = StringField(default="")#"" is for not library, otherwise its keys in RWDEF
 
@@ -62,36 +81,45 @@ class MembableEmbedded(EmbeddedDocument):
 #of an app, or a user who is a member of a group
 
 class MemberableEmbedded(EmbeddedDocument):
-  fqmn = StringField(required=True)
-  mtype = StringField(required=True)
-  pname = StringField(required=True)
+  fqmn = StringField(required=True)#fqin of memberable
+  mtype = StringField(required=True)#type of memberable: u/g/a
+  pname = StringField(required=True)#presentable name
   readwrite = BooleanField(required=True, default=False)
 
+#some generic functions we will use in instance methods below
+#get fqins of members
 def Gget_member_fqins(memb):
     return [ele.fqmn for ele in memb.members]
 
+#get presentable names of members
 def Gget_member_pnames(memb):
-    return [ele.pname for ele in memb.users]
+    return [ele.pname for ele in memb.members]
 
+#get presentable name with read-write permissions of members
 def Gget_member_rws(memb):
     perms={}
     for ele in memb.members:
         perms[ele.fqmn]=[ele.pname, ele.readwrite]
     return perms
 
+#get fqins of invited users
 def Gget_invited_fqins(memb):
     return [ele.fqmn for ele in memb.inviteds]
 
+#get presentable names of invited users
 def Gget_invited_pnames(memb):
     return [ele.pname for ele in memb.inviteds]
 
+#get presentable name with read-write permissions of invited users
 def Gget_invited_rws(memb):
     perms={}
     for ele in memb.inviteds:
         perms[ele.fqmn]=[ele.pname, ele.readwrite]
     return perms
 
-
+#a class representing a Tag. Remember, this is a tag, not a tagging
+#5e412bfa-c183-4e44-bbfd-687a54f07c9c/ads/tagtype:tag:random
+#501e05e4-4576-4dbe-845d-876042d2d614/ads/tagtype:note:769c1d1f-a242-49cb-82ba-fbb6761ee4a8
 class Tag(Document):
   classname="tag"
   meta = {
@@ -100,15 +128,15 @@ class Tag(Document):
   }
   basic = EmbeddedDocumentField(Basic)
   tagtype = StringField(required=True)
+  #the singletonmode default comes from tagtype unless u set it explicitly, so for notes
+  #if u make it so that other members of a library can see it, u set this explicitly(checkbox)
   singletonmode = BooleanField(required=True)#default is false but must come from tagtype
-  #The owner of a tag can be a user, group, or app
-  #This is different from creator as ownership can be transferred. You
-  #see this in groups and apps too. Its like a duck.
-  owner = StringField(required=True)
-  #Seems like this was needed for change ownership
+  #This is different from creator as ownership can be transferred.
+  owner = StringField(required=True)#must be a user
 
-  #@interface=MEMBERS
+  #memberable: can be users/groups/apps
   members = ListField(EmbeddedDocumentField(MemberableEmbedded))
+  #must only be users below
   inviteds = ListField(EmbeddedDocumentField(MemberableEmbedded))
 
   #METHODS
@@ -121,21 +149,20 @@ class Tag(Document):
   def get_member_pnames(memb):
       return Gget_member_pnames(memb)
 
-  def get_member_rws(self):
-      return Gget_member_rws(self)
+  #Invitations to tags make no sense for now
+  # def get_invited_fqins(self):
+  #     return Gget_invited_fqins(self)
 
-  def get_invited_fqins(self):
-      return Gget_invited_fqins(self)
+  # def get_invited_pnames(memb):
+  #     return Gget_invited_pnames(memb)
 
-  def get_invited_pnames(memb):
-      return Gget_invited_pnames(memb)
-
-  def get_invited_rws(self):
-      return Gget_invited_rws(self)
+  # def get_invited_rws(self):
+  #     return Gget_invited_rws(self)
 
 
 
-
+#adsgut/user:ads
+#adsgut/user:5e412bfa-c183-4e44-bbfd-687a54f07c9c
 class User(Document):
     "the adsgut user object in mongodn. distinct from the giovanni user object"
     classname="user"
@@ -143,13 +170,13 @@ class User(Document):
       'indexes': ['nick', 'basic.name', 'adsid', 'basic.whencreated'],
       'ordering': ['-basic.whencreated']
     }
-    adsid = StringField(required=True, unique=True)
-    cookieid = StringField(required=True, unique=True)
+    adsid = StringField(required=True, unique=True)#email in ads system
+    cookieid = StringField(required=True, unique=True)# cookie in ads system
     classicimported = BooleanField(default=False, required=True)
-    #Unless user sets nick, its equal to adsid
-
-    #@interface=BASIC
+    #Unless user sets nick ahead of time, it is set to a uuid
+    #its set for anonymouse/adsgut/ads
     nick = StringField(required=True, unique=True)
+    #basic.name is set to nick
     basic = EmbeddedDocumentField(Basic)
     #use this to temporarily turn off a user
     dormant=BooleanField(default=False)
