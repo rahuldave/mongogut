@@ -256,7 +256,7 @@ class User(Document):
 #a special group is the public group. There used to be a user default group which was a group with
 #just one user, but that has now been made into a library. 
 #(Interchangeably we still use the words udg and udl to describe this)
-
+#5e412bfa-c183-4e44-bbfd-687a54f07c9c/group:mine
 class Group(Document):
     classname="group"
     meta = {
@@ -312,6 +312,7 @@ class Group(Document):
 
 #apps are used for adsgut, ads, and thirdparty apps. A cds app for eg could be done, 
 #also a bibliographic app
+#ads/app:publications
 class App(Document):
     classname="app"
     meta = {
@@ -363,6 +364,7 @@ class App(Document):
         return self.classname+":"+self.basic.name
 
 #and finally the library, this is where all the exciting stuff happens!
+#5e412bfa-c183-4e44-bbfd-687a54f07c9c/library:tester
 class Library(Document):
     classname="library"
     meta = {
@@ -417,32 +419,56 @@ class Library(Document):
 #
 #POSTING AND TAGGING ARE DUCKS. A tagging is a kind-of post
 #
+
+#The post reflects the posting of an item into a library. Tagging, which inherits from post
+#overloads the meaning of the items below. Finally there is the posting of a tag to the library, which
+#then simply uses the post interface
 class Post(EmbeddedDocument):
 
     meta = {'allow_inheritance':True}
-    #for item posts, this is the postable ingo, for tag posts this would be the fqin/type of the tag too.
+    #for item posts, this is the postable type(library) and library fqin 
+    #for tagging this would be the fqin/type of the tag.
+    #for tag posts this is again the postable(library) info
     postfqin=StringField(required=True)
     posttype=StringField(required=True)
-    #below is the item and itemtype foritem  posts, and stuff about the tag for posting a tagging
+    #below is the itemfqin/itemtype/itemname/description for item  posts, and for tagging
+    #and for tag posts it is the tag fqin/type/name/description
     thingtopostfqin=StringField(required=True)
     thingtoposttype=StringField(required=True)
     thingtopostname=StringField(required=True)
     thingtopostdescription=StringField(default="", required=True)
+    #when posted or when tagged
     whenposted=DateTimeField(required=True, default=datetime.datetime.now)
+    #and who did it
     postedby=StringField(required=True)
 
+#some additional information isneeded to convert a posting into a tagging
+#thetagfqin is got from above but we also add the tagname and tagdescription(for note)
+#finally the taggings tagmode and singleton mode is also saved. thus the complete
+#state of the tagging can be obtained from here
 class Tagging(Post):
-    #tagtype=StringField(default="ads/tag", required=True)
+    #tagtype=StringField(default="ads/tag", required=True)..taken care of by posttype
     tagname=StringField(required=True)
     tagdescription=StringField(default="", required=True)
     tagmode = StringField(default='0', required=True)#0/1/fqon=promiscuous/private/library-wide
     singletonmode = BooleanField(default=False, required=True)
+
+#since a postingdocument(which is a concrete of an embedded posting) is unique to item and library,
+#and it is possible (and there is information in) the fact that multiple people posted the same item,
+#we create an embedded table for the history of postings for a document.
 
 class TPHist(EmbeddedDocument):
     #postfqin=StringField(required=True)
     whenposted=DateTimeField(required=True, default=datetime.datetime.now)
     postedby=StringField(required=True)
 
+#this represents the posting of an item to a library. It has history for the multiple times 
+#that this is done, so we can track how popular an item is for alt metric (and it also helps)
+#in renewal. We also keep stags here so that a library page can be generated directly from this
+#table. It is key to note that every time a tag is posted on this item to this library, 
+#an addition is made to stags for this: so it just gives the tags in this library. this works nicely as
+#we always replicate the tags in the saved items, so the saved items collect tags from all libraries
+#stags is NON-SINGLETONMODE (no notes) only
 class PostingDocument(Document):
     classname="postingdocument"
     meta = {
@@ -455,6 +481,10 @@ class PostingDocument(Document):
     #we capture this here so we only ever need to search posting documents
     stags = ListField(EmbeddedDocumentField(Tagging))
 
+#tagging document is u/i/t unique and is the key table to identify a tagging, as it embeds the tagging
+#embedded document under the posting attribute. the various libraries to which this tagging is posted
+#are also stored: this is kinda inverse to stags in posting-document except that stags has non
+#single-ton mode tags only
 #unlike postingdocument, no hist here, as its the individual tagging that gets posted in a library
 #in this sense the adsid is critical to identify the tagging document.
 class TaggingDocument(Document):
@@ -464,14 +494,14 @@ class TaggingDocument(Document):
         'ordering': ['-posting.whenposted']
     }
     posting=EmbeddedDocumentField(Tagging)
-    #In which libraries has this tagging has been posted. Do we not need some kind of hist for this?
+    #In which libraries has this tagging has been posted. 
     pinpostables = ListField(EmbeddedDocumentField(Post))
 
 
 
 
-#how to have indexes work within pinpostables abd stags? use those documents
-#hopefully we are doing this but how to handle the multiple postings?
+#finally the items table, note the namespace is that of the itemtypes app's creator
+#ads/2014bbmb.book..243K
 class Item(Document):
     classname="item"
     meta = {
@@ -483,10 +513,12 @@ class Item(Document):
     basic = EmbeddedDocumentField(Basic)
     #In which libraries have we been posted?
     pinpostables = ListField(EmbeddedDocumentField(Post))
-    #What tags have been applied to these items?
+    #What tags (non-singletonmode) have been applied to these items?
     stags = ListField(EmbeddedDocumentField(Tagging))
 
 
+#a mapping of names to classes, used to get mongo classes to query in many functions from the /library:
+#for example
 MAPDICT={
     'group':Group,
     'app':App,
@@ -496,16 +528,15 @@ MAPDICT={
 
 
 POSTABLES=[Library]#things that can be posted to
-#Postables are both membable and ownable
 MEMBERABLES=[Group, App, User]#things that can be members
 MEMBERABLES_NOT_USER=[Group, App]
-MEMBERABLES_FOR_TAG_NOT_USER=[Group, App, Library]
+MEMBERABLES_FOR_TAG_NOT_USER=[Group, App, Library]#things that can be members of tags
 MEMBABLES=[Group, App, Library, Tag]#things you can be a member of
-#above all use nicks
 OWNABLES=[Group, App, Library, ItemType, TagType, Tag]#things that can be owned
-#OWNERABLES=[Group, App, User]#things that can be owners. Do we need a shadow owner?
-OWNERABLES=[User]
-#The Memberable-Membable-Map tells you who can be a member of whom.
+OWNERABLES=[User]#things that can be owners.
+
+#The Memberable-Membable-Map tells you who can be a member of whom. NOT USED
+#(it serves as an internal documentation)
 MMMAP={
     Group:{Group:False, App:False, User:True},
     App:{Group:True, App:False, User:True},
@@ -513,36 +544,25 @@ MMMAP={
     Tag:{Group:True, App:True, User:True}
 }
 
-#THIS NEEDS TO BE CHANGED. It has to refer to libraries
-#The RWDEFMAP tells you about your membership mode. If you are a member of a group, it says u can read everything in
-#the group and write to it, but for a library, you may read everything, but not necessarily write to it.
-#(ie True maeans both read and write, false means read-only)
-#i think App=True is a bug for now and we should use masquerading instead to get things into apps
-#users ought not to add to apps directly.
-RWDEFMAP={
-    Group:True,
-    App:True,#should apps use masquerading instead? BUG
-    Library:False,
-    Tag:False
-}
-
-#tells you whether the defaulr is rw-true ow r-false
-#TODO: not sure what this does for tag
-
-#the interpretation here is for any other group or app except the libraries group or app
+#this tells you about libraries. it tells you what the default read-write permissions are
+#for the appropriate kind of library and the tag. Only udl and public libraries can be rw
+#by default
 RWDEF={
     'group':False,
-    'app':False,#should apps use masquerading instead? BUG
+    'app':False,#should apps use masquerading instead? 
     'library':False,
     'tag':False,
     'udl':True,
     'public':True
 }
 
+#RESTR is not used much any more, its only used for 'udl'. 
+#the idea was that group libraries would only allow the group in there
+#but we relaxed the restrictions and its not so useful any more
 #tuple-1, type allowed. if None, any memberable
 #tuple-2
 #if true, then only the entity corresponding to the library or tag is allowed in
-#the library (bbesides the owner). otherwise, anyone is. If None, only the owner
+#the library (besides the owner). otherwise, anyone is. If None, only the owner
 #For public, note that only the public group is allowed
 RESTR={
     'group':(None,True),
@@ -553,26 +573,6 @@ RESTR={
     'public':(None, True)
 }
 
-MMMAP2={
-    Group:{Group:False, App:False, User:True},
-    App:{Group:True, App:False, User:True},
-    Library:{Group:True, App:True, User:True},
-    Tag:{Group:True, App:True, User:True}
-}
-#Should above be more detailed, such as below?
-# #Critically, the fact that you cannot read all items in an app is done in _qproc
-# #not sure that is right place.
-# READDEFMAP={
-#     Group:{Group:False, App:False, User:True},
-#     App:{Group:False, App:False, User:True},
-#     Library:{Group:False, App:False, User:True},
-#     Tag:{Group:False, App:False, User:True}
-# }
-# WRITEDEFMAP={
-#     Group:{Group:False, App:False, User:True},
-#     App:{Group:False, App:False, User:True},
-#     Library:{Group:False, App:False, User:True},
-#     Tag:{Group:False, App:False, User:True}
 # }
 
 if __name__=="__main__":
