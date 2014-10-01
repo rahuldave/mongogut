@@ -17,7 +17,7 @@ MOTHERSHIPAPP='adsgut/app:adsgut'
 #everyone belongsto this app and the use here is to make sure all have access to tags, notes
 #pubs and searches. it may be wortj having the MOTHERSHIP app own tags and notes but this works for now.
 FLAGSHIPAPP='ads/app:publications'
-#this is the mongo user we use when there is no login. It lets us expose libraries to the general 
+#this is the mongo user we use when there is no login. It lets us expose libraries to the general
 #public if we like
 ANONYMOUSE='adsgut/user:anonymouse'
 
@@ -254,7 +254,7 @@ class User(Document):
 #each group has an associated library (which can have others or other groups as members)
 #in an earlier version the group used to be a library like object, but now it is just a collection
 #a special group is the public group. There used to be a user default group which was a group with
-#just one user, but that has now been made into a library. 
+#just one user, but that has now been made into a library.
 #(Interchangeably we still use the words udg and udl to describe this)
 #5e412bfa-c183-4e44-bbfd-687a54f07c9c/group:mine
 class Group(Document):
@@ -286,8 +286,8 @@ class Group(Document):
     def get_member_pnames(memb):
         return Gget_member_pnames(memb)
 
-    # def get_member_rws(self):no rws for groups any more
-    #     return Gget_member_rws(self)
+    def get_member_rws(self):
+        return Gget_member_rws(self)
 
     def get_invited_fqins(self):
         return Gget_invited_fqins(self)
@@ -295,8 +295,8 @@ class Group(Document):
     def get_invited_pnames(memb):
         return Gget_invited_pnames(memb)
 
-    # def get_invited_rws(self):no rws for groups any more
-    #     return Gget_invited_rws(self)
+    def get_invited_rws(self):
+        return Gget_invited_rws(self)
 
     #get this group's permissions in the libraries it is in
     def get_postablesin_rws(self):
@@ -310,7 +310,7 @@ class Group(Document):
             return self.basic.name
         return self.classname+":"+self.basic.name
 
-#apps are used for adsgut, ads, and thirdparty apps. A cds app for eg could be done, 
+#apps are used for adsgut, ads, and thirdparty apps. A cds app for eg could be done,
 #also a bibliographic app
 #ads/app:publications
 class App(Document):
@@ -340,8 +340,8 @@ class App(Document):
     def get_member_pnames(memb):
         return Gget_member_pnames(memb)
 
-    # def get_member_rws(self):
-    #     return Gget_member_rws(self)
+    def get_member_rws(self):
+        return Gget_member_rws(self)
 
     def get_invited_fqins(self):
         return Gget_invited_fqins(self)
@@ -349,8 +349,8 @@ class App(Document):
     def get_invited_pnames(memb):
         return Gget_invited_pnames(memb)
 
-    # def get_invited_rws(self):
-    #     return Gget_invited_rws(self)
+    def get_invited_rws(self):
+        return Gget_invited_rws(self)
 
     def get_postablesin_rws(self):
         perms={}
@@ -426,7 +426,7 @@ class Library(Document):
 class Post(EmbeddedDocument):
 
     meta = {'allow_inheritance':True}
-    #for item posts, this is the postable type(library) and library fqin 
+    #for item posts, this is the postable type(library) and library fqin
     #for tagging this would be the fqin/type of the tag.
     #for tag posts this is again the postable(library) info
     postfqin=StringField(required=True)
@@ -462,10 +462,10 @@ class TPHist(EmbeddedDocument):
     whenposted=DateTimeField(required=True, default=datetime.datetime.now)
     postedby=StringField(required=True)
 
-#this represents the posting of an item to a library. It has history for the multiple times 
+#this represents the posting of an item to a library. It has history for the multiple times
 #that this is done, so we can track how popular an item is for alt metric (and it also helps)
 #in renewal. We also keep stags here so that a library page can be generated directly from this
-#table. It is key to note that every time a tag is posted on this item to this library, 
+#table. It is key to note that every time a tag is posted on this item to this library,
 #an addition is made to stags for this: so it just gives the tags in this library. this works nicely as
 #we always replicate the tags in the saved items, so the saved items collect tags from all libraries
 #stags is NON-SINGLETONMODE (no notes) only
@@ -494,7 +494,7 @@ class TaggingDocument(Document):
         'ordering': ['-posting.whenposted']
     }
     posting=EmbeddedDocumentField(Tagging)
-    #In which libraries has this tagging has been posted. 
+    #In which libraries has this tagging has been posted.
     pinpostables = ListField(EmbeddedDocumentField(Post))
 
 
@@ -549,14 +549,14 @@ MMMAP={
 #by default
 RWDEF={
     'group':False,
-    'app':False,#should apps use masquerading instead? 
+    'app':False,#should apps use masquerading instead?
     'library':False,
     'tag':False,
     'udl':True,
     'public':True
 }
 
-#RESTR is not used much any more, its only used for 'udl'. 
+#RESTR is not used much any more, its only used for 'udl'.
 #the idea was that group libraries would only allow the group in there
 #but we relaxed the restrictions and its not so useful any more
 #tuple-1, type allowed. if None, any memberable
