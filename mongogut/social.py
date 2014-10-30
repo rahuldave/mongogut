@@ -264,11 +264,11 @@ class Database():
         return membables
 
     #unprotected
-    def membablesUserCanAccess(self, currentuser, useras, ptypestr=None):
+    def membablesUserCanAccess(self, currentuser, useras, ptypestr=None, public=True):
         "return the membables the user can access, directly or indirectly(for libraries)"
         #authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         nlibmembables = useras.membablesnotlibrary()
-        othermembables = useras.membableslibrary()
+        othermembables = useras.membableslibrary(public=public)
         allmembables = nlibmembables + othermembables
         if ptypestr:
             membables=[e for e in allmembables if e['ptype']==ptypestr]
@@ -277,12 +277,12 @@ class Database():
         return membables
 
     #unprotected
-    def membablesUserCanWriteTo(self, currentuser, useras, ptypestr=None):
+    def membablesUserCanWriteTo(self, currentuser, useras, ptypestr=None, public=True):
         """return the membables the user can access, directly or
         indirectly(for libraries), which user can write to (using readwrite)"""
         #authorize(LOGGEDIN_A_SUPERUSER_O_USERAS, self, currentuser, useras)
         nlibmembables = useras.membablesnotlibrary()
-        othermembables = useras.membableslibrary()
+        othermembables = useras.membableslibrary(public=public)
         allmembables = nlibmembables + othermembables
         if ptypestr:
             membables=[e for e in allmembables if (e['ptype']==ptypestr and e['readwrite']==True)]
@@ -597,7 +597,7 @@ class Database():
         return memberable, postable
 
 
-    #THINK: This should perhaps work for tags as well. 
+    #THINK: This should perhaps work for tags as well.
     #you must be systemuser or tag owner to remove someone from tags
 
     #remove a user from a group/app, or u/g/a from a library.
@@ -699,7 +699,7 @@ class Database():
         user=self._getUserForAdsid(currentuser,adsid)
         return self.inviteUserToMembable(currentuser, currentuser, fqpn, user, changerw)
 
-    #accept invitation to group or library. 
+    #accept invitation to group or library.
     #this cannot be masqueraded, must be explicitly approved by user
     def acceptInviteToMembable(self, currentuser, fqpn, me):
         "do i accept the invite?"
@@ -780,7 +780,7 @@ class Database():
             #get membable-embedded
             #If owner the pe must already be there.
             pe = is_membable_embedded_in_memberable(membable, owner.postablesowned)
- 
+
             newowner.update(safe_update=True, push__postablesowned=pe)
             #for old owner we have removed ownership by changing owner, now remove ownership from him
             owner.update(safe_update=True, pull__postablesowned__fqpn=fqpn)

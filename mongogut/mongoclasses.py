@@ -188,7 +188,7 @@ class User(Document):
     postablesowned=ListField(EmbeddedDocumentField(MembableEmbedded))
     postablesinvitedto=ListField(EmbeddedDocumentField(MembableEmbedded))
 
-    def membableslibrary(self, pathinclude_p=False):
+    def membableslibrary(self, pathinclude_p=False, public=True):
         "get a list of libraries for user, with indirect membership included"
         plist=[]
         libs=[]
@@ -205,6 +205,8 @@ class User(Document):
         #which libraries that group/app is in (ls)
         for ele in self.postablesin:
             if ele.ptype != 'library':
+                if  public==False and ele.pname == "group:public":
+                    continue
                 p = MAPDICT[ele.ptype].objects(basic__fqin=ele.fqpn).get()
                 #this is a group or app so get the postables it is in
                 ls = p.postablesin
