@@ -653,6 +653,7 @@ class Postdb():
         kwargs=musthavekeys(kwargs,['item', 'fqpn'])
         item=kwargs['item']
         fqpn=kwargs['fqpn']
+	taggingstopost=[]
         for tagging in item.stags:
             if tagging.postedby==useras.basic.fqin:#you did this tagging
                 taggingstopost.append(tagging)
