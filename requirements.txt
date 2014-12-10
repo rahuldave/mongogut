@@ -1,3 +1,4 @@
+pytest
 -e git+https://github.com/MongoEngine/mongoengine.git@0.8#egg=mongoengine
 pymongo
 simplejson

@@ -911,6 +911,7 @@ def initialize_testing(db_session):
 
     rahuldave=whosdb.addUser(adsgutuser, dict(nick='rahuldave', adsid="rahuldave@gmail.com", cookieid='4df7ce0d06'))
     rahuldave, mlg=whosdb.addGroup(rahuldave, rahuldave, dict(name='ml', description="Machine Learning Group"))
+    whosdb.toggleRWForMembership(rahuldave, rahuldave, "rahuldave/library:ml", mlg)
     rahuldave, mll=whosdb.addLibrary(rahuldave, rahuldave, dict(name='mll', description="Machine Learning Library"))
     #must explicitly add in testing as this happens on before_request otherwise
     rahuldave, adspubapp=whosdb.addUserToMembable(adsuser, FLAGSHIPAPP, 'rahuldave')
@@ -921,24 +922,29 @@ def initialize_testing(db_session):
 
     jayluker, mlg = whosdb.acceptInviteToMembable(jayluker, 'rahuldave/group:ml', jayluker)
     jayluker, spg=whosdb.addGroup(jayluker, jayluker, dict(name='sp', description="Solr Programming Group"))
+    whosdb.toggleRWForMembership(jayluker, jayluker, "jayluker/library:sp", spg)
     jayluker, gpg=whosdb.addGroup(jayluker, jayluker, dict(name='gp', description="Gaussian Process Group"))
     jayluker, spl=whosdb.addLibrary(jayluker, jayluker, dict(name='spl', description="Solr Programming Library"))
-    jayluker, mpl=whosdb.addLibrary(jayluker, jayluker, dict(name='mpl', description="Mongo Programming Library"))
-    rahuldave, mpl=whosdb.inviteUserToMembableUsingNick(jayluker, 'jayluker/library:mpl', 'rahuldave')
-    rahuldave, gpg=whosdb.inviteUserToMembableUsingNick(jayluker, 'jayluker/group:gp', 'rahuldave')
-    rahuldave, spg=whosdb.addUserToMembable(jayluker, 'jayluker/group:sp', 'rahuldave')
-    u, p =whosdb.addMemberableToMembable(jayluker, jayluker, 'jayluker/library:spl', 'rahuldave/group:ml', True)
-    import random
-    for i in range(20):
-        r=random.choice([1,2])
-        userstring='user'+str(i)
-        user=whosdb.addUser(adsgutuser, dict(adsid=userstring))
-        user, adspubapp = whosdb.addUserToMembable(adsuser, FLAGSHIPAPP, user.nick)
 
-        if r==1:
-            user, mlg=whosdb.inviteUserToMembableUsingNick(rahuldave, 'rahuldave/group:ml', user.nick)
-        else:
-            user, spg=whosdb.inviteUserToMembableUsingNick(jayluker, 'jayluker/group:sp', user.nick)
+
+    #In general we dont want this to be possible unless user is superuser
+    #should we thrown an error here
+    rahuldave, spg=whosdb.addUserToMembable(jayluker, 'jayluker/group:sp', 'rahuldave')
+    rahuldave, spgl=whosdb.addUserToMembable(jayluker, 'jayluker/library:sp', 'rahuldave')
+    rahuldave, gpgl=whosdb.addUserToMembable(jayluker, 'jayluker/library:gp', 'rahuldave')
+
+    u, p =whosdb.addMemberableToMembable(jayluker, jayluker, 'jayluker/library:spl', 'rahuldave/group:ml', True)
+    # import random
+    # for i in range(20):
+    #     r=random.choice([1,2])
+    #     userstring='user'+str(i)
+    #     user=whosdb.addUser(adsgutuser, dict(adsid=userstring))
+    #     user, adspubapp = whosdb.addUserToMembable(adsuser, FLAGSHIPAPP, user.nick)
+
+    #     if r==1:
+    #         user, mlg=whosdb.inviteUserToMembableUsingNick(rahuldave, 'rahuldave/group:ml', user.nick)
+    #     else:
+    #         user, spg=whosdb.inviteUserToMembableUsingNick(jayluker, 'jayluker/group:sp', user.nick)
 
 def _init(*args):
 
