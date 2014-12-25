@@ -458,7 +458,7 @@ class Database():
     def addLibrary(self, currentuser, useras, libraryspec):
         return self.addMembable(currentuser, useras, "library", libraryspec)
 
-
+    #TODO: how is ownermode used?
     #add a memberable to a membable, such as a user to group or library, or a group/app to a library
     def addMemberableToMembable(self, currentuser, useras, fqpn, memberablefqin, changerw=False, ownermode=False):
         "add a user, group, or app to a postable=group, app, or library"
@@ -535,6 +535,8 @@ class Database():
                 #update membable with member
                 membableq.update(safe_update=True, push__members=member)
         except:
+            import sys
+            print sys.exc_info()
             doabort('BAD_REQ', "Failed adding memberable %s %s to postable %s %s" % (mtype.__name__, memberablefqin, ptype.__name__, fqpn))
         memberable.reload()
         return memberable, membableq.get()
