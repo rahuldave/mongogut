@@ -57,7 +57,9 @@ def authorize_loggedin_or_systemuser(authstart, db, currentuser):
 def authorize_membable_member(authstart, db, currentuser, memberable, cobj):
     #if user u should be logged in
     if classtype(memberable)==User:
-        clause=(currentuser==memberable, "User %s not authorized" % currentuser.nick)
+        # if not db.isSystemUser(currentuser) or not db.isOwnerOfOwnable(currentuser, currentuser, cobj):#currently leave out the possibility of a groupowner nasquerading as user
+        #     clause=(currentuser==memberable, "User %s not authorized" % currentuser.nick)
+        # else:
         clause=(True,'')
     elif classtype(memberable) in [Group, App]:#the memberable a membable, then u must be in memberable
         clause = (db.isMemberOfMembable(currentuser, currentuser, memberable), "%s must be member of membable %s %s" % (currentuser.adsid, classname(memberable), memberable.basic.fqin))
@@ -65,7 +67,7 @@ def authorize_membable_member(authstart, db, currentuser, memberable, cobj):
         clause=(False,"")
     permit(*clause)
     #after initial barrier make sure memberable is member of membable
-    clause3=(db.isMemberOfMembable(currentuser, memberable, cobj), "%s must be member of membable %s %s" % (currentuser.adsid, classname(cobj), cobj.basic.fqin))
+    clause3=(db.isMemberOfMembable(currentuser, memberable, cobj), "%s must be member of membable %s %s" % (memberable.basic.fqin, classname(cobj), cobj.basic.fqin))
     clausesys = (db.isSystemUser(currentuser), "User %s not superuser" % currentuser.nick)
     #being a systemuser overrides all. but if not, make sure u member
     if not clausesys[0]:
@@ -79,7 +81,9 @@ authorize_postable_member=authorize_membable_member
 def authorize_ownable_owner(authstart, db, currentuser, memberable, cobj):
     permit(currentuser.adsid!='anonymouse', "must be logged in")
     if classtype(memberable)==User:
-        clause = (currentuser==memberable, "User %s not authorized" % currentuser.nick)
+        # if not db.isSystemUser(currentuser) or not db.isOwnerOfOwnable(currentuser, currentuser, cobj):#currently leave out the possibility of a groupowner nasquerading as user
+        #     clause=(currentuser==memberable, "User %s not authorized" % currentuser.nick)
+        # else:
         clause=(True,'')
     elif classtype(memberable) in [Group, App]:#this should NEVER BE True, owners must be User
         clause=(False,"")
