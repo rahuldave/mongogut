@@ -30,11 +30,12 @@ class Inifix:
         spg=self.whosdb._getMembable(adsgutuser, "jayluker/group:sp")
         mlgl=self.whosdb._getMembable(adsgutuser, "rahuldave/library:ml")
         spgl=self.whosdb._getMembable(adsgutuser, "jayluker/library:sp")
+        gpgl=self.whosdb._getMembable(adsgutuser, "jayluker/library:gp")
         mll=self.whosdb._getMembable(adsgutuser, "rahuldave/library:mll")
         spl=self.whosdb._getMembable(adsgutuser, "jayluker/library:spl")
         self.users = dict(adsgut=adsgutuser, ads=adsuser, rahuldave=rahuldave, jayluker=jayluker)
         self.groups=dict(mlg=mlg, spg=spg)
-        self.group_libraries=dict(mlgl=mlgl, spgl=spgl)
+        self.group_libraries=dict(mlgl=mlgl, spgl=spgl, gpgl=gpgl)
         self.libraries=dict(mll=mll, spl=spl)
         self.adsgutuser=adsgutuser
 
@@ -118,4 +119,10 @@ def test_posting_caniposttopostable_allowed(inidb, capsys):
     assert inidb.whosdb.canIPostToPostable(inidb.users['rahuldave'],inidb.users['rahuldave'], inidb.libraries['mll'])
     assert inidb.whosdb.canIPostToPostable(inidb.users['rahuldave'],inidb.users['rahuldave'], inidb.libraries['spl'])
     assert inidb.whosdb.canIPostToPostable(inidb.users['jayluker'],inidb.users['jayluker'], inidb.group_libraries['mlgl'])
+
+def test_posting_caniposttopostable_notallowed(inidb, capsys):
+    #not in library
+    assert not inidb.whosdb.canIPostToPostable(inidb.users['jayluker'],inidb.users['jayluker'], inidb.libraries['mll'])
+    #in library but cant write
+    assert not inidb.whosdb.canIPostToPostable(inidb.users['rahuldave'],inidb.users['rahuldave'], inidb.group_libraries['gpgl'])
 
