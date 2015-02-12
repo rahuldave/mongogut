@@ -2,6 +2,14 @@ import pytest
 from pytest import raises
 from exc import MongoGutError
 
+
+#SOME THOUGHTS
+
+#1. i should probably test masquerading in general separately. especially in
+#conjunction with perms functions
+
+#2. FOR THE MOST PART WE WILL ASSUME CURRENTUSER=USERAS, mentioning when we dont.
+
 def notallowed(assertion):
     with raises(MongoGutError) as excinfo:
         assert assertion
@@ -91,7 +99,7 @@ def test_membership_getmembableinfo_allowed(inidb, capsys):
     inidb.whosdb.getMembableInfo(inidb.adsgutuser, inidb.users['jayluker'], "rahuldave/library:mll")
 
 
-def test_membership_getmembableinfo_allowed(inidb, capsys):
+def test_membership_getmembableinfo_notallowed(inidb, capsys):
     #notice i am allowed to masquerade as jayluker by perms system. need to shut this down TODO
     #so eventually the first of these two should give a different mongogut error
     with raises(MongoGutError) as excinfo:
@@ -104,3 +112,10 @@ def test_membership_getmembableinfo_allowed(inidb, capsys):
     print_exc(excinfo)
     out, err = capsys.readouterr()
     assert "must be member" in out
+
+#currentuser=useras from this point onwards in testing
+def test_posting_caniposttopostable_allowed(inidb, capsys):
+    assert inidb.whosdb.canIPostToPostable(inidb.users['rahuldave'],inidb.users['rahuldave'], inidb.libraries['mll'])
+    assert inidb.whosdb.canIPostToPostable(inidb.users['rahuldave'],inidb.users['rahuldave'], inidb.libraries['spl'])
+    assert inidb.whosdb.canIPostToPostable(inidb.users['jayluker'],inidb.users['jayluker'], inidb.group_libraries['mlgl'])
+
